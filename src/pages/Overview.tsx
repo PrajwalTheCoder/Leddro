@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Building2, 
-  Search, 
-  UploadCloud, 
-  Compass, 
-  ExternalLink, 
-  FileText, 
-  Mail, 
-  Play, 
-  AlertTriangle, 
-  CheckCircle2, 
-  X, 
+import {
+  Building2,
+  Search,
+  Plus,
+  UploadCloud,
+  Compass,
+  ExternalLink,
+  FileText,
+  Mail,
+  Play,
+  AlertTriangle,
+  CheckCircle2,
+  X,
   ChevronRight,
   ShieldCheck,
   Globe,
@@ -21,8 +22,6 @@ import {
   Lock,
   Layers,
   Sparkles,
-  Radar,
-  Radio,
   Timer,
   Terminal,
   Activity,
@@ -30,10 +29,8 @@ import {
   TrendingUp,
   Copy,
   Check,
-  Plus,
   Minus,
   Maximize2,
-  Calendar,
   AlertCircle
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
@@ -41,80 +38,113 @@ import { Button } from '../components/common/Button';
 import { ImportModal } from '../components/common/ImportModal';
 import { NewProspectModal } from '../components/common/NewProspectModal';
 import { GenerateDraftModal } from '../components/common/GenerateDraftModal';
-import { ProspectStatus, WebsiteCondition } from '../types';
 
 export const Overview: React.FC = () => {
-  const { 
-    prospects, 
-    selectedProspectId, 
-    selectedProspect, 
-    setSelectedProspectId, 
-    runAudit, 
-    isAuditing, 
-    auditingProspectId, 
+  const {
+    prospects,
+    selectedProspectId,
+    selectedProspect,
+    setSelectedProspectId,
+    runAudit,
+    isAuditing,
+    auditingProspectId,
     auditProgressMessage,
     auditReports,
     filterQuery,
     setFilterQuery
   } = useApp();
 
-  type DashboardFilter = 'all' | 'active' | 'needs_review' | 'draft_ready' | 'offline' | 'high_priority';
-  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilter>('all');
-
   const navigate = useNavigate();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isNewProspectModalOpen, setIsNewProspectModalOpen] = useState(false);
-  const [showInspectorCard, setShowInspectorCard] = useState(true);
-  const [showLogs, setShowLogs] = useState(true);
-  const [liveRadar, setLiveRadar] = useState(true);
-  const [radarZoom, setRadarZoom] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [copiedTerminal, setCopiedTerminal] = useState(false);
-
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [generateTargetId, setGenerateTargetId] = useState<string | null>(null);
 
-  // Fallback selected prospect if none is currently selected
+  // Tactical Dashboard State (Image 1 Controls)
+  type DashboardFilter = 'all' | 'active' | 'needs_review' | 'draft_ready' | 'offline' | 'high_priority';
+  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilter>('all');
+  const [showLogs, setShowLogs] = useState(true);
+  const [liveRadar, setLiveRadar] = useState(true);
+  const [showInspectorCard, setShowInspectorCard] = useState(true);
+  const [radarZoom, setRadarZoom] = useState(1);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [copiedTerminal, setCopiedTerminal] = useState(false);
+  const [sortBy, setSortBy] = useState<'score' | 'name' | 'activity'>('score');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  // Active target prospect (defaults to selected or first prospect in array)
   const activeTarget = selectedProspect || prospects[0];
 
-  const selectedAudit = activeTarget?.latestAuditId 
-    ? auditReports[activeTarget.latestAuditId] 
+  const selectedAudit = activeTarget?.latestAuditId
+    ? auditReports[activeTarget.latestAuditId]
     : undefined;
 
   // Filter prospects
   const filteredProspects = useMemo(() => {
     return prospects.filter((p) => {
-      // Search query
-      const matchesSearch = 
+      // Search
+      const matchesSearch =
         p.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(filterQuery.toLowerCase()) ||
         p.location.city.toLowerCase().includes(filterQuery.toLowerCase()) ||
         (p.websiteUrl && p.websiteUrl.toLowerCase().includes(filterQuery.toLowerCase()));
       if (!matchesSearch) return false;
 
-      // Category filter
+      // Category
       if (categoryFilter !== 'all' && p.category.toLowerCase() !== categoryFilter.toLowerCase()) {
         return false;
       }
 
-      // Status pill filter
+      // Filter pills from Image 1
       if (dashboardFilter === 'active') return p.auditCount > 0;
       if (dashboardFilter === 'needs_review') return p.status === 'needs_review';
       if (dashboardFilter === 'draft_ready') return p.status === 'draft_ready';
-      if (dashboardFilter === 'offline') return p.websiteStatus === 'unreachable' || p.websiteStatus === 'dns_error' || p.websiteStatus === 'ssl_expired';
+      if (dashboardFilter === 'offline') return ['unreachable', 'dns_error', 'ssl_expired'].includes(p.websiteStatus);
       if (dashboardFilter === 'high_priority') return p.opportunityScore >= 80;
 
       return true;
+    }).sort((a, b) => {
+      if (sortBy === 'score') {
+        return sortAsc ? a.opportunityScore - b.opportunityScore : b.opportunityScore - a.opportunityScore;
+      }
+      if (sortBy === 'name') {
+        return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+      return 0;
     });
-  }, [prospects, filterQuery, categoryFilter, dashboardFilter]);
+  }, [prospects, filterQuery, categoryFilter, dashboardFilter, sortBy, sortAsc]);
 
-  // Derived metrics
+  // Derived metrics matching Image 1
   const totalCount = prospects.length;
   const auditedCount = prospects.filter((p) => p.auditCount > 0).length;
   const reviewCount = prospects.filter((p) => p.status === 'needs_review').length;
   const draftReadyCount = prospects.filter((p) => p.status === 'draft_ready').length;
   const offlineCount = prospects.filter((p) => ['unreachable', 'dns_error', 'ssl_expired'].includes(p.websiteStatus)).length;
   const auditCoveragePercent = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 0;
+
+  // Precomputed coordinates for radar target nodes
+  const radarNodes = useMemo(() => {
+    const defaultPositions = [
+      { top: '48%', left: '58%' }, // Center-right (primary target)
+      { top: '28%', left: '42%' }, // Top-left
+      { top: '72%', left: '74%' }, // Bottom-right
+      { top: '35%', left: '70%' }, // Top-right
+      { top: '65%', left: '38%' }, // Bottom-left
+      { top: '22%', left: '56%' }, // Top-center
+    ];
+
+    return prospects.slice(0, 6).map((p, idx) => {
+      const pos = defaultPositions[idx % defaultPositions.length];
+      const isSelected = activeTarget?.id === p.id;
+      let colorType = 'lime';
+      if (p.websiteStatus === 'ssl_expired' || p.websiteStatus === 'unreachable') {
+        colorType = 'rose';
+      } else if (p.websiteStatus === 'broken_pages' || p.status === 'needs_review') {
+        colorType = 'amber';
+      }
+      return { ...p, pos, isSelected, colorType };
+    });
+  }, [prospects, activeTarget]);
 
   // Handlers
   const handleAuditClick = async (prospectId: string, e?: React.MouseEvent) => {
@@ -136,37 +166,6 @@ export const Overview: React.FC = () => {
     setTimeout(() => setCopiedTerminal(false), 2000);
   };
 
-  // Precomputed coordinates for radar nodes
-  const radarNodes = useMemo(() => {
-    const positions = [
-      { top: '48%', left: '58%' },
-      { top: '28%', left: '42%' },
-      { top: '72%', left: '74%' },
-      { top: '35%', left: '70%' },
-      { top: '65%', left: '38%' },
-      { top: '22%', left: '56%' },
-      { top: '55%', left: '80%' },
-    ];
-
-    return prospects.slice(0, 7).map((p, idx) => {
-      const pos = positions[idx % positions.length];
-      const isSelected = activeTarget?.id === p.id;
-      let colorType = 'lime';
-      if (p.websiteStatus === 'ssl_expired' || p.websiteStatus === 'unreachable') {
-        colorType = 'rose';
-      } else if (p.websiteStatus === 'broken_pages' || p.status === 'needs_review') {
-        colorType = 'amber';
-      }
-
-      return {
-        ...p,
-        pos,
-        isSelected,
-        colorType
-      };
-    });
-  }, [prospects, activeTarget]);
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-[#0D1017] text-[#F3F4F6] selection:bg-[#D2F824] selection:text-black">
       <div className="max-w-[1520px] w-full mx-auto px-5 lg:px-7 pt-5 pb-12">
@@ -186,7 +185,7 @@ export const Overview: React.FC = () => {
               <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
               <span className="text-[#586274]">•</span>
               <span className="flex items-center gap-1 text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Real-time local intelligence &amp; audit matrix
               </span>
             </p>
@@ -218,7 +217,7 @@ export const Overview: React.FC = () => {
           </div>
         </div>
 
-        {/* FILTER PILLS BAR & REAL-TIME TOGGLES */}
+        {/* FILTER PILLS BAR & REAL-TIME TOGGLES (Matching Image 1) */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-2 rounded-xl bg-[#161A23] border border-[#262D3D] mb-6 shadow-md">
           {/* Filter Pills List */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
@@ -294,20 +293,19 @@ export const Overview: React.FC = () => {
               </span>
             </button>
 
+            {/* Tune Icon */}
             <button 
               onClick={() => setDashboardFilter(dashboardFilter === 'high_priority' ? 'all' : 'high_priority')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                dashboardFilter === 'high_priority'
-                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
-                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
+              className={`w-8 h-8 rounded-lg flex items-center justify-center border border-[#262D3D] ml-1 transition-colors ${
+                dashboardFilter === 'high_priority' ? 'bg-[#232938] text-[#D2F824] border-[#D2F824]/40' : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
+              title="Filter Score ≥ 80"
             >
-              <span>Score ≥ 80</span>
+              <SlidersHorizontal className="w-4 h-4" />
             </button>
-
           </div>
 
-          {/* Right Side Tactical Toggles */}
+          {/* Right Side Tactical Toggles (Matching Image 1) */}
           <div className="flex items-center gap-4 text-xs font-mono text-[#8B949E] px-2">
             {/* Toggle 1: Show Diagnostic Logs */}
             <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -338,11 +336,11 @@ export const Overview: React.FC = () => {
           </div>
         </div>
 
-        {/* TACTICAL COMMAND CENTER: RADAR & ACTIVE INSPECTOR TELEMETRY */}
+        {/* TACTICAL COMMAND CENTER: RADAR & ACTIVE INSPECTOR TELEMETRY (Image 1 Canvas) */}
         <section className="mb-6 rounded-2xl bg-[#161A23] border border-[#262D3D] overflow-hidden relative shadow-2xl">
           {/* Interactive Radar / Diagnostic Map Canvas Area */}
           <div 
-            className="relative w-full h-[400px] lg:h-[440px] bg-[#0A0D13] tactical-grid overflow-hidden transition-all duration-300"
+            className="relative w-full h-[410px] lg:h-[450px] bg-[#0A0D13] tactical-grid overflow-hidden transition-all duration-300"
             style={{ transform: `scale(${radarZoom})`, transformOrigin: 'center center' }}
           >
             {/* Compass / Orientation Rose (Top Right HUD Gizmo) */}
@@ -420,7 +418,7 @@ export const Overview: React.FC = () => {
               );
             })}
 
-            {/* OVERLAID ACTIVE INSPECTION PANEL (Haulix / MiroFish Inspector card) */}
+            {/* OVERLAID ACTIVE INSPECTION PANEL (Exact match from Image 1) */}
             {activeTarget && showInspectorCard && (
               <div className="absolute top-4 left-4 z-20 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2">
                 {/* Header of card */}
@@ -490,7 +488,7 @@ export const Overview: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Two Dual Gauges: Opportunity Score & Page Load Speed */}
+                {/* Two Dual Gauges (Exact Speedometer Match from Image 1) */}
                 <div className="grid grid-cols-2 gap-3 pt-3">
                   {/* Gauge 1: Opportunity Score */}
                   <div className="p-2.5 rounded-lg bg-[#1C212D] border border-[#262D3D] flex flex-col items-center relative overflow-hidden">
@@ -564,35 +562,33 @@ export const Overview: React.FC = () => {
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-amber-400 font-medium mt-0.5 truncate max-w-[140px]">
-                      {activeTarget.websiteStatus === 'active' ? 'Clean headers' : 'Needs asset compression'}
+                      {activeTarget.websiteStatus === 'active' ? 'Clean headers' : '3 uncompressed images'}
                     </span>
                   </div>
                 </div>
 
                 {/* Card Bottom Tactical Warning Alert Banner */}
-                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
-                  <div className="flex items-start gap-2 text-xs font-mono text-amber-300">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <span className="leading-snug">
+                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-mono text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="truncate max-w-[220px]">
                       {activeTarget.recommendedAction}
                     </span>
                   </div>
-                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-500/20">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button 
+                      onClick={(e) => handleCreateDraftClick(activeTarget.id, e)}
+                      className="px-2 py-0.5 rounded bg-[#D2F824] text-black font-semibold text-[10px] font-mono hover:bg-[#bce018] transition-colors"
+                    >
+                      Draft Pitch
+                    </button>
                     <button 
                       onClick={(e) => handleAuditClick(activeTarget.id, e)}
                       disabled={isAuditing}
-                      className="px-2 py-1 rounded bg-[#1C212D] text-xs font-mono text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40 flex items-center gap-1"
+                      className="p-1 rounded bg-[#1C212D] text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40"
                       title="Run audit"
                     >
                       <Play className="w-3 h-3" />
-                      <span>{activeTarget.auditCount > 0 ? 'Re-Audit' : 'Run Audit'}</span>
-                    </button>
-                    <button 
-                      onClick={(e) => handleCreateDraftClick(activeTarget.id, e)}
-                      className="px-3 py-1 rounded bg-[#D2F824] text-black font-semibold text-xs font-mono hover:bg-[#bce018] shadow-[0_0_8px_rgba(210,248,36,0.3)] transition-colors flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      <span>Draft Pitch</span>
                     </button>
                   </div>
                 </div>
@@ -650,7 +646,7 @@ export const Overview: React.FC = () => {
           </div>
         </section>
 
-        {/* 4 ELEVATED METRIC TELEMETRY CARDS */}
+        {/* 4 ELEVATED METRIC TELEMETRY CARDS (Image 1 Match) */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* Metric 1: Total Prospects */}
           <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-lg hover:border-[#D2F824]/40 transition-colors flex flex-col justify-between">
