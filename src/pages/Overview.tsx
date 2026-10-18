@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   Search, 
-  Filter, 
-  Plus, 
   UploadCloud, 
   Compass, 
   ExternalLink, 
@@ -22,7 +20,21 @@ import {
   ArrowUpDown,
   Lock,
   Layers,
-  Sparkles
+  Sparkles,
+  Radar,
+  Radio,
+  Timer,
+  Terminal,
+  Activity,
+  History,
+  TrendingUp,
+  Copy,
+  Check,
+  Plus,
+  Minus,
+  Maximize2,
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -30,7 +42,6 @@ import { ImportModal } from '../components/common/ImportModal';
 import { NewProspectModal } from '../components/common/NewProspectModal';
 import { GenerateDraftModal } from '../components/common/GenerateDraftModal';
 import { ProspectStatus, WebsiteCondition } from '../types';
-
 
 export const Overview: React.FC = () => {
   const { 
@@ -42,27 +53,38 @@ export const Overview: React.FC = () => {
     isAuditing, 
     auditingProspectId, 
     auditProgressMessage,
-    createEmailDraftForProspect,
     auditReports,
-    activeFilter,
-    setActiveFilter,
     filterQuery,
     setFilterQuery
   } = useApp();
 
+  type DashboardFilter = 'all' | 'active' | 'needs_review' | 'draft_ready' | 'offline' | 'high_priority';
+  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilter>('all');
+
   const navigate = useNavigate();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isNewProspectModalOpen, setIsNewProspectModalOpen] = useState(false);
-  const [showDetailPanel, setShowDetailPanel] = useState(true);
-  const [sortBy, setSortBy] = useState<'score' | 'name' | 'activity'>('score');
-  const [sortAsc, setSortAsc] = useState(false);
-  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
-  const [showAlertsOnly, setShowAlertsOnly] = useState(false);
+  const [showInspectorCard, setShowInspectorCard] = useState(true);
+  const [showLogs, setShowLogs] = useState(true);
+  const [liveRadar, setLiveRadar] = useState(true);
+  const [radarZoom, setRadarZoom] = useState(1);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [copiedTerminal, setCopiedTerminal] = useState(false);
+
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [generateTargetId, setGenerateTargetId] = useState<string | null>(null);
+
+  // Fallback selected prospect if none is currently selected
+  const activeTarget = selectedProspect || prospects[0];
+
+  const selectedAudit = activeTarget?.latestAuditId 
+    ? auditReports[activeTarget.latestAuditId] 
+    : undefined;
 
   // Filter prospects
-  const filteredProspects = prospects
-    .filter((p) => {
-      // Search
+  const filteredProspects = useMemo(() => {
+    return prospects.filter((p) => {
+      // Search query
       const matchesSearch = 
         p.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -70,36 +92,31 @@ export const Overview: React.FC = () => {
         (p.websiteUrl && p.websiteUrl.toLowerCase().includes(filterQuery.toLowerCase()));
       if (!matchesSearch) return false;
 
-      // Status pill filter
-      if (activeFilter === 'needs_audit') return p.status === 'needs_audit' || p.auditCount === 0;
-      if (activeFilter === 'needs_review') return p.status === 'needs_review';
-      if (activeFilter === 'draft_ready') return p.status === 'draft_ready';
-      if (activeFilter === 'contacted') return p.status === 'contacted';
-      if (activeFilter === 'high_priority') return p.opportunityScore >= 80;
+      // Category filter
+      if (categoryFilter !== 'all' && p.category.toLowerCase() !== categoryFilter.toLowerCase()) {
+        return false;
+      }
 
-      // Toggles
-      if (showVerifiedOnly && p.auditCount === 0) return false;
-      if (showAlertsOnly && p.websiteStatus === 'active') return false;
+      // Status pill filter
+      if (dashboardFilter === 'active') return p.auditCount > 0;
+      if (dashboardFilter === 'needs_review') return p.status === 'needs_review';
+      if (dashboardFilter === 'draft_ready') return p.status === 'draft_ready';
+      if (dashboardFilter === 'offline') return p.websiteStatus === 'unreachable' || p.websiteStatus === 'dns_error' || p.websiteStatus === 'ssl_expired';
+      if (dashboardFilter === 'high_priority') return p.opportunityScore >= 80;
 
       return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'score') {
-        return sortAsc ? a.opportunityScore - b.opportunityScore : b.opportunityScore - a.opportunityScore;
-      }
-      if (sortBy === 'name') {
-        return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      }
-      return 0;
     });
+  }, [prospects, filterQuery, categoryFilter, dashboardFilter]);
 
-  const selectedAudit = selectedProspect?.latestAuditId 
-    ? auditReports[selectedProspect.latestAuditId] 
-    : undefined;
+  // Derived metrics
+  const totalCount = prospects.length;
+  const auditedCount = prospects.filter((p) => p.auditCount > 0).length;
+  const reviewCount = prospects.filter((p) => p.status === 'needs_review').length;
+  const draftReadyCount = prospects.filter((p) => p.status === 'draft_ready').length;
+  const offlineCount = prospects.filter((p) => ['unreachable', 'dns_error', 'ssl_expired'].includes(p.websiteStatus)).length;
+  const auditCoveragePercent = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 0;
 
-  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
-  const [generateTargetId, setGenerateTargetId] = useState<string | null>(null);
-
+  // Handlers
   const handleAuditClick = async (prospectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     await runAudit(prospectId);
@@ -112,502 +129,895 @@ export const Overview: React.FC = () => {
     setIsGenerateModalOpen(true);
   };
 
+  const handleCopyTerminal = () => {
+    const rawText = `// Raw HTTP socket inspection\n> GET /contact HTTP/1.1 → 404 Not Found\nServer: nginx/1.18.0 (Ubuntu)\nContent-Type: text/html; charset=UTF-8\nX-Frame-Options: SAMEORIGIN\nStrict-Transport-Security: max-age=0\n> Response checksum: 0x9AF83E12\nHost: ${activeTarget?.websiteUrl ? activeTarget.websiteUrl.replace(/https?:\/\//, '') : 'localhost'}`;
+    navigator.clipboard.writeText(rawText);
+    setCopiedTerminal(true);
+    setTimeout(() => setCopiedTerminal(false), 2000);
+  };
+
+  // Precomputed coordinates for radar nodes
+  const radarNodes = useMemo(() => {
+    const positions = [
+      { top: '48%', left: '58%' },
+      { top: '28%', left: '42%' },
+      { top: '72%', left: '74%' },
+      { top: '35%', left: '70%' },
+      { top: '65%', left: '38%' },
+      { top: '22%', left: '56%' },
+      { top: '55%', left: '80%' },
+    ];
+
+    return prospects.slice(0, 7).map((p, idx) => {
+      const pos = positions[idx % positions.length];
+      const isSelected = activeTarget?.id === p.id;
+      let colorType = 'lime';
+      if (p.websiteStatus === 'ssl_expired' || p.websiteStatus === 'unreachable') {
+        colorType = 'rose';
+      } else if (p.websiteStatus === 'broken_pages' || p.status === 'needs_review') {
+        colorType = 'amber';
+      }
+
+      return {
+        ...p,
+        pos,
+        isSelected,
+        colorType
+      };
+    });
+  }, [prospects, activeTarget]);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#111214]">
-      {/* Top Header Strip with Title, Filters, and Primary Actions */}
-      <div className="px-6 pt-5 pb-3 border-b border-[#22252A] flex flex-col gap-3 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-[#0D1017] text-[#F3F4F6] selection:bg-[#D2F824] selection:text-black">
+      <div className="max-w-[1520px] w-full mx-auto px-5 lg:px-7 pt-5 pb-12">
+        
+        {/* PAGE TITLE & LIVE STATUS HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-[24px] font-semibold text-[#F3F4F6] tracking-tight leading-tight">
-              Overview
-            </h1>
-            <p className="text-[12px] text-[#A0A5AD] mt-0.5">
-              Your prospect research and technical opportunity matrix at a glance.
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl lg:text-[26px] font-bold tracking-tight text-white font-sans">
+                Operations Dashboard
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#D2F824]/10 text-[#D2F824] border border-[#D2F824]/30 font-medium">
+                v1.4 LIVE
+              </span>
+            </div>
+            <p className="text-xs text-[#8B949E] font-mono mt-1 flex items-center gap-2">
+              <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <span className="text-[#586274]">•</span>
+              <span className="flex items-center gap-1 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                Real-time local intelligence &amp; audit matrix
+              </span>
             </p>
           </div>
 
-          {/* Primary Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => navigate('/discover')}
-              leftIcon={<Compass className="w-4 h-4" />}
-            >
-              Discover prospects
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
+          {/* Action cluster */}
+          <div className="flex items-center gap-2.5">
+            <button 
               onClick={() => setIsImportModalOpen(true)}
-              leftIcon={<UploadCloud className="w-4 h-4" />}
+              className="h-8 px-3 rounded-lg bg-[#161A23] border border-[#262D3D] text-xs text-[#F3F4F6] hover:border-[#D2F824]/40 flex items-center gap-1.5 font-medium transition-colors"
             >
-              Import CSV
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
+              <UploadCloud className="w-4 h-4 text-[#D2F824]" />
+              <span>Import CSV</span>
+            </button>
+            <button 
               onClick={() => setIsNewProspectModalOpen(true)}
-              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-8 px-3 rounded-lg bg-[#161A23] border border-[#262D3D] text-xs text-[#8B949E] hover:text-white flex items-center gap-1.5 font-mono transition-colors"
             >
-              Add Prospect
-            </Button>
+              <Plus className="w-4 h-4" />
+              <span>Add Target</span>
+            </button>
+            <button 
+              onClick={() => navigate('/discover')}
+              className="h-8 px-3.5 rounded-lg bg-[#D2F824] text-black font-semibold text-xs flex items-center gap-1.5 hover:bg-[#bce018] shadow-[0_0_12px_rgba(210,248,36,0.25)] transition-all"
+            >
+              <Compass className="w-4 h-4" />
+              <span>Discover Prospects</span>
+            </button>
           </div>
         </div>
 
-        {/* Filter Pill Row (Matching Haulix UI style: All 10, Active 6, Idle 2, Maintenance 1, etc.) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        {/* FILTER PILLS BAR & REAL-TIME TOGGLES */}
+        <div className="flex flex-wrap items-center justify-between gap-4 p-2 rounded-xl bg-[#161A23] border border-[#262D3D] mb-6 shadow-md">
+          {/* Filter Pills List */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
             <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                activeFilter === 'all'
-                  ? 'bg-[#F3F4F6] text-[#111214]'
-                  : 'bg-[#17191C] text-[#A0A5AD] hover:text-[#F3F4F6] border border-[#2B2F36]'
+              onClick={() => setDashboardFilter('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                dashboardFilter === 'all'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
             >
-              All <span className="ml-1 opacity-75">{prospects.length}</span>
+              <span>All</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                dashboardFilter === 'all' ? 'bg-[#D2F824] text-black' : 'bg-[#1C212D] text-[#8B949E]'
+              }`}>
+                {totalCount}
+              </span>
             </button>
+
             <button
-              onClick={() => setActiveFilter('needs_review')}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                activeFilter === 'needs_review'
-                  ? 'bg-[#F3F4F6] text-[#111214]'
-                  : 'bg-[#17191C] text-[#A0A5AD] hover:text-[#F3F4F6] border border-[#2B2F36]'
+              onClick={() => setDashboardFilter('active')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                dashboardFilter === 'active'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
             >
-              Needs review <span className="ml-1 opacity-75">{prospects.filter((p) => p.status === 'needs_review').length}</span>
+              <span>Active</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-[#8B949E]">
+                {auditedCount}
+              </span>
             </button>
+
             <button
-              onClick={() => setActiveFilter('draft_ready')}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                activeFilter === 'draft_ready'
-                  ? 'bg-[#F3F4F6] text-[#111214]'
-                  : 'bg-[#17191C] text-[#A0A5AD] hover:text-[#F3F4F6] border border-[#2B2F36]'
+              onClick={() => setDashboardFilter('needs_review')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                dashboardFilter === 'needs_review'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
             >
-              Draft ready <span className="ml-1 opacity-75">{prospects.filter((p) => p.status === 'draft_ready').length}</span>
+              <span>Needs Review</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-amber-400">
+                {reviewCount}
+              </span>
             </button>
+
             <button
-              onClick={() => setActiveFilter('needs_audit')}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                activeFilter === 'needs_audit'
-                  ? 'bg-[#F3F4F6] text-[#111214]'
-                  : 'bg-[#17191C] text-[#A0A5AD] hover:text-[#F3F4F6] border border-[#2B2F36]'
+              onClick={() => setDashboardFilter('draft_ready')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                dashboardFilter === 'draft_ready'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
             >
-              Needs audit <span className="ml-1 opacity-75">{prospects.filter((p) => p.auditCount === 0).length}</span>
+              <span>Draft Ready</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-emerald-400">
+                {draftReadyCount}
+              </span>
             </button>
+
             <button
-              onClick={() => setActiveFilter('high_priority')}
-              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                activeFilter === 'high_priority'
-                  ? 'bg-[#F3F4F6] text-[#111214]'
-                  : 'bg-[#17191C] text-[#A0A5AD] hover:text-[#F3F4F6] border border-[#2B2F36]'
+              onClick={() => setDashboardFilter('offline')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                dashboardFilter === 'offline'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
               }`}
             >
-              Score ≥ 80 <span className="ml-1 opacity-75">{prospects.filter((p) => p.opportunityScore >= 80).length}</span>
+              <span>Offline</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-[#586274]">
+                {offlineCount}
+              </span>
             </button>
+
+            <button 
+              onClick={() => setDashboardFilter(dashboardFilter === 'high_priority' ? 'all' : 'high_priority')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                dashboardFilter === 'high_priority'
+                  ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
+                  : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
+              }`}
+            >
+              <span>Score ≥ 80</span>
+            </button>
+
           </div>
 
-          {/* Right Switches (Like Haulix: Show routes / Show alerts) */}
-          <div className="flex items-center gap-4 text-[12px] text-[#A0A5AD]">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <span>Show audited only</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showVerifiedOnly}
-                onClick={() => setShowVerifiedOnly(!showVerifiedOnly)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                  showVerifiedOnly ? 'bg-[#80B89A]' : 'bg-[#2A2E35]'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#111214] shadow ring-0 transition duration-200 ease-in-out ${
-                    showVerifiedOnly ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+          {/* Right Side Tactical Toggles */}
+          <div className="flex items-center gap-4 text-xs font-mono text-[#8B949E] px-2">
+            {/* Toggle 1: Show Diagnostic Logs */}
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <span>Show logs</span>
+              <input 
+                type="checkbox" 
+                checked={showLogs} 
+                onChange={(e) => setShowLogs(e.target.checked)}
+                className="sr-only peer" 
+              />
+              <div className="w-9 h-5 bg-[#232938] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D2F824] peer-checked:after:bg-black"></div>
             </label>
 
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <span>Issues only</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showAlertsOnly}
-                onClick={() => setShowAlertsOnly(!showAlertsOnly)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                  showAlertsOnly ? 'bg-[#D8E7A2]' : 'bg-[#2A2E35]'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#111214] shadow ring-0 transition duration-200 ease-in-out ${
-                    showAlertsOnly ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+            {/* Toggle 2: Real-time Radar */}
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none border-l border-[#262D3D] pl-4">
+              <span className="flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${liveRadar ? 'bg-emerald-400 animate-pulse' : 'bg-[#586274]'}`}></span> 
+                Live radar
+              </span>
+              <input 
+                type="checkbox" 
+                checked={liveRadar} 
+                onChange={(e) => setLiveRadar(e.target.checked)}
+                className="sr-only peer" 
+              />
+              <div className="w-9 h-5 bg-[#232938] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D2F824] peer-checked:after:bg-black"></div>
             </label>
           </div>
         </div>
-      </div>
 
-      {/* Main Workspace Area: Table + Detail Inspector (Matches Haulix Layout) */}
-      <div className="flex-1 flex overflow-hidden p-6 gap-6 relative">
-        {/* Central Prospects Matrix / Table */}
-        <div className="flex-1 flex flex-col rounded border border-[#282B31] bg-[#17191C] overflow-hidden">
-          {/* Table Header Bar */}
-          <div className="px-4 py-2.5 border-b border-[#24272D] flex items-center justify-between bg-[#1D2024]/50">
-            <div className="flex items-center gap-2 text-[12px] text-[#A0A5AD]">
-              <span>Showing <strong>{filteredProspects.length}</strong> prospects</span>
-              {activeFilter !== 'all' && (
-                <span className="text-[11px] text-[#727780]">filtered by {activeFilter.replace('_', ' ')}</span>
-              )}
+        {/* TACTICAL COMMAND CENTER: RADAR & ACTIVE INSPECTOR TELEMETRY */}
+        <section className="mb-6 rounded-2xl bg-[#161A23] border border-[#262D3D] overflow-hidden relative shadow-2xl">
+          {/* Interactive Radar / Diagnostic Map Canvas Area */}
+          <div 
+            className="relative w-full h-[400px] lg:h-[440px] bg-[#0A0D13] tactical-grid overflow-hidden transition-all duration-300"
+            style={{ transform: `scale(${radarZoom})`, transformOrigin: 'center center' }}
+          >
+            {/* Compass / Orientation Rose (Top Right HUD Gizmo) */}
+            <div className="absolute top-4 right-4 z-20 w-24 h-24 rounded-full bg-[#161A23]/90 border border-[#262D3D]/80 backdrop-blur-md flex items-center justify-center shadow-xl">
+              <div className="relative w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-[#D2F824]/20 animate-compass"></div>
+                {/* Compass Needle */}
+                <div className="flex flex-col items-center">
+                  <span className="text-[11px] font-mono font-bold text-[#D2F824] tracking-widest">NW</span>
+                  <div className="w-1 h-8 bg-gradient-to-b from-rose-500 via-amber-400 to-transparent rounded-full shadow-[0_0_8px_#f43f5e]"></div>
+                  <span className="text-[8px] font-mono text-[#586274]">312°</span>
+                </div>
+                <span className="absolute top-1 text-[8px] font-mono text-[#8B949E]">N</span>
+                <span className="absolute bottom-1 text-[8px] font-mono text-[#586274]">S</span>
+                <span className="absolute right-1 text-[8px] font-mono text-[#586274]">E</span>
+                <span className="absolute left-1 text-[8px] font-mono text-[#586274]">W</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (sortBy === 'score') setSortAsc(!sortAsc);
-                  else {
-                    setSortBy('score');
-                    setSortAsc(false);
-                  }
-                }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-[#A0A5AD] hover:text-[#F3F4F6] hover:bg-[#24272C] transition-colors"
-              >
-                <ArrowUpDown className="w-3 h-3" />
-                Score {sortBy === 'score' ? (sortAsc ? '↑' : '↓') : ''}
-              </button>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-left border-collapse text-[12px]">
-              <thead className="sticky top-0 bg-[#1A1C20] text-[#727780] font-medium border-b border-[#24272D] z-10">
-                <tr>
-                  <th className="py-2.5 px-4 font-medium">Business</th>
-                  <th className="py-2.5 px-3 font-medium">Category</th>
-                  <th className="py-2.5 px-3 font-medium">Website Status</th>
-                  <th className="py-2.5 px-3 font-medium">Score</th>
-                  <th className="py-2.5 px-3 font-medium">Status</th>
-                  <th className="py-2.5 px-3 font-medium">Last Activity</th>
-                  <th className="py-2.5 px-4 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#202328] bg-[#17191C]">
-                {filteredProspects.map((p) => {
-                  const isSelected = selectedProspectId === p.id;
-                  const isRowAuditing = isAuditing && auditingProspectId === p.id;
-
-                  return (
-                    <tr
-                      key={p.id}
-                      onClick={() => {
-                        setSelectedProspectId(p.id);
-                        setShowDetailPanel(true);
-                      }}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-[#22262C] border-l-2 border-l-[#D8E7A2]'
-                          : 'hover:bg-[#1C1F24]'
-                      }`}
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded bg-[#1D2024] border border-[#2E3239] flex items-center justify-center shrink-0">
-                            <Building2 className="w-3.5 h-3.5 text-[#A0A5AD]" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-[#F3F4F6] text-[13px] flex items-center gap-1.5">
-                              {p.name}
-                              {p.tags.includes('High Value') && (
-                                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#2A2518] text-[#D8B16C] border border-[#44381F]">
-                                  VIP
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-[#727780] font-mono truncate max-w-xs">
-                              {p.websiteUrl ? p.websiteUrl.replace(/https?:\/\//, '') : 'No website registered'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3 text-[#A0A5AD]">
-                        <div>{p.category}</div>
-                        <div className="text-[11px] text-[#727780]">{p.location.city}, {p.location.state}</div>
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <Badge variant="website" websiteStatus={p.websiteStatus} size="sm" />
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-mono font-medium text-[12px] px-1.5 py-0.5 rounded border ${
-                            p.opportunityScore >= 80 
-                              ? 'bg-[#242A1B] text-[#D8E7A2] border-[#3E4929]'
-                              : p.opportunityScore >= 65
-                              ? 'bg-[#262419] text-[#D8B16C] border-[#443B21]'
-                              : 'bg-[#1F2228] text-[#A0A5AD] border-[#2E333C]'
-                          }`}>
-                            {p.opportunityScore}/100
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <Badge variant="status" prospectStatus={p.status} size="sm" />
-                      </td>
-
-                      <td className="py-3 px-3 text-[11px] text-[#727780] font-mono">
-                        {p.lastActivity}
-                      </td>
-
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            title="Run website diagnostic audit"
-                            onClick={(e) => handleAuditClick(p.id, e)}
-                            disabled={isAuditing}
-                            className="p-1.5 rounded hover:bg-[#282C33] text-[#A0A5AD] hover:text-[#D8E7A2] transition-colors disabled:opacity-40"
-                          >
-                            <Play className={`w-3.5 h-3.5 ${isRowAuditing ? 'animate-spin' : ''}`} />
-                          </button>
-                          <button
-                            title="Generate AI email draft"
-                            onClick={(e) => handleCreateDraftClick(p.id, e)}
-                            className="p-1.5 rounded hover:bg-[#282C33] text-[#A0A5AD] hover:text-[#D8E7A2] transition-colors"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            title="View full audit dossier"
-                            onClick={() => {
-                              setSelectedProspectId(p.id);
-                              navigate('/audits');
-                            }}
-                            className="p-1.5 rounded hover:bg-[#282C33] text-[#A0A5AD] hover:text-[#F3F4F6] transition-colors"
-                          >
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {filteredProspects.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-[#727780]">
-                      <div className="flex flex-col items-center gap-2">
-                        <Building2 className="w-8 h-8 text-[#30343A]" />
-                        <div className="text-[13px] text-[#A0A5AD]">No prospects match the selected filter.</div>
-                        <Button variant="secondary" size="sm" onClick={() => { setActiveFilter('all'); setFilterQuery(''); }}>
-                          Reset Filters
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+            {/* Radar Sweep Ring & Coordinates in Center */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+              <div className="relative w-[520px] h-[520px] rounded-full border border-[#D2F824]/10 flex items-center justify-center">
+                <div className="w-[360px] h-[360px] rounded-full border border-[#D2F824]/15"></div>
+                <div className="w-[200px] h-[200px] rounded-full border border-[#D2F824]/20"></div>
+                {liveRadar && (
+                  <div className="absolute inset-0 rounded-full animate-radar bg-gradient-to-tr from-[#D2F824]/10 via-transparent to-transparent"></div>
                 )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Audit progress banner if auditing */}
-          {isAuditing && (
-            <div className="px-4 py-2 bg-[#20251B] border-t border-[#374225] flex items-center justify-between text-[12px] text-[#D8E7A2] shrink-0 animate-in fade-in">
-              <div className="flex items-center gap-2 font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
-                <span>Engine: {auditProgressMessage}</span>
               </div>
-              <span className="text-[11px] text-[#A0A5AD]">Simulated headless crawler</span>
             </div>
-          )}
-        </div>
 
-        {/* Right-Side Detail Panel (Styled after the Haulix overlay inspector card) */}
-        {selectedProspect && showDetailPanel && (
-          <div className="w-88 lg:w-96 shrink-0 rounded border border-[#30343A] bg-[#17191C] shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2">
-            {/* Inspector Top Bar */}
-            <div className="px-4 py-3 bg-[#1D2024] border-b border-[#2B2F36] flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded bg-[#24272C] border border-[#363B44] flex items-center justify-center shrink-0">
-                  <Building2 className="w-3.5 h-3.5 text-[#D8E7A2]" />
-                </div>
-                <div className="truncate">
-                  <div className="text-[13px] font-semibold text-[#F3F4F6] truncate leading-tight">
-                    {selectedProspect.name}
+            {/* MiroFish-style Node Network Lines Connecting Targets */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30">
+              <line x1="58%" y1="48%" x2="42%" y2="28%" stroke="#D2F824" strokeWidth="1" strokeDasharray="3,3" />
+              <line x1="58%" y1="48%" x2="74%" y2="72%" stroke="#F43F5E" strokeWidth="1" strokeDasharray="3,3" />
+              <line x1="42%" y1="28%" x2="70%" y2="35%" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3,3" />
+            </svg>
+
+            {/* Pulsing Target Nodes on Map */}
+            {radarNodes.map((node) => {
+              const isSelected = activeTarget?.id === node.id;
+
+              return (
+                <div
+                  key={node.id}
+                  onClick={() => {
+                    setSelectedProspectId(node.id);
+                    setShowInspectorCard(true);
+                  }}
+                  style={{ top: node.pos.top, left: node.pos.left }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer group transition-transform hover:scale-110"
+                >
+                  {isSelected ? (
+                    <span className="relative flex h-8 w-8 items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D2F824] opacity-40"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-[#D2F824] shadow-[0_0_12px_#D2F824]"></span>
+                    </span>
+                  ) : node.colorType === 'rose' ? (
+                    <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] opacity-80 group-hover:opacity-100"></span>
+                  ) : node.colorType === 'amber' ? (
+                    <span className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] opacity-80 group-hover:opacity-100"></span>
+                  ) : (
+                    <span className="w-3.5 h-3.5 rounded-full bg-[#D2F824] shadow-[0_0_8px_#D2F824] opacity-80 group-hover:opacity-100"></span>
+                  )}
+
+                  <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-lg transition-all ${
+                    isSelected
+                      ? 'bg-[#1C212D]/95 border border-[#D2F824]/60 text-[#D2F824]'
+                      : 'bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E] group-hover:text-white'
+                  }`}>
+                    {node.websiteUrl ? node.websiteUrl.replace(/https?:\/\//, '') : node.name}
+                    {node.websiteStatus === 'broken_pages' && ' • 404 Route'}
+                    {node.websiteStatus === 'ssl_expired' && ' • SSL Expiring'}
                   </div>
-                  <div className="text-[11px] text-[#727780] truncate leading-none mt-0.5">
-                    {selectedProspect.category} · {selectedProspect.location.city}
+                </div>
+              );
+            })}
+
+            {/* OVERLAID ACTIVE INSPECTION PANEL (Haulix / MiroFish Inspector card) */}
+            {activeTarget && showInspectorCard && (
+              <div className="absolute top-4 left-4 z-20 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2">
+                {/* Header of card */}
+                <div className="flex items-start justify-between pb-3 border-b border-[#262D3D]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#1C212D] border border-[#262D3D] flex items-center justify-center text-[#D2F824]">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white font-sans truncate max-w-[200px]">
+                          {activeTarget.name}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          {activeTarget.auditCount > 0 ? 'Live Audit' : 'Target'}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-[#8B949E]">
+                        {activeTarget.category} • {activeTarget.location.city}
+                      </span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowInspectorCard(false)}
+                    className="text-[#586274] hover:text-white transition-colors" 
+                    title="Dismiss card"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Route / Audit Scope Progress Bar */}
+                <div className="py-3 border-b border-[#262D3D]/60">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1.5">
+                    <span className="text-[#8B949E]">Target Host → Contact Form Path</span>
+                    <span className={`font-semibold ${
+                      activeTarget.websiteStatus === 'broken_pages' || activeTarget.websiteStatus === 'unreachable'
+                        ? 'text-rose-400'
+                        : activeTarget.websiteStatus === 'ssl_expired'
+                        ? 'text-amber-400'
+                        : 'text-[#D2F824]'
+                    }`}>
+                      {activeTarget.websiteStatus === 'broken_pages'
+                        ? 'HTTP 404 Failure'
+                        : activeTarget.websiteStatus === 'ssl_expired'
+                        ? 'TLS Expiring'
+                        : activeTarget.websiteStatus === 'unreachable'
+                        ? 'Host Unreachable'
+                        : '200 OK Active'}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#1C212D] rounded-full overflow-hidden flex">
+                    <div 
+                      className="h-full bg-[#D2F824] rounded-full shadow-[0_0_8px_#D2F824]"
+                      style={{ width: `${Math.min(activeTarget.opportunityScore, 85)}%` }}
+                    ></div>
+                    <div 
+                      className="h-full bg-rose-500 rounded-r-full"
+                      style={{ width: `${Math.max(100 - activeTarget.opportunityScore, 15)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[11px] font-mono text-[#586274]">
+                    <span className="flex items-center gap-1 text-[#8B949E]">
+                      <Timer className="w-3.5 h-3.5 text-[#D2F824]" /> Latency: ~73ms
+                    </span>
+                    <span>Crawled {activeTarget.auditCount * 6 + 12}/24 sub-routes</span>
+                  </div>
+                </div>
+
+                {/* Two Dual Gauges: Opportunity Score & Page Load Speed */}
+                <div className="grid grid-cols-2 gap-3 pt-3">
+                  {/* Gauge 1: Opportunity Score */}
+                  <div className="p-2.5 rounded-lg bg-[#1C212D] border border-[#262D3D] flex flex-col items-center relative overflow-hidden">
+                    <div className="w-full flex items-center justify-between text-[11px] font-mono text-[#8B949E] mb-1">
+                      <span>Audit Score</span>
+                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold border ${
+                        activeTarget.opportunityScore >= 80
+                          ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          : 'bg-[#D2F824]/20 text-[#D2F824] border-[#D2F824]/30'
+                      }`}>
+                        {activeTarget.opportunityScore >= 80 ? 'HIGH ROI' : 'ACTIONABLE'}
+                      </span>
+                    </div>
+                    {/* Semi Gauge Ring SVG */}
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-24 h-24 -rotate-90">
+                        <circle cx="48" cy="48" fill="transparent" r="38" stroke="#252B3B" strokeWidth="6"></circle>
+                        <circle 
+                          className="drop-shadow-[0_0_6px_rgba(210,248,36,0.5)] transition-all duration-700" 
+                          cx="48" 
+                          cy="48" 
+                          fill="transparent" 
+                          r="38" 
+                          stroke="#D2F824" 
+                          strokeDasharray="238" 
+                          strokeDashoffset={238 - (238 * activeTarget.opportunityScore) / 100} 
+                          strokeLinecap="round" 
+                          strokeWidth="6"
+                        ></circle>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-mono font-bold text-white">
+                          {activeTarget.opportunityScore}<span className="text-[11px] text-[#8B949E]">/100</span>
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#D2F824] font-medium mt-0.5">
+                      High pitch viability
+                    </span>
+                  </div>
+
+                  {/* Gauge 2: Response & Assets Load */}
+                  <div className="p-2.5 rounded-lg bg-[#1C212D] border border-[#262D3D] flex flex-col items-center relative overflow-hidden">
+                    <div className="w-full flex items-center justify-between text-[11px] font-mono text-[#8B949E] mb-1">
+                      <span>Server Latency</span>
+                      <span className="px-1 py-0.2 rounded text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
+                        {activeTarget.websiteStatus === 'active' ? 'OPTIMAL' : 'SLOW'}
+                      </span>
+                    </div>
+                    {/* Radial Dial */}
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-24 h-24 -rotate-90">
+                        <circle cx="48" cy="48" fill="transparent" r="38" stroke="#252B3B" strokeWidth="6"></circle>
+                        <circle 
+                          cx="48" 
+                          cy="48" 
+                          fill="transparent" 
+                          r="38" 
+                          stroke="#F59E0B" 
+                          strokeDasharray="238" 
+                          strokeDashoffset="110" 
+                          strokeLinecap="round" 
+                          strokeWidth="6"
+                        ></circle>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-mono font-bold text-white">
+                          2.4<span className="text-[11px] text-[#8B949E]">s</span>
+                        </span>
+                        <span className="text-[9px] font-mono text-[#586274]">TTFB 73ms</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-amber-400 font-medium mt-0.5 truncate max-w-[140px]">
+                      {activeTarget.websiteStatus === 'active' ? 'Clean headers' : 'Needs asset compression'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card Bottom Tactical Warning Alert Banner */}
+                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+                  <div className="flex items-start gap-2 text-xs font-mono text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="leading-snug">
+                      {activeTarget.recommendedAction}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-500/20">
+                    <button 
+                      onClick={(e) => handleAuditClick(activeTarget.id, e)}
+                      disabled={isAuditing}
+                      className="px-2 py-1 rounded bg-[#1C212D] text-xs font-mono text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40 flex items-center gap-1"
+                      title="Run audit"
+                    >
+                      <Play className="w-3 h-3" />
+                      <span>{activeTarget.auditCount > 0 ? 'Re-Audit' : 'Run Audit'}</span>
+                    </button>
+                    <button 
+                      onClick={(e) => handleCreateDraftClick(activeTarget.id, e)}
+                      className="px-3 py-1 rounded bg-[#D2F824] text-black font-semibold text-xs font-mono hover:bg-[#bce018] shadow-[0_0_8px_rgba(210,248,36,0.3)] transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Draft Pitch</span>
+                    </button>
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="flex items-center gap-1">
-                <Badge variant="status" prospectStatus={selectedProspect.status} size="sm" />
-                <button
-                  onClick={() => setShowDetailPanel(false)}
-                  className="p-1 rounded text-[#727780] hover:text-[#F3F4F6] hover:bg-[#25282F]"
-                  title="Close Inspector"
+            {/* Bottom Floating Map Utilities HUD */}
+            <div className="absolute bottom-3 left-4 z-20 hidden md:flex items-center gap-2 text-[11px] font-mono text-[#586274]">
+              <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E]">
+                Space + Drag to pan
+              </span>
+              <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E]">
+                Scroll to zoom radius
+              </span>
+            </div>
+
+            <div className="absolute bottom-3 right-4 z-20 flex items-center gap-2 text-[11px] font-mono text-[#586274]">
+              <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-emerald-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                Engine ping: 12ms • Map updates every 3 min
+              </span>
+
+              {/* Map Zoom / Layer Tools */}
+              <div className="flex items-center bg-[#161A23]/90 border border-[#262D3D] rounded-lg p-0.5">
+                <button 
+                  onClick={() => setShowInspectorCard(!showInspectorCard)}
+                  className="p-1 text-[#8B949E] hover:text-white" 
+                  title="Toggle Inspector"
                 >
-                  <X className="w-4 h-4" />
+                  <Layers className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setRadarZoom((z) => Math.min(z + 0.1, 1.4))}
+                  className="p-1 text-[#8B949E] hover:text-white" 
+                  title="Zoom In"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setRadarZoom((z) => Math.max(z - 0.1, 0.8))}
+                  className="p-1 text-[#8B949E] hover:text-white" 
+                  title="Zoom Out"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setRadarZoom(1)}
+                  className="p-1 text-[#8B949E] hover:text-white" 
+                  title="Reset View"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
+          </div>
+        </section>
 
-            {/* Inspector Content (Scrollable) */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-              {/* Opportunity Score Block */}
-              <div className="rounded p-3 bg-[#111214] border border-[#24272D] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-medium text-[#A0A5AD]">Opportunity Score</span>
-                  <span className="text-[14px] font-mono font-semibold text-[#D8E7A2]">
-                    {selectedProspect.opportunityScore}/100
-                  </span>
-                </div>
-                {/* Restrained horizontal meter instead of truck speedometer */}
-                <div className="w-full bg-[#1D2024] h-2 rounded-full overflow-hidden border border-[#292D34]">
-                  <div
-                    className="h-full bg-[#D8E7A2] transition-all duration-500 rounded-full"
-                    style={{ width: `${selectedProspect.opportunityScore}%` }}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1 text-[11px] font-mono text-[#727780]">
-                  <div>Urgency: <strong className="text-[#A0A5AD]">{selectedProspect.scoreBreakdown.technicalUrgency}</strong></div>
-                  <div>Intent: <strong className="text-[#A0A5AD]">{selectedProspect.scoreBreakdown.commercialIntent}</strong></div>
-                  <div>Ease: <strong className="text-[#A0A5AD]">{selectedProspect.scoreBreakdown.resolutionEase}</strong></div>
-                </div>
-              </div>
-
-              {/* Website Status & Reachability */}
-              <div className="rounded p-3 bg-[#1D2024] border border-[#2A2E35] flex flex-col gap-2">
-                <div className="text-[11px] font-medium text-[#727780] uppercase tracking-wider">
-                  Target Domain Infrastructure
-                </div>
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[#A0A5AD]">Domain status:</span>
-                  <Badge variant="website" websiteStatus={selectedProspect.websiteStatus} size="sm" />
-                </div>
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[#A0A5AD]">URL:</span>
-                  {selectedProspect.websiteUrl ? (
-                    <a
-                      href={selectedProspect.websiteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-[11px] text-[#91B7D8] hover:underline flex items-center gap-1"
-                    >
-                      {selectedProspect.websiteUrl.replace(/https?:\/\//, '')}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  ) : (
-                    <span className="text-[11px] text-[#727780] italic">Unregistered in DNS</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[#A0A5AD]">Audits executed:</span>
-                  <span className="font-mono text-[#F3F4F6]">{selectedProspect.auditCount} run</span>
-                </div>
-              </div>
-
-              {/* Primary Recommended Action Card */}
-              <div className="rounded p-3 bg-[#201F18] border border-[#3C3622] flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#D8B16C]">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Recommended Action</span>
-                </div>
-                <p className="text-[12px] text-[#F3F4F6] leading-relaxed">
-                  {selectedProspect.recommendedAction}
-                </p>
-              </div>
-
-              {/* Latest Findings Summary */}
-              {selectedAudit ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-[12px]">
-                    <span className="font-medium text-[#A0A5AD]">Findings ({selectedAudit.findings.length})</span>
-                    <span className="text-[11px] font-mono text-[#727780]">{selectedAudit.timestamp}</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {selectedAudit.findings.map((f) => (
-                      <div
-                        key={f.id}
-                        className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1 text-[12px]"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-[#F3F4F6] truncate">{f.title}</span>
-                          <Badge variant="severity" severity={f.severity} size="sm" />
-                        </div>
-                        <p className="text-[11px] text-[#727780] line-clamp-2">{f.observed}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 rounded bg-[#111214] border border-[#24272D] text-center text-[12px] text-[#727780]">
-                  No audit report generated yet for this record.
-                </div>
-              )}
+        {/* 4 ELEVATED METRIC TELEMETRY CARDS */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Metric 1: Total Prospects */}
+          <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-lg hover:border-[#D2F824]/40 transition-colors flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#8B949E] text-xs font-mono mb-2">
+              <span>Total prospects</span>
+              <span className="w-7 h-7 rounded-lg bg-[#1C212D] flex items-center justify-center text-white">
+                <Building2 className="w-4 h-4" />
+              </span>
             </div>
-
-            {/* Direct Actions (Pinned at bottom) */}
-            <div className="p-4 border-t border-[#262A30] bg-[#17191C] shrink-0 flex flex-col gap-2">
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => handleAuditClick(selectedProspect.id)}
-                isLoading={isAuditing && auditingProspectId === selectedProspect.id}
-                leftIcon={<Play className="w-3.5 h-3.5" />}
-                className="w-full"
-              >
-                {selectedProspect.auditCount > 0 ? 'Re-run Website Audit' : 'Run Website Audit'}
-              </Button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={() => handleCreateDraftClick(selectedProspect.id)}
-                  leftIcon={<Mail className="w-3.5 h-3.5" />}
-                >
-                  Create Draft
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={() => {
-                    setSelectedProspectId(selectedProspect.id);
-                    navigate('/audits');
-                  }}
-                  leftIcon={<FileText className="w-3.5 h-3.5" />}
-                >
-                  View Dossier
-                </Button>
-              </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-bold font-mono text-white">{totalCount}</span>
+              <span className="text-[11px] font-mono text-[#D2F824] bg-[#D2F824]/10 border border-[#D2F824]/30 px-2 py-0.5 rounded-md flex items-center gap-1 font-semibold">
+                <TrendingUp className="w-3 h-3" /> +4 this week
+              </span>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Bottom Bar: Operational shortcuts & status (Like Haulix bottom hint bar) */}
-      <div className="px-6 py-2.5 bg-[#111214] border-t border-[#22252A] flex items-center justify-between text-[11px] text-[#727780] shrink-0 font-mono">
-        <div className="flex items-center gap-4">
-          <span>Use <strong>↑ / ↓</strong> to browse rows</span>
-          <span className="text-[#30343A]">|</span>
-          <span><strong>Esc</strong> to close inspector</span>
-          <span className="text-[#30343A]">|</span>
-          <span>Press <strong>⌘K</strong> for global command console</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#80B89A]" />
-          <span>Local SQLite cache synchronized</span>
+          {/* Metric 2: Audits Completed */}
+          <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-lg hover:border-[#D2F824]/40 transition-colors flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#8B949E] text-xs font-mono mb-2">
+              <span>Audits completed</span>
+              <span className="w-7 h-7 rounded-lg bg-[#1C212D] flex items-center justify-center text-[#D2F824]">
+                <ShieldCheck className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-bold font-mono text-white">{auditedCount}</span>
+              <span className="text-[11px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 rounded-md font-semibold">
+                {auditCoveragePercent}% coverage
+              </span>
+            </div>
+          </div>
+
+          {/* Metric 3: Ready to review */}
+          <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-lg hover:border-[#D2F824]/40 transition-colors flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#8B949E] text-xs font-mono mb-2">
+              <span>Ready to review</span>
+              <span className="w-7 h-7 rounded-lg bg-[#1C212D] flex items-center justify-center text-amber-400">
+                <AlertCircle className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-bold font-mono text-white">{reviewCount}</span>
+              <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md font-semibold">
+                Actionable findings
+              </span>
+            </div>
+          </div>
+
+          {/* Metric 4: Outreach Logged */}
+          <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-lg hover:border-[#D2F824]/40 transition-colors flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#8B949E] text-xs font-mono mb-2">
+              <span>Awaiting follow-up</span>
+              <span className="w-7 h-7 rounded-lg bg-[#1C212D] flex items-center justify-center text-emerald-400">
+                <Mail className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-bold font-mono text-white">{draftReadyCount}</span>
+              <span className="text-[11px] font-mono text-[#8B949E] bg-[#1C212D] border border-[#262D3D] px-2 py-0.5 rounded-md">
+                Outreach logged
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* TWO COLUMN WORKSPACE (Table + Timeline Activity & Terminal Probe) */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* LEFT 8-COLS: SLEEK RECENT PROSPECTS TABLE */}
+          <section className="xl:col-span-8 bg-[#161A23] border border-[#262D3D] rounded-xl shadow-xl overflow-hidden">
+            {/* Table Controls Header */}
+            <div className="p-4 border-b border-[#262D3D] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#161A23]/70">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-white font-sans uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#D2F824]"></span>
+                  Recent Prospects
+                </h2>
+                <span className="text-[11px] font-mono text-[#8B949E] bg-[#1C212D] border border-[#262D3D] px-2 py-0.5 rounded">
+                  {filteredProspects.length} active
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search filter input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#586274]" />
+                  <input 
+                    type="text" 
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    placeholder="Filter table..." 
+                    className="h-8 pl-8 pr-2.5 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-white placeholder:text-[#586274] focus:outline-none focus:border-[#D2F824]/60 w-36 sm:w-44 transition-colors"
+                  />
+                </div>
+
+                {/* Status Dropdown */}
+                <select 
+                  value={dashboardFilter}
+                  onChange={(e) => setDashboardFilter(e.target.value as any)}
+                  className="h-8 pl-2 pr-6 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-[#8B949E] focus:outline-none focus:border-[#D2F824]/60"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="needs_review">Needs Review</option>
+                  <option value="draft_ready">Draft Ready</option>
+                  <option value="active">Audited</option>
+                  <option value="offline">Offline</option>
+                </select>
+
+                {/* Category Dropdown */}
+                <select 
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="h-8 pl-2 pr-6 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-[#8B949E] focus:outline-none focus:border-[#D2F824]/60"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="interior design">Interior Design</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="architecture">Architecture</option>
+                  <option value="machining & tooling">Machining & Tooling</option>
+                  <option value="logistics">Logistics</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Table Viewport */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#1C212D]/80 border-b border-[#262D3D] text-[11px] font-mono text-[#8B949E] uppercase tracking-wider">
+                    <th className="py-3 px-4 font-semibold">Business Name &amp; Category</th>
+                    <th className="py-3 px-4 font-semibold">Website &amp; Condition</th>
+                    <th className="py-3 px-4 font-semibold">Score</th>
+                    <th className="py-3 px-4 font-semibold">Status</th>
+                    <th className="py-3 px-4 font-semibold">Last Activity</th>
+                    <th className="py-3 px-4 font-semibold text-right">Quick Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#262D3D] text-xs font-mono">
+                  {filteredProspects.map((p) => {
+                    const isSelected = activeTarget?.id === p.id;
+                    const isRowAuditing = isAuditing && auditingProspectId === p.id;
+
+                    return (
+                      <tr 
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedProspectId(p.id);
+                          setShowInspectorCard(true);
+                        }}
+                        className={`transition-colors cursor-pointer ${
+                          isSelected 
+                            ? 'bg-[#1C212D]/60 border-l-2 border-l-[#D2F824]' 
+                            : 'hover:bg-[#1C212D]/40'
+                        }`}
+                      >
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-sans font-semibold text-white text-sm">{p.name}</span>
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D2F824]"></span>}
+                            </div>
+                            <span className="text-[11px] text-[#8B949E] font-mono">
+                              {p.category} • {p.location.city}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            {p.websiteUrl ? (
+                              <>
+                                <span className="text-[#D2F824] font-medium truncate max-w-xs">
+                                  {p.websiteUrl.replace(/https?:\/\//, '')}
+                                </span>
+                                {p.websiteStatus === 'broken_pages' && (
+                                  <span className="text-[11px] text-rose-400 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" /> HTTP 404 contact page
+                                  </span>
+                                )}
+                                {p.websiteStatus === 'ssl_expired' && (
+                                  <span className="text-[11px] text-rose-400 flex items-center gap-1">
+                                    <Lock className="w-3 h-3" /> SSL expiring soon
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-[#8B949E] text-[11px]">
+                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                <span className="italic">Website: Not listed (Requires verification)</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            p.opportunityScore >= 80 
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.opportunityScore >= 80 ? 'bg-rose-500' : 'bg-amber-400'}`}></span>
+                            {p.opportunityScore}/100
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <Badge variant="status" prospectStatus={p.status} size="sm" />
+                        </td>
+
+                        <td className="py-3.5 px-4 text-[#586274] text-[11px]">
+                          {p.lastActivity}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              onClick={(e) => handleAuditClick(p.id, e)}
+                              disabled={isAuditing}
+                              className="px-2.5 py-1 rounded bg-[#1C212D] border border-[#262D3D] text-[11px] text-[#F3F4F6] hover:text-white hover:border-[#8B949E] transition-colors disabled:opacity-40"
+                            >
+                              {isRowAuditing ? 'Auditing...' : p.auditCount > 0 ? 'Re-Audit' : 'Audit'}
+                            </button>
+                            <button 
+                              onClick={(e) => handleCreateDraftClick(p.id, e)}
+                              className="px-2.5 py-1 rounded bg-[#D2F824] text-black font-semibold text-[11px] hover:bg-[#bce018] transition-colors"
+                            >
+                              Draft Email
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {filteredProspects.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-[#8B949E]">
+                        <Building2 className="w-8 h-8 text-[#262D3D] mx-auto mb-2" />
+                        <div className="text-sm">No prospects match the selected filter.</div>
+                        <button 
+                          onClick={() => { setDashboardFilter('all'); setFilterQuery(''); setCategoryFilter('all'); }}
+                          className="mt-2 text-xs text-[#D2F824] hover:underline"
+                        >
+                          Reset Filters
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer */}
+            <div className="px-4 py-3 border-t border-[#262D3D] bg-[#1C212D]/40 flex items-center justify-between text-xs font-mono text-[#8B949E]">
+              <span>Showing {filteredProspects.length} of {totalCount} total entries</span>
+              <div className="flex items-center gap-1">
+                <button className="px-2.5 py-1 rounded bg-[#D2F824] text-black font-bold text-[11px]">1</button>
+                <button className="px-2.5 py-1 rounded border border-[#262D3D] hover:bg-[#1C212D] text-white text-[11px]">2</button>
+                <button className="px-2 py-1 rounded border border-[#262D3D] hover:bg-[#1C212D] text-[#F3F4F6] text-[11px]">Next</button>
+              </div>
+            </div>
+          </section>
+
+          {/* RIGHT 4-COLS: AUDIT ACTIVITY FEED & LIVE ENGINE TERMINAL PROBE */}
+          <section className="xl:col-span-4 flex flex-col gap-6">
+            {/* Activity Timeline Box */}
+            <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-5 shadow-xl">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#262D3D]">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#D2F824]" />
+                  <h2 className="text-xs font-bold text-white font-sans uppercase tracking-wider">
+                    Audit Activity Log
+                  </h2>
+                </div>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                </span>
+              </div>
+
+              {/* Chronological Timeline */}
+              <div className="relative pl-5 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-[#262D3D]">
+                <div className="relative">
+                  <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full bg-[#D2F824] shadow-[0_0_6px_#D2F824]"></span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-sans font-semibold text-white">
+                      {activeTarget?.name || 'Harbor Furniture Works'} Audit
+                    </span>
+                    <p className="text-[11px] text-[#8B949E] font-sans mt-0.5">
+                      Technical findings detected (Broken canonical URL, 404 route, uncompressed assets).
+                    </p>
+                    <span className="text-[10px] font-mono text-[#586274] mt-1">
+                      Today at 14:22 • Engine 1.4
+                    </span>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]"></span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-sans font-semibold text-white">
+                      Local database backup synced
+                    </span>
+                    <p className="text-[11px] text-[#8B949E] font-sans mt-0.5">
+                      WAL checkpoint complete. {totalCount} prospects &amp; audit reports committed.
+                    </p>
+                    <span className="text-[10px] font-mono text-[#586274] mt-1">
+                      Today at 12:45 • SQLite WAL
+                    </span>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_#F59E0B]"></span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-sans font-semibold text-white">
+                      Draft email prepared for {prospects[1]?.name || 'Willow Studio'}
+                    </span>
+                    <p className="text-[11px] text-[#8B949E] font-sans mt-0.5">
+                      Subject: "Quick observation regarding mobile viewport on portfolio sub-routes"
+                    </p>
+                    <span className="text-[10px] font-mono text-[#586274] mt-1">
+                      Yesterday at 17:10 • Pitch Engine
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Inspector Terminal Console Probe Card */}
+            {showLogs && (
+              <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-xl">
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#262D3D]">
+                  <div className="flex items-center gap-1.5">
+                    <Terminal className="w-4 h-4 text-[#D2F824]" />
+                    <span className="text-xs font-bold text-white font-sans uppercase tracking-wider">
+                      Diagnostic Inspector Probe
+                    </span>
+                  </div>
+                  <button 
+                    onClick={handleCopyTerminal}
+                    className="text-[10px] font-mono text-[#D2F824] hover:underline flex items-center gap-1"
+                  >
+                    {copiedTerminal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedTerminal ? 'Copied' : 'Copy Header'}</span>
+                  </button>
+                </div>
+
+                {/* Terminal Output */}
+                <div className="p-3 bg-[#090C11] border border-[#262D3D] rounded-lg font-mono text-[11px] space-y-1 overflow-x-auto text-[#8B949E]">
+                  <p className="text-[#586274]">// Raw HTTP socket inspection</p>
+                  <p className="text-rose-400 font-semibold">&gt; GET /contact HTTP/1.1 → 404 Not Found</p>
+                  <p className="text-white">Server: nginx/1.18.0 (Ubuntu)</p>
+                  <p className="text-white">Content-Type: text/html; charset=UTF-8</p>
+                  <p className="text-amber-400">X-Frame-Options: SAMEORIGIN</p>
+                  <p className="text-emerald-400">Strict-Transport-Security: max-age=0</p>
+                  <p className="text-[#586274]">&gt; Response checksum: 0x9AF83E12</p>
+                </div>
+
+                <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-[#8B949E]">
+                  <span className="truncate max-w-[200px]">
+                    Host: {activeTarget?.websiteUrl ? activeTarget.websiteUrl.replace(/https?:\/\//, '') : 'localhost'}
+                  </span>
+                  <span className="text-[#D2F824] font-bold">Latency: 73ms</span>
+                </div>
+              </div>
+            )}
+          </section>
         </div>
       </div>
 
@@ -622,4 +1032,3 @@ export const Overview: React.FC = () => {
     </div>
   );
 };
-
