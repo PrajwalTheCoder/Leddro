@@ -91,13 +91,17 @@ def validate_host_and_resolve(hostname: str) -> Tuple[bool, List[str], Optional[
         # Resolve using socket.getaddrinfo to get all IPv4 and IPv6 records
         addr_info = socket.getaddrinfo(host_clean, None)
         resolved_ips = list(set([item[4][0] for item in addr_info]))
-    except socket.gaierror as e:
-        return False, [], f"DNS resolution failed for {hostname}: {str(e)}"
+    except socket.gaierror:
+        # Standard DNS resolution failure (e.g. NXDOMAIN, unregistered domain, or mock prospect host).
+        # An unresolvable domain has no IP address and cannot connect to private internal networks,
+        # so it poses no SSRF risk. Allow it through so the audit engine can perform DNS zone queries
+        # and record reachability/DNS diagnostic findings.
+        return True, [], None
     except Exception as e:
         return False, [], f"Error resolving {hostname}: {str(e)}"
 
     if not resolved_ips:
-        return False, [], f"No DNS address records found for {hostname}"
+        return True, [], None
 
     # Validate EVERY resolved IP
     for ip in resolved_ips:

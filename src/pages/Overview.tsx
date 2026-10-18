@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -73,6 +73,7 @@ export const Overview: React.FC = () => {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const radarContainerRef = useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [copiedTerminal, setCopiedTerminal] = useState(false);
   const [sortBy, setSortBy] = useState<'score' | 'name' | 'activity'>('score');
@@ -200,13 +201,28 @@ export const Overview: React.FC = () => {
     setIsDragging(false);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08;
-    setRadarZoom((prev) => {
-      const next = Math.round((prev + zoomDelta) * 100) / 100;
-      return Math.min(Math.max(next, 0.6), 2.2);
-    });
-  };
+  // Lock page scrolling when mouse wheel is inside the radar canvas container; wheel ONLY zooms the radar
+  useEffect(() => {
+    const radarEl = radarContainerRef.current;
+    if (!radarEl) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      // Prevents page from scrolling down/up while mouse is over the radar system box
+      e.preventDefault();
+      e.stopPropagation();
+
+      const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08;
+      setRadarZoom((prev) => {
+        const next = Math.round((prev + zoomDelta) * 100) / 100;
+        return Math.min(Math.max(next, 0.6), 2.2);
+      });
+    };
+
+    radarEl.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      radarEl.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, []);
 
   const handleResetView = () => {
     setRadarZoom(1);
@@ -411,11 +427,11 @@ export const Overview: React.FC = () => {
         <section className="mb-6 rounded-2xl bg-[#161A23] border border-[#262D3D] overflow-hidden relative shadow-2xl">
           {/* Interactive Radar / Diagnostic Map Canvas Area */}
           <div 
+            ref={radarContainerRef}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            onWheel={handleWheel}
             className={`relative w-full h-[430px] lg:h-[470px] bg-[#0A0D13] tactical-grid overflow-hidden select-none transition-colors ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}

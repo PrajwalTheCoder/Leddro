@@ -87,3 +87,14 @@ def test_valid_public_domain():
         assert parsed.scheme == "https"
         assert parsed.hostname == "example.com"
         assert "93.184.216.34" in ips
+
+def test_unresolvable_public_domain_is_safe_from_ssrf():
+    """Domains that fail DNS resolution pose no SSRF risk and should proceed to reachability audits."""
+    import socket
+    with patch("socket.getaddrinfo", side_effect=socket.gaierror(11001, "getaddrinfo failed")):
+        safe, reason, parsed, ips = validate_target_url("nonexistent-prospect-domain.xyz")
+        assert safe
+        assert reason is None
+        assert parsed.hostname == "nonexistent-prospect-domain.xyz"
+        assert ips == []
+

@@ -88,7 +88,7 @@ async def run_audit(payload: AuditRunRequest, db: Session = Depends(get_db)):
         if prospect:
             prospect.audit_count = (prospect.audit_count or 0) + 1
             prospect.latest_audit_id = report_id
-            prospect.opportunity_score = audit_data.get("overallScore", prospect.opportunity_score)
+            prospect.opportunity_score = audit_data.get("overall_score") or audit_data.get("overallScore") or prospect.opportunity_score
             prospect.website_status = "active" if audit_data.get("status") == "completed" else "unreachable"
             prospect.last_activity = "Audited just now"
 
