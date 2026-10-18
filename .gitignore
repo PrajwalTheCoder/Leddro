@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment & Secrets (NEVER commit secrets)
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!/.env.example
+*.pem
+*.key
+credentials*.json
+client_secret*.json
+*.bak
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# SQLite databases & backups
+*.db
+*.sqlite
+*.sqlite3
+backups/
+.leddro_encryption_key
+.neon
+
