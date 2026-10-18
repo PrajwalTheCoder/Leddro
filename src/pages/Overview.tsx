@@ -70,6 +70,9 @@ export const Overview: React.FC = () => {
   const [liveRadar, setLiveRadar] = useState(true);
   const [showInspectorCard, setShowInspectorCard] = useState(true);
   const [radarZoom, setRadarZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [copiedTerminal, setCopiedTerminal] = useState(false);
   const [sortBy, setSortBy] = useState<'score' | 'name' | 'activity'>('score');
@@ -169,6 +172,45 @@ export const Overview: React.FC = () => {
     navigator.clipboard.writeText(rawText);
     setCopiedTerminal(true);
     setTimeout(() => setCopiedTerminal(false), 2000);
+  };
+
+  // Mouse pan & scroll zoom handlers for radar canvas
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: panOffset.x,
+      panY: panOffset.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPanOffset({
+      x: dragStartRef.current.panX + dx,
+      y: dragStartRef.current.panY + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08;
+    setRadarZoom((prev) => {
+      const next = Math.round((prev + zoomDelta) * 100) / 100;
+      return Math.min(Math.max(next, 0.6), 2.2);
+    });
+  };
+
+  const handleResetView = () => {
+    setRadarZoom(1);
+    setPanOffset({ x: 0, y: 0 });
   };
 
   return (
@@ -369,36 +411,33 @@ export const Overview: React.FC = () => {
         <section className="mb-6 rounded-2xl bg-[#161A23] border border-[#262D3D] overflow-hidden relative shadow-2xl">
           {/* Interactive Radar / Diagnostic Map Canvas Area */}
           <div 
-            className="relative w-full h-[410px] lg:h-[450px] bg-[#0A0D13] tactical-grid overflow-hidden transition-all duration-300"
-            style={{ transform: `scale(${radarZoom})`, transformOrigin: 'center center' }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+            className={`relative w-full h-[430px] lg:h-[470px] bg-[#0A0D13] tactical-grid overflow-hidden select-none transition-colors ${
+              isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
           >
-            {/* Compass / Orientation Rose (Top Right HUD Gizmo) */}
-            <div className="absolute top-4 right-4 z-20 w-24 h-24 rounded-full bg-[#161A23]/90 border border-[#262D3D]/80 backdrop-blur-md flex items-center justify-center shadow-xl">
-              <div className="relative w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border border-[#D2F824]/20 animate-compass"></div>
-                {/* Compass Needle */}
-                <div className="flex flex-col items-center">
-                  <span className="text-[11px] font-mono font-bold text-[#D2F824] tracking-widest">NW</span>
-                  <div className="w-1 h-8 bg-gradient-to-b from-rose-500 via-amber-400 to-transparent rounded-full shadow-[0_0_8px_#f43f5e]"></div>
-                  <span className="text-[8px] font-mono text-[#586274]">312°</span>
+            {/* INNER RADAR WORLD LAYER (Only this layer pans & zooms smoothly!) */}
+            <div 
+              className="absolute inset-0 pointer-events-none transition-transform duration-75 ease-out"
+              style={{ 
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${radarZoom})`, 
+                transformOrigin: '50% 50%' 
+              }}
+            >
+              {/* Radar Sweep Ring & Coordinates in Center */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                <div className="relative w-[520px] h-[520px] rounded-full border border-[#D2F824]/10 flex items-center justify-center">
+                  <div className="w-[360px] h-[360px] rounded-full border border-[#D2F824]/15"></div>
+                  <div className="w-[200px] h-[200px] rounded-full border border-[#D2F824]/20"></div>
+                  {liveRadar && (
+                    <div className="absolute inset-0 rounded-full animate-radar bg-gradient-to-tr from-[#D2F824]/10 via-transparent to-transparent"></div>
+                  )}
                 </div>
-                <span className="absolute top-1 text-[8px] font-mono text-[#8B949E]">N</span>
-                <span className="absolute bottom-1 text-[8px] font-mono text-[#586274]">S</span>
-                <span className="absolute right-1 text-[8px] font-mono text-[#586274]">E</span>
-                <span className="absolute left-1 text-[8px] font-mono text-[#586274]">W</span>
               </div>
-            </div>
-
-            {/* Radar Sweep Ring & Coordinates in Center */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-              <div className="relative w-[520px] h-[520px] rounded-full border border-[#D2F824]/10 flex items-center justify-center">
-                <div className="w-[360px] h-[360px] rounded-full border border-[#D2F824]/15"></div>
-                <div className="w-[200px] h-[200px] rounded-full border border-[#D2F824]/20"></div>
-                {liveRadar && (
-                  <div className="absolute inset-0 rounded-full animate-radar bg-gradient-to-tr from-[#D2F824]/10 via-transparent to-transparent"></div>
-                )}
-              </div>
-            </div>
 
             {/* Dynamic Reactive Network Vectors: Hub ("YOU") ↔ Prospects */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
@@ -466,7 +505,8 @@ export const Overview: React.FC = () => {
             {/* CENTRAL HUB NODE: "YOU" / SENDER / OPERATOR (Gmail Gateway Beacon) */}
             <div
               style={{ top: hubPos.top, left: hubPos.left }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer pointer-events-auto"
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => navigate('/integrations')}
               title="Click to view connected Gmail & AI integrations"
             >
@@ -531,12 +571,13 @@ export const Overview: React.FC = () => {
               return (
                 <div
                   key={node.id}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => {
                     setSelectedProspectId(node.id);
                     setShowInspectorCard(true);
                   }}
                   style={{ top: node.pos.top, left: node.pos.left }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer group transition-transform hover:scale-110"
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer group transition-transform hover:scale-110 pointer-events-auto"
                 >
                   {isSelected ? (
                     <span className="relative flex h-8 w-8 items-center justify-center">
@@ -571,10 +612,33 @@ export const Overview: React.FC = () => {
                 </div>
               );
             })}
+            </div>
 
-            {/* OVERLAID ACTIVE INSPECTION PANEL (Exact match from Image 1) */}
+            {/* FIXED HUD OVERLAYS (Stationary - NEVER zoom out or scale with radar!) */}
+
+            {/* 1. Compass / Orientation Rose (Top Right HUD Gizmo) */}
+            <div className="absolute top-4 right-4 z-20 w-24 h-24 rounded-full bg-[#161A23]/90 border border-[#262D3D]/80 backdrop-blur-md flex items-center justify-center shadow-xl pointer-events-none">
+              <div className="relative w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-[#D2F824]/20 animate-compass"></div>
+                {/* Compass Needle */}
+                <div className="flex flex-col items-center">
+                  <span className="text-[11px] font-mono font-bold text-[#D2F824] tracking-widest">NW</span>
+                  <div className="w-1 h-8 bg-gradient-to-b from-rose-500 via-amber-400 to-transparent rounded-full shadow-[0_0_8px_#f43f5e]"></div>
+                  <span className="text-[8px] font-mono text-[#586274]">312°</span>
+                </div>
+                <span className="absolute top-1 text-[8px] font-mono text-[#8B949E]">N</span>
+                <span className="absolute bottom-1 text-[8px] font-mono text-[#586274]">S</span>
+                <span className="absolute right-1 text-[8px] font-mono text-[#586274]">E</span>
+                <span className="absolute left-1 text-[8px] font-mono text-[#586274]">W</span>
+              </div>
+            </div>
+
+            {/* 2. OVERLAID ACTIVE INSPECTION PANEL */}
             {activeTarget && showInspectorCard && (
-              <div className="absolute top-4 left-4 z-30 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2">
+              <div 
+                onMouseDown={(e) => e.stopPropagation()}
+                className="absolute top-4 left-4 z-30 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
+              >
                 {/* Header of card */}
                 <div className="flex items-start justify-between pb-3 border-b border-[#262D3D]">
                   <div className="flex items-center gap-3">
@@ -751,10 +815,10 @@ export const Overview: React.FC = () => {
                 </div>
 
                 {/* Card Bottom Tactical Warning Alert Banner */}
-                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-mono text-amber-300">
+                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 overflow-hidden">
+                  <div className="flex items-center gap-2 text-xs font-mono text-amber-300 min-w-0 flex-1 mr-1">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="truncate max-w-[220px]">
+                    <span className="truncate">
                       {activeTarget.recommendedAction}
                     </span>
                   </div>
@@ -767,7 +831,7 @@ export const Overview: React.FC = () => {
                           handleCreateDraftClick(activeTarget.id, e);
                         }
                       }}
-                      className={`px-2.5 py-1 rounded font-semibold text-[10px] font-mono transition-colors flex items-center gap-1 ${
+                      className={`px-2 py-1 rounded font-semibold text-[10px] font-mono transition-colors flex items-center gap-1 shrink-0 ${
                         activeTarget.status === 'contacted'
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
                           : activeTarget.status === 'draft_ready'
@@ -792,7 +856,7 @@ export const Overview: React.FC = () => {
                     <button 
                       onClick={(e) => handleAuditClick(activeTarget.id, e)}
                       disabled={isAuditing}
-                      className="p-1 rounded bg-[#1C212D] text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40"
+                      className="p-1.5 rounded bg-[#1C212D] text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40 shrink-0"
                       title="Run audit"
                     >
                       <Play className="w-3 h-3" />
@@ -803,16 +867,17 @@ export const Overview: React.FC = () => {
             )}
 
             {/* Bottom Floating Map Utilities HUD */}
-            <div className={`absolute bottom-3 ${showInspectorCard ? 'left-[436px]' : 'left-4'} z-10 hidden lg:flex items-center gap-2 text-[11px] font-mono text-[#586274] transition-all duration-300`}>
-              <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E]">
-                Space + Drag to pan
-              </span>
-              <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E]">
-                Scroll to zoom radius
+            <div className={`absolute bottom-3 ${showInspectorCard ? 'left-[436px]' : 'left-4'} z-20 hidden lg:flex items-center gap-2 text-[11px] font-mono text-[#586274] transition-all duration-300 pointer-events-none`}>
+              <span className="px-2.5 py-1 rounded-lg bg-[#161A23]/90 border border-[#262D3D] text-[#8B949E] shadow-md flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D2F824] animate-pulse"></span>
+                Drag to pan • Scroll to zoom
               </span>
             </div>
 
-            <div className="absolute bottom-3 right-4 z-20 flex items-center gap-2 text-[11px] font-mono text-[#586274]">
+            <div 
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute bottom-3 right-4 z-20 flex items-center gap-2 text-[11px] font-mono text-[#586274] pointer-events-auto"
+            >
               <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-emerald-400 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
                 Engine ping: 12ms • Map updates every 3 min
@@ -828,21 +893,21 @@ export const Overview: React.FC = () => {
                   <Layers className="w-3.5 h-3.5" />
                 </button>
                 <button 
-                  onClick={() => setRadarZoom((z) => Math.min(z + 0.1, 1.4))}
+                  onClick={() => setRadarZoom((z) => Math.min(z + 0.15, 2.2))}
                   className="p-1 text-[#8B949E] hover:text-white" 
                   title="Zoom In"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
                 <button 
-                  onClick={() => setRadarZoom((z) => Math.max(z - 0.1, 0.8))}
+                  onClick={() => setRadarZoom((z) => Math.max(z - 0.15, 0.6))}
                   className="p-1 text-[#8B949E] hover:text-white" 
                   title="Zoom Out"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
                 <button 
-                  onClick={() => setRadarZoom(1)}
+                  onClick={handleResetView}
                   className="p-1 text-[#8B949E] hover:text-white" 
                   title="Reset View"
                 >
@@ -851,6 +916,71 @@ export const Overview: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* REAL-TIME DIAGNOSTIC INSPECTOR PROBE (When Show Logs is ON) */}
+          {showLogs && (
+            <div className="border-t border-[#262D3D] bg-[#121620] p-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#262D3D]">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-[#D2F824]" />
+                  <span className="text-xs font-bold text-white font-sans uppercase tracking-wider">
+                    Diagnostic Inspector Probe
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                    REAL-TIME TELEMETRY
+                  </span>
+                </div>
+                <button 
+                  onClick={handleCopyTerminal}
+                  className="text-[10px] font-mono text-[#D2F824] hover:underline flex items-center gap-1"
+                >
+                  {copiedTerminal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedTerminal ? 'Copied' : 'Copy Header'}</span>
+                </button>
+              </div>
+
+              {/* Terminal Output */}
+              <div className="p-3 bg-[#090C11] border border-[#262D3D] rounded-lg font-mono text-[11px] space-y-1 overflow-x-auto text-[#8B949E]">
+                <p className="text-[#586274]">// Raw HTTP socket inspection • Live target stream</p>
+                <p className={`font-semibold ${
+                  activeTarget?.websiteStatus === 'broken_pages'
+                    ? 'text-rose-400'
+                    : activeTarget?.websiteStatus === 'ssl_expired'
+                    ? 'text-amber-400'
+                    : activeTarget?.websiteStatus === 'unreachable'
+                    ? 'text-rose-500'
+                    : 'text-emerald-400'
+                }`}>
+                  &gt; GET /contact HTTP/1.1 → {
+                    activeTarget?.websiteStatus === 'broken_pages'
+                      ? '404 Not Found'
+                      : activeTarget?.websiteStatus === 'ssl_expired'
+                      ? '200 OK (TLS Certificate Expired)'
+                      : activeTarget?.websiteStatus === 'unreachable'
+                      ? '503 Service Unavailable'
+                      : '200 OK'
+                  }
+                </p>
+                <p className="text-white">Server: nginx/1.18.0 (Ubuntu)</p>
+                <p className="text-white">Content-Type: text/html; charset=UTF-8</p>
+                <p className={activeTarget?.websiteStatus === 'ssl_expired' ? 'text-amber-400' : 'text-emerald-400'}>
+                  X-Frame-Options: SAMEORIGIN
+                </p>
+                <p className={activeTarget?.websiteStatus === 'ssl_expired' ? 'text-rose-400' : 'text-emerald-400'}>
+                  Strict-Transport-Security: {activeTarget?.websiteStatus === 'ssl_expired' ? 'max-age=0' : 'max-age=31536000; includeSubDomains'}
+                </p>
+                <p className="text-[#586274]">&gt; Response checksum: 0x9AF83E12</p>
+              </div>
+
+              <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-[#8B949E]">
+                <span className="truncate max-w-[280px]">
+                  Host: <span className="text-white">{activeTarget?.websiteUrl ? activeTarget.websiteUrl.replace(/https?:\/\//, '') : 'localhost'}</span>
+                </span>
+                <span className="text-[#D2F824] font-bold">Latency: 73ms</span>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 4 ELEVATED METRIC TELEMETRY CARDS (Image 1 Match) */}
@@ -1181,45 +1311,6 @@ export const Overview: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Active Inspector Terminal Console Probe Card */}
-            {showLogs && (
-              <div className="bg-[#161A23] border border-[#262D3D] rounded-xl p-4 shadow-xl">
-                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#262D3D]">
-                  <div className="flex items-center gap-1.5">
-                    <Terminal className="w-4 h-4 text-[#D2F824]" />
-                    <span className="text-xs font-bold text-white font-sans uppercase tracking-wider">
-                      Diagnostic Inspector Probe
-                    </span>
-                  </div>
-                  <button 
-                    onClick={handleCopyTerminal}
-                    className="text-[10px] font-mono text-[#D2F824] hover:underline flex items-center gap-1"
-                  >
-                    {copiedTerminal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedTerminal ? 'Copied' : 'Copy Header'}</span>
-                  </button>
-                </div>
-
-                {/* Terminal Output */}
-                <div className="p-3 bg-[#090C11] border border-[#262D3D] rounded-lg font-mono text-[11px] space-y-1 overflow-x-auto text-[#8B949E]">
-                  <p className="text-[#586274]">// Raw HTTP socket inspection</p>
-                  <p className="text-rose-400 font-semibold">&gt; GET /contact HTTP/1.1 → 404 Not Found</p>
-                  <p className="text-white">Server: nginx/1.18.0 (Ubuntu)</p>
-                  <p className="text-white">Content-Type: text/html; charset=UTF-8</p>
-                  <p className="text-amber-400">X-Frame-Options: SAMEORIGIN</p>
-                  <p className="text-emerald-400">Strict-Transport-Security: max-age=0</p>
-                  <p className="text-[#586274]">&gt; Response checksum: 0x9AF83E12</p>
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-[#8B949E]">
-                  <span className="truncate max-w-[200px]">
-                    Host: {activeTarget?.websiteUrl ? activeTarget.websiteUrl.replace(/https?:\/\//, '') : 'localhost'}
-                  </span>
-                  <span className="text-[#D2F824] font-bold">Latency: 73ms</span>
-                </div>
-              </div>
-            )}
           </section>
         </div>
       </div>
