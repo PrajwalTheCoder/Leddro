@@ -1,0 +1,2 @@
+# Leddro Backend Requirements
+-r backend/requirements.txt

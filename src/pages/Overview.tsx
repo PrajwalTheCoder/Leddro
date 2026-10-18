@@ -232,7 +232,7 @@ export const Overview: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-[#0D1017] text-[#F3F4F6] selection:bg-[#D2F824] selection:text-black">
       <div className="max-w-[1520px] w-full mx-auto px-5 lg:px-7 pt-5 pb-12">
-        
+
         {/* PAGE TITLE & LIVE STATUS HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
@@ -256,21 +256,21 @@ export const Overview: React.FC = () => {
 
           {/* Action cluster */}
           <div className="flex items-center gap-2.5">
-            <button 
+            <button
               onClick={() => setIsImportModalOpen(true)}
               className="h-8 px-3 rounded-lg bg-[#161A23] border border-[#262D3D] text-xs text-[#F3F4F6] hover:border-[#D2F824]/40 flex items-center gap-1.5 font-medium transition-colors"
             >
               <UploadCloud className="w-4 h-4 text-[#D2F824]" />
               <span>Import CSV</span>
             </button>
-            <button 
+            <button
               onClick={() => setIsNewProspectModalOpen(true)}
               className="h-8 px-3 rounded-lg bg-[#161A23] border border-[#262D3D] text-xs text-[#8B949E] hover:text-white flex items-center gap-1.5 font-mono transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Add Target</span>
             </button>
-            <button 
+            <button
               onClick={() => navigate('/discover')}
               className="h-8 px-3.5 rounded-lg bg-[#D2F824] text-black font-semibold text-xs flex items-center gap-1.5 hover:bg-[#bce018] shadow-[0_0_12px_rgba(210,248,36,0.25)] transition-all"
             >
@@ -286,27 +286,24 @@ export const Overview: React.FC = () => {
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
             <button
               onClick={() => setDashboardFilter('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                dashboardFilter === 'all'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dashboardFilter === 'all'
                   ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
                   : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+                }`}
             >
               <span>All</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                dashboardFilter === 'all' ? 'bg-[#D2F824] text-black' : 'bg-[#1C212D] text-[#8B949E]'
-              }`}>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${dashboardFilter === 'all' ? 'bg-[#D2F824] text-black' : 'bg-[#1C212D] text-[#8B949E]'
+                }`}>
                 {totalCount}
               </span>
             </button>
 
             <button
               onClick={() => setDashboardFilter('active')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                dashboardFilter === 'active'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${dashboardFilter === 'active'
                   ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
                   : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+                }`}
             >
               <span>Active</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-[#8B949E]">
@@ -316,11 +313,10 @@ export const Overview: React.FC = () => {
 
             <button
               onClick={() => setDashboardFilter('needs_review')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                dashboardFilter === 'needs_review'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${dashboardFilter === 'needs_review'
                   ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
                   : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+                }`}
             >
               <span>Needs Review</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-amber-400">
@@ -330,11 +326,10 @@ export const Overview: React.FC = () => {
 
             <button
               onClick={() => setDashboardFilter('draft_ready')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                dashboardFilter === 'draft_ready'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${dashboardFilter === 'draft_ready'
                   ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
                   : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+                }`}
             >
               <span>Draft Ready</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-emerald-400">
@@ -344,11 +339,10 @@ export const Overview: React.FC = () => {
 
             <button
               onClick={() => setDashboardFilter('offline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                dashboardFilter === 'offline'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${dashboardFilter === 'offline'
                   ? 'bg-[#232938] border border-[#D2F824]/40 text-white shadow-[0_0_10px_rgba(210,248,36,0.1)]'
                   : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+                }`}
             >
               <span>Offline</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#1C212D] text-[#586274]">
@@ -357,11 +351,10 @@ export const Overview: React.FC = () => {
             </button>
 
             {/* Tune Icon */}
-            <button 
+            <button
               onClick={() => setDashboardFilter(dashboardFilter === 'high_priority' ? 'all' : 'high_priority')}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center border border-[#262D3D] ml-1 transition-colors ${
-                dashboardFilter === 'high_priority' ? 'bg-[#232938] text-[#D2F824] border-[#D2F824]/40' : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
-              }`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center border border-[#262D3D] ml-1 transition-colors ${dashboardFilter === 'high_priority' ? 'bg-[#232938] text-[#D2F824] border-[#D2F824]/40' : 'text-[#8B949E] hover:text-white hover:bg-[#1C212D]'
+                }`}
               title="Filter Score ≥ 80"
             >
               <SlidersHorizontal className="w-4 h-4" />
@@ -372,7 +365,7 @@ export const Overview: React.FC = () => {
           <div className="flex items-center gap-4 text-xs font-mono text-[#8B949E] px-2">
             {/* Toggle 1: Show Diagnostic Logs */}
             <div className="inline-flex items-center gap-2.5 select-none">
-              <span 
+              <span
                 className="cursor-pointer hover:text-white transition-colors"
                 onClick={() => setShowLogs(!showLogs)}
               >
@@ -383,25 +376,23 @@ export const Overview: React.FC = () => {
                 role="switch"
                 aria-checked={showLogs}
                 onClick={() => setShowLogs(!showLogs)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showLogs ? 'bg-[#D2F824]' : 'bg-[#232938]'
-                }`}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${showLogs ? 'bg-[#D2F824]' : 'bg-[#232938]'
+                  }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${
-                    showLogs ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
-                  }`}
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${showLogs ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
+                    }`}
                 />
               </button>
             </div>
 
             {/* Toggle 2: Real-time Radar */}
             <div className="inline-flex items-center gap-2.5 select-none border-l border-[#262D3D] pl-4">
-              <span 
+              <span
                 className="flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
                 onClick={() => setLiveRadar(!liveRadar)}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${liveRadar ? 'bg-emerald-400 animate-pulse' : 'bg-[#586274]'}`}></span> 
+                <span className={`w-1.5 h-1.5 rounded-full ${liveRadar ? 'bg-emerald-400 animate-pulse' : 'bg-[#586274]'}`}></span>
                 Live radar
               </span>
               <button
@@ -409,14 +400,12 @@ export const Overview: React.FC = () => {
                 role="switch"
                 aria-checked={liveRadar}
                 onClick={() => setLiveRadar(!liveRadar)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
-                  liveRadar ? 'bg-[#D2F824]' : 'bg-[#232938]'
-                }`}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${liveRadar ? 'bg-[#D2F824]' : 'bg-[#232938]'
+                  }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${
-                    liveRadar ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
-                  }`}
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${liveRadar ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
+                    }`}
                 />
               </button>
             </div>
@@ -426,22 +415,21 @@ export const Overview: React.FC = () => {
         {/* TACTICAL COMMAND CENTER: RADAR & ACTIVE INSPECTOR TELEMETRY (Image 1 Canvas) */}
         <section className="mb-6 rounded-2xl bg-[#161A23] border border-[#262D3D] overflow-hidden relative shadow-2xl">
           {/* Interactive Radar / Diagnostic Map Canvas Area */}
-          <div 
+          <div
             ref={radarContainerRef}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className={`relative w-full h-[430px] lg:h-[470px] bg-[#0A0D13] tactical-grid overflow-hidden select-none transition-colors ${
-              isDragging ? 'cursor-grabbing' : 'cursor-grab'
-            }`}
+            className={`relative w-full h-[430px] lg:h-[470px] bg-[#0A0D13] tactical-grid overflow-hidden select-none transition-colors ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
           >
             {/* INNER RADAR WORLD LAYER (Only this layer pans & zooms smoothly!) */}
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none transition-transform duration-75 ease-out"
-              style={{ 
-                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${radarZoom})`, 
-                transformOrigin: '50% 50%' 
+              style={{
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${radarZoom})`,
+                transformOrigin: '50% 50%'
               }}
             >
               {/* Radar Sweep Ring & Coordinates in Center */}
@@ -455,179 +443,178 @@ export const Overview: React.FC = () => {
                 </div>
               </div>
 
-            {/* Dynamic Reactive Network Vectors: Hub ("YOU") ↔ Prospects */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-              <defs>
-                <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <filter id="glow-lime" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
+              {/* Dynamic Reactive Network Vectors: Hub ("YOU") ↔ Prospects */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                <defs>
+                  <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="glow-lime" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
 
-              {radarNodes.map((node) => {
-                const isContacted = node.status === 'contacted';
-                const isDraftReady = node.status === 'draft_ready';
-                const isSelected = activeTarget?.id === node.id;
-                const isBeingAudited = isAuditing && auditingProspectId === node.id;
+                {radarNodes.map((node) => {
+                  const isContacted = node.status === 'contacted';
+                  const isDraftReady = node.status === 'draft_ready';
+                  const isSelected = activeTarget?.id === node.id;
+                  const isBeingAudited = isAuditing && auditingProspectId === node.id;
 
-                const strokeColor = isSelected || isBeingAudited
-                  ? '#D2F824'
-                  : isContacted
-                  ? '#10B981'
-                  : isDraftReady
-                  ? '#F59E0B'
-                  : '#262D3D';
+                  const strokeColor = isSelected || isBeingAudited
+                    ? '#D2F824'
+                    : isContacted
+                      ? '#10B981'
+                      : isDraftReady
+                        ? '#F59E0B'
+                        : '#262D3D';
 
-                const strokeWidth = isSelected || isContacted || isBeingAudited ? 2 : 1;
-                const strokeDash = isDraftReady ? '4,4' : isContacted ? '5,5' : isSelected ? '0' : '2,3';
-                const opacity = isContacted || isSelected || isDraftReady || isBeingAudited ? 0.85 : 0.25;
+                  const strokeWidth = isSelected || isContacted || isBeingAudited ? 2 : 1;
+                  const strokeDash = isDraftReady ? '4,4' : isContacted ? '5,5' : isSelected ? '0' : '2,3';
+                  const opacity = isContacted || isSelected || isDraftReady || isBeingAudited ? 0.85 : 0.25;
 
-                return (
-                  <g key={`vector-${node.id}`}>
-                    {/* Glow halo for connected or selected links */}
-                    {(isContacted || isSelected || isBeingAudited) && (
+                  return (
+                    <g key={`vector-${node.id}`}>
+                      {/* Glow halo for connected or selected links */}
+                      {(isContacted || isSelected || isBeingAudited) && (
+                        <line
+                          x1={`${hubPos.x}%`}
+                          y1={`${hubPos.y}%`}
+                          x2={`${node.pos.x}%`}
+                          y2={`${node.pos.y}%`}
+                          stroke={strokeColor}
+                          strokeWidth={5}
+                          opacity={0.3}
+                          filter={isContacted ? 'url(#glow-emerald)' : 'url(#glow-lime)'}
+                        />
+                      )}
+
+                      {/* Primary Vector Beam */}
                       <line
                         x1={`${hubPos.x}%`}
                         y1={`${hubPos.y}%`}
                         x2={`${node.pos.x}%`}
                         y2={`${node.pos.y}%`}
                         stroke={strokeColor}
-                        strokeWidth={5}
-                        opacity={0.3}
-                        filter={isContacted ? 'url(#glow-emerald)' : 'url(#glow-lime)'}
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={strokeDash}
+                        opacity={opacity}
                       />
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* CENTRAL HUB NODE: "YOU" / SENDER / OPERATOR (Gmail Gateway Beacon) */}
+              <div
+                style={{ top: hubPos.top, left: hubPos.left }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer pointer-events-auto"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => navigate('/integrations')}
+                title="Click to view connected Gmail & AI integrations"
+              >
+                <div className="relative flex h-10 w-10 items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-25"></span>
+                  <span className="absolute inline-flex h-8 w-8 rounded-full bg-gradient-to-tr from-emerald-500/30 to-[#D2F824]/20 border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></span>
+                  <div className="relative inline-flex items-center justify-center rounded-full h-6 w-6 bg-[#0D1017] border border-emerald-400 text-emerald-400">
+                    <Radio className="w-3.5 h-3.5 animate-pulse" />
+                  </div>
+                </div>
+
+                <div className="mt-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#161A23]/95 border border-emerald-400/50 text-white shadow-xl flex items-center gap-1 whitespace-nowrap group-hover:border-emerald-300 transition-colors">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-emerald-400">YOU</span>
+                  <span className="text-[#8B949E] text-[8px] max-w-[110px] truncate">
+                    ({googleStatus?.is_connected && googleStatus.email ? googleStatus.email : 'Leddro Hub'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Connection Status Badges Over Network Vector Midpoints */}
+              {radarNodes.map((node) => {
+                const midX = (hubPos.x + node.pos.x) / 2;
+                const midY = (hubPos.y + node.pos.y) / 2;
+
+                if (node.status === 'contacted') {
+                  return (
+                    <div
+                      key={`badge-${node.id}`}
+                      style={{ left: `${midX}%`, top: `${midY}%` }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+                    >
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-emerald-500/60 text-[8px] font-mono font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.35)] whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        CONNECTED • VIA GMAIL
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (node.status === 'draft_ready') {
+                  return (
+                    <div
+                      key={`badge-${node.id}`}
+                      style={{ left: `${midX}%`, top: `${midY}%` }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+                    >
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-amber-500/60 text-[8px] font-mono font-bold text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)] whitespace-nowrap">
+                        DRAFT READY
+                      </div>
+                    </div>
+                  );
+                }
+
+                return null;
+              })}
+
+              {/* Pulsing Target Nodes on Map */}
+              {radarNodes.map((node) => {
+                const isSelected = activeTarget?.id === node.id;
+
+                return (
+                  <div
+                    key={node.id}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => {
+                      setSelectedProspectId(node.id);
+                      setShowInspectorCard(true);
+                    }}
+                    style={{ top: node.pos.top, left: node.pos.left }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer group transition-transform hover:scale-110 pointer-events-auto"
+                  >
+                    {isSelected ? (
+                      <span className="relative flex h-8 w-8 items-center justify-center">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D2F824] opacity-40"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-[#D2F824] shadow-[0_0_12px_#D2F824]"></span>
+                      </span>
+                    ) : node.status === 'contacted' ? (
+                      <span className="relative flex h-5 w-5 items-center justify-center">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-30"></span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] opacity-90 group-hover:opacity-100"></span>
+                      </span>
+                    ) : node.colorType === 'rose' ? (
+                      <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] opacity-80 group-hover:opacity-100"></span>
+                    ) : node.colorType === 'amber' ? (
+                      <span className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] opacity-80 group-hover:opacity-100"></span>
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#D2F824] shadow-[0_0_8px_#D2F824] opacity-80 group-hover:opacity-100"></span>
                     )}
 
-                    {/* Primary Vector Beam */}
-                    <line
-                      x1={`${hubPos.x}%`}
-                      y1={`${hubPos.y}%`}
-                      x2={`${node.pos.x}%`}
-                      y2={`${node.pos.y}%`}
-                      stroke={strokeColor}
-                      strokeWidth={strokeWidth}
-                      strokeDasharray={strokeDash}
-                      opacity={opacity}
-                    />
-                  </g>
+                    <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-lg transition-all ${isSelected
+                        ? 'bg-[#1C212D]/95 border border-[#D2F824]/60 text-[#D2F824]'
+                        : node.status === 'contacted'
+                          ? 'bg-[#161A23]/90 border border-emerald-500/50 text-emerald-300'
+                          : 'bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E] group-hover:text-white'
+                      }`}>
+                      {node.websiteUrl ? node.websiteUrl.replace(/https?:\/\//, '') : node.name}
+                      {node.status === 'contacted' && ' • Connected'}
+                      {node.websiteStatus === 'broken_pages' && ' • 404 Route'}
+                      {node.websiteStatus === 'ssl_expired' && ' • SSL Expiring'}
+                    </div>
+                  </div>
                 );
               })}
-            </svg>
-
-            {/* CENTRAL HUB NODE: "YOU" / SENDER / OPERATOR (Gmail Gateway Beacon) */}
-            <div
-              style={{ top: hubPos.top, left: hubPos.left }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer pointer-events-auto"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => navigate('/integrations')}
-              title="Click to view connected Gmail & AI integrations"
-            >
-              <div className="relative flex h-10 w-10 items-center justify-center">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-25"></span>
-                <span className="absolute inline-flex h-8 w-8 rounded-full bg-gradient-to-tr from-emerald-500/30 to-[#D2F824]/20 border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></span>
-                <div className="relative inline-flex items-center justify-center rounded-full h-6 w-6 bg-[#0D1017] border border-emerald-400 text-emerald-400">
-                  <Radio className="w-3.5 h-3.5 animate-pulse" />
-                </div>
-              </div>
-
-              <div className="mt-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#161A23]/95 border border-emerald-400/50 text-white shadow-xl flex items-center gap-1 whitespace-nowrap group-hover:border-emerald-300 transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-emerald-400">YOU</span>
-                <span className="text-[#8B949E] text-[8px] max-w-[110px] truncate">
-                  ({googleStatus?.is_connected && googleStatus.email ? googleStatus.email : 'Leddro Hub'})
-                </span>
-              </div>
-            </div>
-
-            {/* Connection Status Badges Over Network Vector Midpoints */}
-            {radarNodes.map((node) => {
-              const midX = (hubPos.x + node.pos.x) / 2;
-              const midY = (hubPos.y + node.pos.y) / 2;
-
-              if (node.status === 'contacted') {
-                return (
-                  <div 
-                    key={`badge-${node.id}`}
-                    style={{ left: `${midX}%`, top: `${midY}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
-                  >
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-emerald-500/60 text-[8px] font-mono font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.35)] whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      CONNECTED • VIA GMAIL
-                    </div>
-                  </div>
-                );
-              }
-
-              if (node.status === 'draft_ready') {
-                return (
-                  <div 
-                    key={`badge-${node.id}`}
-                    style={{ left: `${midX}%`, top: `${midY}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
-                  >
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-amber-500/60 text-[8px] font-mono font-bold text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)] whitespace-nowrap">
-                      DRAFT READY
-                    </div>
-                  </div>
-                );
-              }
-
-              return null;
-            })}
-
-            {/* Pulsing Target Nodes on Map */}
-            {radarNodes.map((node) => {
-              const isSelected = activeTarget?.id === node.id;
-
-              return (
-                <div
-                  key={node.id}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => {
-                    setSelectedProspectId(node.id);
-                    setShowInspectorCard(true);
-                  }}
-                  style={{ top: node.pos.top, left: node.pos.left }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer group transition-transform hover:scale-110 pointer-events-auto"
-                >
-                  {isSelected ? (
-                    <span className="relative flex h-8 w-8 items-center justify-center">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D2F824] opacity-40"></span>
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-[#D2F824] shadow-[0_0_12px_#D2F824]"></span>
-                    </span>
-                  ) : node.status === 'contacted' ? (
-                    <span className="relative flex h-5 w-5 items-center justify-center">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-30"></span>
-                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] opacity-90 group-hover:opacity-100"></span>
-                    </span>
-                  ) : node.colorType === 'rose' ? (
-                    <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] opacity-80 group-hover:opacity-100"></span>
-                  ) : node.colorType === 'amber' ? (
-                    <span className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] opacity-80 group-hover:opacity-100"></span>
-                  ) : (
-                    <span className="w-3.5 h-3.5 rounded-full bg-[#D2F824] shadow-[0_0_8px_#D2F824] opacity-80 group-hover:opacity-100"></span>
-                  )}
-
-                  <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-lg transition-all ${
-                    isSelected
-                      ? 'bg-[#1C212D]/95 border border-[#D2F824]/60 text-[#D2F824]'
-                      : node.status === 'contacted'
-                      ? 'bg-[#161A23]/90 border border-emerald-500/50 text-emerald-300'
-                      : 'bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E] group-hover:text-white'
-                  }`}>
-                    {node.websiteUrl ? node.websiteUrl.replace(/https?:\/\//, '') : node.name}
-                    {node.status === 'contacted' && ' • Connected'}
-                    {node.websiteStatus === 'broken_pages' && ' • 404 Route'}
-                    {node.websiteStatus === 'ssl_expired' && ' • SSL Expiring'}
-                  </div>
-                </div>
-              );
-            })}
             </div>
 
             {/* FIXED HUD OVERLAYS (Stationary - NEVER zoom out or scale with radar!) */}
@@ -651,7 +638,7 @@ export const Overview: React.FC = () => {
 
             {/* 2. OVERLAID ACTIVE INSPECTION PANEL */}
             {activeTarget && showInspectorCard && (
-              <div 
+              <div
                 onMouseDown={(e) => e.stopPropagation()}
                 className="absolute top-4 left-4 z-30 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2 pointer-events-auto"
               >
@@ -675,9 +662,9 @@ export const Overview: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setShowInspectorCard(false)}
-                    className="text-[#586274] hover:text-white transition-colors" 
+                    className="text-[#586274] hover:text-white transition-colors"
                     title="Dismiss card"
                   >
                     <X className="w-4 h-4" />
@@ -717,28 +704,27 @@ export const Overview: React.FC = () => {
                 <div className="py-3 border-b border-[#262D3D]/60">
                   <div className="flex items-center justify-between text-xs font-mono mb-1.5">
                     <span className="text-[#8B949E]">Target Host → Contact Form Path</span>
-                    <span className={`font-semibold ${
-                      activeTarget.websiteStatus === 'broken_pages' || activeTarget.websiteStatus === 'unreachable'
+                    <span className={`font-semibold ${activeTarget.websiteStatus === 'broken_pages' || activeTarget.websiteStatus === 'unreachable'
                         ? 'text-rose-400'
                         : activeTarget.websiteStatus === 'ssl_expired'
-                        ? 'text-amber-400'
-                        : 'text-[#D2F824]'
-                    }`}>
+                          ? 'text-amber-400'
+                          : 'text-[#D2F824]'
+                      }`}>
                       {activeTarget.websiteStatus === 'broken_pages'
                         ? 'HTTP 404 Failure'
                         : activeTarget.websiteStatus === 'ssl_expired'
-                        ? 'TLS Expiring'
-                        : activeTarget.websiteStatus === 'unreachable'
-                        ? 'Host Unreachable'
-                        : '200 OK Active'}
+                          ? 'TLS Expiring'
+                          : activeTarget.websiteStatus === 'unreachable'
+                            ? 'Host Unreachable'
+                            : '200 OK Active'}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-[#1C212D] rounded-full overflow-hidden flex">
-                    <div 
+                    <div
                       className="h-full bg-[#D2F824] rounded-full shadow-[0_0_8px_#D2F824]"
                       style={{ width: `${Math.min(activeTarget.opportunityScore, 85)}%` }}
                     ></div>
-                    <div 
+                    <div
                       className="h-full bg-rose-500 rounded-r-full"
                       style={{ width: `${Math.max(100 - activeTarget.opportunityScore, 15)}%` }}
                     ></div>
@@ -757,11 +743,10 @@ export const Overview: React.FC = () => {
                   <div className="p-2.5 rounded-lg bg-[#1C212D] border border-[#262D3D] flex flex-col items-center relative overflow-hidden">
                     <div className="w-full flex items-center justify-between text-[11px] font-mono text-[#8B949E] mb-1">
                       <span>Audit Score</span>
-                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold border ${
-                        activeTarget.opportunityScore >= 80
+                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold border ${activeTarget.opportunityScore >= 80
                           ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                           : 'bg-[#D2F824]/20 text-[#D2F824] border-[#D2F824]/30'
-                      }`}>
+                        }`}>
                         {activeTarget.opportunityScore >= 80 ? 'HIGH ROI' : 'ACTIONABLE'}
                       </span>
                     </div>
@@ -769,16 +754,16 @@ export const Overview: React.FC = () => {
                     <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-24 h-24 -rotate-90">
                         <circle cx="48" cy="48" fill="transparent" r="38" stroke="#252B3B" strokeWidth="6"></circle>
-                        <circle 
-                          className="drop-shadow-[0_0_6px_rgba(210,248,36,0.5)] transition-all duration-700" 
-                          cx="48" 
-                          cy="48" 
-                          fill="transparent" 
-                          r="38" 
-                          stroke="#D2F824" 
-                          strokeDasharray="238" 
-                          strokeDashoffset={238 - (238 * activeTarget.opportunityScore) / 100} 
-                          strokeLinecap="round" 
+                        <circle
+                          className="drop-shadow-[0_0_6px_rgba(210,248,36,0.5)] transition-all duration-700"
+                          cx="48"
+                          cy="48"
+                          fill="transparent"
+                          r="38"
+                          stroke="#D2F824"
+                          strokeDasharray="238"
+                          strokeDashoffset={238 - (238 * activeTarget.opportunityScore) / 100}
+                          strokeLinecap="round"
                           strokeWidth="6"
                         ></circle>
                       </svg>
@@ -805,15 +790,15 @@ export const Overview: React.FC = () => {
                     <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-24 h-24 -rotate-90">
                         <circle cx="48" cy="48" fill="transparent" r="38" stroke="#252B3B" strokeWidth="6"></circle>
-                        <circle 
-                          cx="48" 
-                          cy="48" 
-                          fill="transparent" 
-                          r="38" 
-                          stroke="#F59E0B" 
-                          strokeDasharray="238" 
-                          strokeDashoffset="110" 
-                          strokeLinecap="round" 
+                        <circle
+                          cx="48"
+                          cy="48"
+                          fill="transparent"
+                          r="38"
+                          stroke="#F59E0B"
+                          strokeDasharray="238"
+                          strokeDashoffset="110"
+                          strokeLinecap="round"
                           strokeWidth="6"
                         ></circle>
                       </svg>
@@ -839,7 +824,7 @@ export const Overview: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button 
+                    <button
                       onClick={(e) => {
                         if (activeTarget.status === 'contacted') {
                           navigate('/drafts');
@@ -847,13 +832,12 @@ export const Overview: React.FC = () => {
                           handleCreateDraftClick(activeTarget.id, e);
                         }
                       }}
-                      className={`px-2 py-1 rounded font-semibold text-[10px] font-mono transition-colors flex items-center gap-1 shrink-0 ${
-                        activeTarget.status === 'contacted'
+                      className={`px-2 py-1 rounded font-semibold text-[10px] font-mono transition-colors flex items-center gap-1 shrink-0 ${activeTarget.status === 'contacted'
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
                           : activeTarget.status === 'draft_ready'
-                          ? 'bg-amber-400 text-black hover:bg-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
-                          : 'bg-[#D2F824] text-black hover:bg-[#bce018] shadow-[0_0_8px_rgba(210,248,36,0.3)]'
-                      }`}
+                            ? 'bg-amber-400 text-black hover:bg-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
+                            : 'bg-[#D2F824] text-black hover:bg-[#bce018] shadow-[0_0_8px_rgba(210,248,36,0.3)]'
+                        }`}
                     >
                       {activeTarget.status === 'contacted' ? (
                         <>
@@ -869,7 +853,7 @@ export const Overview: React.FC = () => {
                         <span>Draft Pitch</span>
                       )}
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => handleAuditClick(activeTarget.id, e)}
                       disabled={isAuditing}
                       className="p-1.5 rounded bg-[#1C212D] text-white hover:text-[#D2F824] border border-[#262D3D] transition-colors disabled:opacity-40 shrink-0"
@@ -890,41 +874,41 @@ export const Overview: React.FC = () => {
               </span>
             </div>
 
-            <div 
+            <div
               onMouseDown={(e) => e.stopPropagation()}
               className="absolute bottom-3 right-4 z-20 flex items-center gap-2 text-[11px] font-mono text-[#586274] pointer-events-auto"
             >
               <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-emerald-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Engine ping: 12ms • Map updates every 3 min
               </span>
 
               {/* Map Zoom / Layer Tools */}
               <div className="flex items-center bg-[#161A23]/90 border border-[#262D3D] rounded-lg p-0.5">
-                <button 
+                <button
                   onClick={() => setShowInspectorCard(!showInspectorCard)}
-                  className="p-1 text-[#8B949E] hover:text-white" 
+                  className="p-1 text-[#8B949E] hover:text-white"
                   title="Toggle Inspector"
                 >
                   <Layers className="w-3.5 h-3.5" />
                 </button>
-                <button 
+                <button
                   onClick={() => setRadarZoom((z) => Math.min(z + 0.15, 2.2))}
-                  className="p-1 text-[#8B949E] hover:text-white" 
+                  className="p-1 text-[#8B949E] hover:text-white"
                   title="Zoom In"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-                <button 
+                <button
                   onClick={() => setRadarZoom((z) => Math.max(z - 0.15, 0.6))}
-                  className="p-1 text-[#8B949E] hover:text-white" 
+                  className="p-1 text-[#8B949E] hover:text-white"
                   title="Zoom Out"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
-                <button 
+                <button
                   onClick={handleResetView}
-                  className="p-1 text-[#8B949E] hover:text-white" 
+                  className="p-1 text-[#8B949E] hover:text-white"
                   title="Reset View"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -947,7 +931,7 @@ export const Overview: React.FC = () => {
                     REAL-TIME TELEMETRY
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={handleCopyTerminal}
                   className="text-[10px] font-mono text-[#D2F824] hover:underline flex items-center gap-1"
                 >
@@ -959,23 +943,22 @@ export const Overview: React.FC = () => {
               {/* Terminal Output */}
               <div className="p-3 bg-[#090C11] border border-[#262D3D] rounded-lg font-mono text-[11px] space-y-1 overflow-x-auto text-[#8B949E]">
                 <p className="text-[#586274]">// Raw HTTP socket inspection • Live target stream</p>
-                <p className={`font-semibold ${
-                  activeTarget?.websiteStatus === 'broken_pages'
+                <p className={`font-semibold ${activeTarget?.websiteStatus === 'broken_pages'
                     ? 'text-rose-400'
                     : activeTarget?.websiteStatus === 'ssl_expired'
-                    ? 'text-amber-400'
-                    : activeTarget?.websiteStatus === 'unreachable'
-                    ? 'text-rose-500'
-                    : 'text-emerald-400'
-                }`}>
+                      ? 'text-amber-400'
+                      : activeTarget?.websiteStatus === 'unreachable'
+                        ? 'text-rose-500'
+                        : 'text-emerald-400'
+                  }`}>
                   &gt; GET /contact HTTP/1.1 → {
                     activeTarget?.websiteStatus === 'broken_pages'
                       ? '404 Not Found'
                       : activeTarget?.websiteStatus === 'ssl_expired'
-                      ? '200 OK (TLS Certificate Expired)'
-                      : activeTarget?.websiteStatus === 'unreachable'
-                      ? '503 Service Unavailable'
-                      : '200 OK'
+                        ? '200 OK (TLS Certificate Expired)'
+                        : activeTarget?.websiteStatus === 'unreachable'
+                          ? '503 Service Unavailable'
+                          : '200 OK'
                   }
                 </p>
                 <p className="text-white">Server: nginx/1.18.0 (Ubuntu)</p>
@@ -1086,17 +1069,17 @@ export const Overview: React.FC = () => {
                 {/* Search filter input */}
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#586274]" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={filterQuery}
                     onChange={(e) => setFilterQuery(e.target.value)}
-                    placeholder="Filter table..." 
+                    placeholder="Filter table..."
                     className="h-8 pl-8 pr-2.5 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-white placeholder:text-[#586274] focus:outline-none focus:border-[#D2F824]/60 w-36 sm:w-44 transition-colors"
                   />
                 </div>
 
                 {/* Status Dropdown */}
-                <select 
+                <select
                   value={dashboardFilter}
                   onChange={(e) => setDashboardFilter(e.target.value as any)}
                   className="h-8 pl-2 pr-6 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-[#8B949E] focus:outline-none focus:border-[#D2F824]/60"
@@ -1109,7 +1092,7 @@ export const Overview: React.FC = () => {
                 </select>
 
                 {/* Category Dropdown */}
-                <select 
+                <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                   className="h-8 pl-2 pr-6 text-xs font-mono bg-[#1C212D] border border-[#262D3D] rounded-lg text-[#8B949E] focus:outline-none focus:border-[#D2F824]/60"
@@ -1143,17 +1126,16 @@ export const Overview: React.FC = () => {
                     const isRowAuditing = isAuditing && auditingProspectId === p.id;
 
                     return (
-                      <tr 
+                      <tr
                         key={p.id}
                         onClick={() => {
                           setSelectedProspectId(p.id);
                           setShowInspectorCard(true);
                         }}
-                        className={`transition-colors cursor-pointer ${
-                          isSelected 
-                            ? 'bg-[#1C212D]/60 border-l-2 border-l-[#D2F824]' 
+                        className={`transition-colors cursor-pointer ${isSelected
+                            ? 'bg-[#1C212D]/60 border-l-2 border-l-[#D2F824]'
                             : 'hover:bg-[#1C212D]/40'
-                        }`}
+                          }`}
                       >
                         <td className="py-3.5 px-4">
                           <div className="flex flex-col">
@@ -1195,11 +1177,10 @@ export const Overview: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            p.opportunityScore >= 80 
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${p.opportunityScore >= 80
                               ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
                               : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                          }`}>
+                            }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${p.opportunityScore >= 80 ? 'bg-rose-500' : 'bg-amber-400'}`}></span>
                             {p.opportunityScore}/100
                           </span>
@@ -1215,14 +1196,14 @@ export const Overview: React.FC = () => {
 
                         <td className="py-3.5 px-4 text-right">
                           <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <button 
+                            <button
                               onClick={(e) => handleAuditClick(p.id, e)}
                               disabled={isAuditing}
                               className="px-2.5 py-1 rounded bg-[#1C212D] border border-[#262D3D] text-[11px] text-[#F3F4F6] hover:text-white hover:border-[#8B949E] transition-colors disabled:opacity-40"
                             >
                               {isRowAuditing ? 'Auditing...' : p.auditCount > 0 ? 'Re-Audit' : 'Audit'}
                             </button>
-                            <button 
+                            <button
                               onClick={(e) => handleCreateDraftClick(p.id, e)}
                               className="px-2.5 py-1 rounded bg-[#D2F824] text-black font-semibold text-[11px] hover:bg-[#bce018] transition-colors"
                             >
@@ -1239,7 +1220,7 @@ export const Overview: React.FC = () => {
                       <td colSpan={6} className="py-12 text-center text-[#8B949E]">
                         <Building2 className="w-8 h-8 text-[#262D3D] mx-auto mb-2" />
                         <div className="text-sm">No prospects match the selected filter.</div>
-                        <button 
+                        <button
                           onClick={() => { setDashboardFilter('all'); setFilterQuery(''); setCategoryFilter('all'); }}
                           className="mt-2 text-xs text-[#D2F824] hover:underline"
                         >

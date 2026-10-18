@@ -44,6 +44,7 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
 
   // AI Providers state
   const [providers, setProviders] = useState<AIProviderStatus[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('');
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -65,6 +66,14 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
         .then((res) => (res.ok ? res.json() : []))
         .then((data: AIProviderStatus[]) => {
           setProviders(data);
+          // Prefer active configured provider, else first configured (e.g. Gemini), else active, else first in list
+          const activeConfigured = data.find((p) => p.is_active && p.is_configured);
+          const firstConfigured = data.find((p) => p.is_configured);
+          const active = data.find((p) => p.is_active);
+          const preferred = activeConfigured || firstConfigured || active || data[0];
+          if (preferred) {
+            setSelectedProviderId(preferred.provider_id);
+          }
         })
         .catch(() => {})
         .finally(() => setIsLoadingProviders(false));
@@ -74,7 +83,11 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
   if (!isOpen) return null;
 
   const currentProspect = prospects.find((p) => p.id === selectedProspectId) || prospects[0];
-  const activeProvider = providers.find((p) => p.is_active) || providers[0];
+  const activeProvider = (selectedProviderId ? providers.find((p) => p.provider_id === selectedProviderId) : null) ||
+                         providers.find((p) => p.is_active && p.is_configured) ||
+                         providers.find((p) => p.is_configured) ||
+                         providers.find((p) => p.is_active) || 
+                         providers[0];
   const isProviderConfigured = activeProvider ? activeProvider.is_configured : false;
 
   // Resolve audit report
@@ -110,7 +123,8 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
           purpose,
           tone,
           custom_instructions: customInstructions.trim() || undefined,
-          privacy_consent: true
+          privacy_consent: true,
+          provider_override: activeProvider?.provider_id
         })
       });
 
@@ -171,7 +185,7 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 text-[12px]">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 flex flex-col gap-4 text-[12px]">
           {/* Target Prospect Selection / Summary */}
           <div className="rounded border border-[#2B2F36] bg-[#141618] p-3.5 flex flex-col gap-2">
             <div className="flex items-center justify-between text-[11px] text-[#727780] uppercase tracking-wider font-medium">
@@ -277,15 +291,31 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
           </div>
 
           {/* Selected Provider Badge & Status Notice */}
-          <div className="rounded border border-[#2B2F36] bg-[#141618] p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
+          <div className="rounded border border-[#2B2F36] bg-[#141618] p-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Cpu className="w-4 h-4 text-[#D8E7A2]" />
                 <span className="text-[12px] font-medium text-[#F3F4F6]">
-                  Active AI Engine: {activeProvider ? activeProvider.name : 'Checking...'}
+                  Active AI Engine:
                 </span>
+                {providers.length > 0 ? (
+                  <select
+                    value={activeProvider?.provider_id || selectedProviderId}
+                    onChange={(e) => setSelectedProviderId(e.target.value)}
+                    disabled={isGenerating}
+                    className="bg-[#1C212D] border border-[#30343A] rounded px-2.5 py-1 text-[11px] text-[#F3F4F6] focus:border-[#D8E7A2] outline-none font-mono cursor-pointer"
+                  >
+                    {providers.map((p) => (
+                      <option key={p.provider_id} value={p.provider_id}>
+                        {p.name} {p.is_configured ? '• Ready' : '• Missing Config'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-[12px] text-[#A0A5AD]">Checking...</span>
+                )}
               </div>
-              <span className={`font-mono text-[11px] px-2 py-0.5 rounded border ${
+              <span className={`font-mono text-[11px] px-2 py-0.5 rounded border shrink-0 ${
                 isProviderConfigured
                   ? 'bg-[#18261F] text-[#80B89A] border-[#253D30]'
                   : 'bg-[#2A1818] text-[#D78383] border-[#4A2626]'
@@ -297,11 +327,25 @@ export const GenerateDraftModal: React.FC<GenerateDraftModalProps> = ({
             {!isProviderConfigured ? (
               <div className="p-2.5 rounded bg-[#2A1818] border border-[#4A2626] text-[11px] text-[#D78383] flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5 flex-1">
                   <span><strong>AI Provider Not Configured:</strong> {activeProvider?.status_message || 'Please configure an AI provider in your .env file or Integrations.'}</span>
                   <div className="text-[#A0A5AD]">
-                    Add your API key (OPENAI_API_KEY or ANTHROPIC_API_KEY) in the <code className="text-[#F3F4F6]">.env</code> file, or run a local Ollama instance (<code className="text-[#F3F4F6]">ollama run llama3</code>).
+                    Add your API key (GEMINI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY) in the <code className="text-[#F3F4F6]">.env</code> file, or run a local Ollama instance (<code className="text-[#F3F4F6]">ollama run llama3</code>).
                   </div>
+                  {providers.some((p) => p.is_configured) && (
+                    <div className="pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const configured = providers.find((p) => p.is_configured);
+                          if (configured) setSelectedProviderId(configured.provider_id);
+                        }}
+                        className="px-2.5 py-1 rounded bg-[#18261F] border border-[#253D30] text-[#80B89A] hover:bg-[#20332a] text-[11px] font-medium transition-colors cursor-pointer"
+                      >
+                        ⚡ Switch to {providers.find((p) => p.is_configured)?.name} (Ready)
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

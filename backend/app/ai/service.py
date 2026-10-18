@@ -88,16 +88,37 @@ class AIEmailDraftingService:
         self._semaphore = asyncio.Semaphore(3)
 
     def get_provider(self, provider_id: Optional[str] = None) -> BaseAIProvider:
-        target_id = (provider_id or settings.AI_PROVIDER or "gemini").lower().strip()
+        if provider_id:
+            target_id = provider_id.lower().strip()
+            provider = self._providers.get(target_id)
+            if not provider:
+                raise AIConfigurationError(
+                    f"Unknown AI provider '{target_id}'. Supported providers are: {', '.join(self._providers.keys())}"
+                )
+            return provider
+
+        target_id = (settings.AI_PROVIDER or "gemini").lower().strip()
         provider = self._providers.get(target_id)
+        if provider and not provider.is_configured():
+            # If default provider is missing credentials, automatically route to any configured provider (e.g. Gemini)
+            for pid, p in self._providers.items():
+                if p.is_configured():
+                    logger.info(f"Default provider '{target_id}' unconfigured; auto-routing to configured '{pid}'")
+                    return p
+
         if not provider:
-            raise AIConfigurationError(
-                f"Unknown AI provider '{target_id}'. Supported providers are: {', '.join(self._providers.keys())}"
-            )
+            provider = self._providers.get("gemini")
         return provider
 
     def list_providers(self) -> List[AIProviderInfo]:
         active_id = (settings.AI_PROVIDER or "gemini").lower().strip()
+        active_provider = self._providers.get(active_id)
+        if active_provider and not active_provider.is_configured():
+            for pid, p in self._providers.items():
+                if p.is_configured():
+                    active_id = pid
+                    break
+
         info_list = []
 
         # 1. Google Gemini (100% Free Tier via Google AI Studio)
@@ -478,6 +499,7 @@ class AIEmailDraftingService:
             "needs_manual_review": overall_needs_review,
             "ai_provider": provider.provider_id,
             "ai_model": request.model_override or (
+                settings.GEMINI_MODEL if provider.provider_id == "gemini" else
                 settings.OPENAI_MODEL if provider.provider_id == "openai" else
                 settings.ANTHROPIC_MODEL if provider.provider_id == "anthropic" else
                 settings.COMPATIBLE_MODEL
@@ -637,6 +659,7 @@ class AIEmailDraftingService:
             "needs_manual_review": structured.needs_manual_review or manual_review_flag,
             "ai_provider": provider.provider_id,
             "ai_model": request.model_override or (
+                settings.GEMINI_MODEL if provider.provider_id == "gemini" else
                 settings.OPENAI_MODEL if provider.provider_id == "openai" else
                 settings.ANTHROPIC_MODEL if provider.provider_id == "anthropic" else
                 settings.COMPATIBLE_MODEL
