@@ -428,7 +428,7 @@ export const Audits: React.FC = () => {
                 <div className="text-[11px] font-mono text-[#A0A5AD] flex flex-col gap-1 bg-[#111214] p-2.5 rounded border border-[#24272D]">
                   <div>A: {auditReport.rawDns.aRecord}</div>
                   <div>MX: {auditReport.rawDns.mxRecord}</div>
-                  <div>NS: {auditReport.rawDns.nameservers.join(', ')}</div>
+                  <div>NS: {Array.isArray(auditReport.rawDns?.nameservers) ? auditReport.rawDns.nameservers.join(', ') : (auditReport.rawDns?.nameservers || 'None')}</div>
                 </div>
               </div>
 

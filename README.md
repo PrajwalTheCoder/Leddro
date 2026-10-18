@@ -1,373 +1,600 @@
-# Leddro: Website Diagnostic Audit, Business Discovery & AI Email Drafting
+# Leddro
 
-Leddro is an autonomous intelligence platform for discovering local commercial entities, classifying website reachability and infrastructure health, and preparing evidence-backed, personalized outreach letters.
+> **Discover prospects. Audit websites. Prepare evidence-based outreach. Keep control of your workflow.**
 
----
+[![MIT License](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB.svg)](https://react.dev/)
+[![SQLite Local](https://img.shields.io/badge/Database-SQLite%20(Default)-blueviolet.svg)](https://www.sqlite.org/)
 
-## Architecture Overview
+Leddro is an open-source, local-first intelligence platform for finding local commercial businesses, performing technical diagnostic audits on their websites, and generating factual, evidence-backed outreach proposals.
 
-Leddro is structured with a modular, high-precision architecture:
-
-- **Frontend**: React 18, TypeScript, Vite, Vanilla/Tailwind CSS, Lucide icons.
-- **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0, Pydantic v2.
-- **Database**: Dual-mode engine supporting:
-  - **Local-First SQLite**: Zero configuration, stored locally in `leddro.db`.
-  - **Neon Serverless PostgreSQL**: Cloud auto-scaling with connection pooling (`neon.tech`).
-- **AI Engine**: Multi-provider architecture with native Google Gemini (`gemini-3.5-flash-lite`, `gemini-3.5-flash`), OpenAI (`gpt-4o-mini`), Anthropic (`claude-3-5-haiku`), and local Ollama.
-- **Security & Network**: Bounded HTTP timeouts, strict SSRF socket validation, CSV formula injection defenses, and strict prompt-injection security delimiters.
-
+Unlike conventional mass-scraping or generic email blast tools, Leddro anchors every outreach suggestion directly to deterministic technical findings—such as expired SSL/TLS certificates, DNS misconfigurations, slow server responses, broken links, or missing mobile viewport declarations.
 
 ---
 
-## Phase 5: AI-Powered, Evidence-Based Email Drafting
+## Table of Contents
 
-Phase 5 introduces a structured, privacy-preserving AI email drafting engine that synthesizes verified business details and deterministic website audit findings into personalized outreach letters.
+- [What Is Leddro?](#what-is-leddro)
+- [Why Leddro?](#why-leddro)
+- [Features](#features)
+- [Screenshots & Interface Tour](#screenshots--interface-tour)
+- [System Requirements](#system-requirements)
+- [Installation: Quick Start](#installation-quick-start)
+- [Running the Application](#running-the-application)
+- [First-Run Experience: Try This First](#first-run-experience-try-this-first)
+- [Using Leddro Without AI](#using-leddro-without-ai)
+- [Configuring AI Providers](#configuring-ai-providers)
+- [Google OAuth & Gmail Setup (Optional)](#google-oauth--gmail-setup-optional)
+- [Configuration Reference (.env)](#configuration-reference-env)
+- [Database & Data Storage](#database--data-storage)
+- [Privacy, Security & Responsible Use](#privacy-security--responsible-use)
+- [Troubleshooting](#troubleshooting)
+- [Updating Leddro](#updating-leddro)
+- [Testing & Development](#testing--development)
+- [Project Architecture](#project-architecture)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Security Disclosures](#security-disclosures)
+- [License & Acknowledgments](#license--acknowledgments)
 
-### Conceptual AI Architecture
+---
+
+## What Is Leddro?
+
+Leddro connects discovery, technical verification, and outreach preparation into a unified desktop workspace:
 
 ```
-backend/app/
-  ai/
-    __init__.py
-    base.py           # Abstract BaseAIProvider, mask_api_key, and AI exceptions
-    models.py         # Pydantic schemas (generation request, claims, output, settings)
-    prompts.py        # System prompt, prompt injection defense tags, purpose & tone directives
-    service.py        # AIEmailDraftingService (semaphore, context assembly, claim verification)
-    providers/
-      __init__.py
-      openai_provider.py      # OpenAI REST API (gpt-4o-mini, gpt-4o) with structured JSON
-      anthropic_provider.py   # Anthropic Messages API (claude-3-5-haiku, claude-3-5-sonnet)
-      compatible_provider.py  # Local / OpenAI-compatible endpoint (Ollama, vLLM, OpenRouter)
-  api/
-    ai.py             # /api/ai/providers, /api/ai/settings, /api/ai/test-connection
-    drafts.py         # /api/drafts, /generate, /{id}/regenerate, /{id}
+[1. Discover / Import] ──► [2. Technical Audit] ──► [3. Evidence-Backed AI Draft] ──► [4. Human Review & Dispatch]
+     OpenStreetMap              DNS Resolution              Factual Claim Mapping                  Zero Bulk Send
+      CSV Upload               TLS / SSL Validity             Anti-Hallucination               Explicit Confirmation
+   Manual Additions           HTTP & DOM Telemetry           Provider Choice                    Suppression Defense
+```
+
+### The 8-Step Workflow
+
+1. **Discover or import prospects**: Search local businesses via OpenStreetMap (Overpass & Nominatim) or import existing contacts via structured CSV.
+2. **Review business profiles**: View business location, categorized trade, registered web address, and phone details.
+3. **Audit the website**: Run real server-side diagnostic probes checking DNS zone records, TLS certificates, HTTP response status, TTFB latency, and HTML DOM metadata.
+4. **Inspect deterministic findings**: Review classified severity levels (Critical, Warning, Info) backed by exact timestamps, HTTP dumps, and rationale.
+5. **Generate an outreach draft**: Request a personalized proposal from a configured AI engine (Google Gemini, OpenAI, Anthropic Claude, or local Ollama). Every technical claim is strictly cross-referenced against audit findings in your local database.
+6. **Review and edit the draft**: Tweak the subject line, body text, and tone directly in the visual Draft Studio.
+7. **Send an individual email**: If Google OAuth is connected, dispatch a single personalized consultation email via the Gmail API after explicit review. (Bulk sending and automated loops are strictly prevented).
+8. **Track history and preserve records**: Maintain complete local audit logs, send histories, and suppression lists in your local database.
+
+---
+
+## Why Leddro?
+
+Traditional B2B outreach tools rely on generic scraped email lists, automated cold spamming, and hallucinated personalization snippets. Leddro takes the opposite approach:
+
+| Feature / Philosophy | Conventional Outreach Tools | Leddro Approach |
+| :--- | :--- | :--- |
+| **Data Storage** | Cloud database owned by vendor | **Local-First SQLite** stored on your device by default |
+| **Outreach Personalization** | Generic AI templates ("I noticed your website...") | **Deterministic Evidence** citing exact DNS, SSL, or DOM findings |
+| **Anti-Hallucination** | None; AI models invent claims | **Claim Verification**: Unverified claims are flagged for manual review |
+| **Email Dispatch** | Bulk sequence automation & auto-dialers | **Strictly Single-Message**: Human approval required for every send |
+| **Cost & Subscriptions** | High recurring monthly SaaS fees | **100% Free & Open Source** (runs on free-tier APIs or local Ollama) |
+| **Privacy Scope** | Vendor inspects and logs your database | **Zero Third-Party Database Tracking**: Code is open and inspectable |
+
+---
+
+## Features
+
+### 🔍 Prospect Discovery
+- **OpenStreetMap Integration**: Query real local businesses using Overpass API and Nominatim geocoding with zero API keys required.
+- **CSV Batch Import**: Import existing CSV prospect datasets with automatic column mapping, duplicate detection, and formula injection defenses.
+- **Manual Additions**: Add targeted individual prospects with instant domain normalization.
+- **Opportunity Scoring**: Automatically prioritize prospects based on technical urgency, commercial intent, and resolution ease.
+
+### 🛡️ Website Auditing & Telemetry
+- **DNS Zone Inspection**: Query A, AAAA, MX, and NS records with millisecond resolution timing.
+- **TLS / SSL Certificate Verification**: Inspect certificate authority, expiry countdown, protocol version (TLSv1.2/TLSv1.3), and cipher suites.
+- **HTTP Reachability & TTFB**: Measure raw socket connect latency, Time To First Byte (TTFB), status codes (200, 301, 404, 503), and server headers.
+- **HTML DOM Diagnostics**: Detect responsive mobile viewport declarations, `<title>` tags, meta descriptions, and OpenGraph snippet cards.
+- **SSRF Network Security**: Outbound audit crawlers strictly block loopback (`127.0.0.1`), private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud metadata IP endpoints (`169.254.169.254`).
+
+### 🤖 Evidence-Aware AI Drafting
+- **Multi-Provider Architecture**: Use Google Gemini (free tier via Google AI Studio), OpenAI, Anthropic Claude, or local Ollama with zero code changes.
+- **In-Modal Provider Switcher**: Toggle engines directly inside the draft generation modal.
+- **Factual Claim Mapping**: Every technical assertion is matched to a real database finding ID. If a claim lacks authentic evidence, it is automatically downgraded and flagged for operator review.
+- **Prompt-Injection Containment**: Untrusted HTML crawl contents and business tags are enclosed in isolated `<untrusted_prospect_data>` delimiters.
+- **Custom Operator Guidance**: Provide up to 500 characters of custom guidance, select outreach purposes (Website Improvement, Modernization, Maintenance), and adjust writing tones (Professional, Friendly, Concise, Consultative).
+
+### ✉️ Gmail Integration & Safe Dispatch
+- **Google OAuth 2.0 with PKCE**: Authorize directly with Google using Proof Key for Code Exchange and cryptographic CSRF state verification.
+- **Fernet Token Encryption**: Sensitive OAuth refresh tokens are encrypted at rest using AES-128-CBC + HMAC-SHA256 (`.leddro_encryption_key`).
+- **Individual Dispatch Only**: No background loops or bulk-send operations.
+- **Suppression Registry**: Automatically blocks dispatches to opted-out addresses or blocked domains.
+- **State Reconciliation**: Network timeouts mark send attempts as `uncertain` to prevent accidental duplicate dispatches.
+
+### 💾 Data Safety & Infrastructure
+- **Local-First SQLite**: Everything runs locally in `leddro.db` out of the box.
+- **Atomic Online Backups**: Native SQLite backup API (`sqlite3_backup`) creates consistent snapshot backups without locking active writes.
+- **Integrity Validation**: Automated `PRAGMA integrity_check` before any database restoration.
+- **Optional Neon PostgreSQL**: Switch to cloud auto-scaling serverless PostgreSQL simply by updating `DATABASE_URL`.
+
+---
+
+## Screenshots & Interface Tour
+
+The following genuine screenshots were captured from a live Leddro workspace:
+
+### 1. Command Center & Tactical Radar Overview
+Comprehensive mission dashboard featuring real-time health gauges, interactive prospect radar, telemetry stream, and quick-audit controls.
+![Command Center Overview](docs/screenshots/overview-command-center.png)
+
+### 2. Prospect Management & Pipeline
+Organized registry of target businesses with real-time opportunity scores, website conditions, and direct audit/draft triggers.
+![Prospect Management](docs/screenshots/prospect-management.png)
+
+### 3. Website Audit & Technical Findings
+Detailed diagnostic report presenting DNS zone records, TLS handshake ciphers, and classified severity findings.
+![Technical Audits](docs/screenshots/technical-audits.png)
+
+### 4. AI Evidence-Based Draft Generation Modal
+In-modal AI engine selector with automatic provider routing, free-tier Gemini integration, and privacy disclosure.
+![AI Draft Generation Modal](docs/screenshots/ai-draft-generation-modal.png)
+
+### 5. Email Draft Studio & Evidence Inspector
+Split-view editor featuring alternative subject lines, claim evidence citations, and one-click review controls.
+![AI Draft Studio](docs/screenshots/ai-draft-studio.png)
+
+### 6. Integrations & Credential Settings
+Manage AI engine keys, select default models, test connectivity latencies, and monitor Google OAuth authorization status.
+![Integrations Settings](docs/screenshots/integrations-settings.png)
+
+---
+
+## System Requirements
+
+| Component | Minimum Requirement | Recommended |
+| :--- | :--- | :--- |
+| **Operating System** | Windows 10/11, macOS 12+, or Ubuntu 20.04+ | Any modern 64-bit OS |
+| **Python** | 3.11 or higher | 3.11, 3.12, or 3.13 |
+| **Node.js** | 20.0.0 or higher | Node.js 22 LTS |
+| **Package Managers** | `pip` (Python) and `npm` (Node) | Latest `npm` and `pip` |
+| **Disk Space** | ~500 MB (codebase, virtualenv & dependencies) | 1 GB free |
+| **Network** | Internet access for audits & external APIs | Active broadband connection |
+
+### Verify Your Installed Versions
+
+Run these commands in your terminal:
+
+```bash
+git --version
+python --version   # (On macOS/Linux, use python3 --version)
+node --version
+npm --version
 ```
 
 ---
 
-## Supported AI Providers
+## Installation: Quick Start
 
-A user can configure **one** provider and use Leddro without configuring the others:
+Follow these verified steps to set up Leddro from scratch:
 
-### 1. OpenAI (Official REST API)
-- **Status**: Supported with structured JSON mode (`response_format={"type": "json_object"}`).
-- **Default Model**: `gpt-4o-mini` (configurable to `gpt-4o`, `gpt-3.5-turbo`).
-- **Setup**: Set `OPENAI_API_KEY="sk-..."` in `.env`.
-- **Data Transmission**: Sends minimal context (business name, category, city, website condition, verified audit finding titles).
+### 1. Clone the Repository
 
-### 2. Anthropic (Claude Messages API)
-- **Status**: Supported with structured response enforcement.
-- **Default Model**: `claude-3-5-haiku-20241022` (configurable to `claude-3-5-sonnet-20241022`).
-- **Setup**: Set `ANTHROPIC_API_KEY="sk-ant-..."` in `.env`.
-- **Data Transmission**: Sends minimal context to Anthropic API servers.
-
-### 3. Local / Self-Hosted (OpenAI-Compatible / Ollama)
-- **Status**: 100% on-device inference; zero external data transmission.
-- **Default Model**: `llama3` via `http://localhost:11434/v1`.
-- **Setup**:
-  1. Install Ollama: [ollama.com](https://ollama.com)
-  2. Pull model: `ollama run llama3`
-  3. Set `AI_PROVIDER="compatible"` in `.env` (no API key required).
-
----
-
-## Anti-Hallucination & Evidence Validation
-
-Leddro strictly enforces factual consistency:
-- **Zero Fabrication**: Technical assertions must correspond to authentic findings in `<untrusted_audit_data>`.
-- **Deterministic Cross-Check**: Every claim generated by the model is validated against real finding IDs in the SQLite database. If a finding reference is not found in the audit report, it is flagged for manual operator review, downgraded to `evidence_type = "none"`, and noted in the rationale.
-- **Unverified Website Semantics**: "Not listed" or "verification required" is never claimed as proof that a business has no website.
-- **Prompt-Injection Defense**: Business descriptions, imported CSV data, and audit findings are enclosed within `<untrusted_prospect_data>` and `<untrusted_audit_data>` tags. The model is explicitly commanded to treat them as passive data and ignore embedded instructions.
-
----
-
-## Outreach Purposes & Writing Tones
-
-### Supported Purposes
-1. **Website Improvement**: Focuses directly on observed, verified technical audit issues (SSL expiration, DNS issues, slow TTFB, broken pages).
-2. **Website Redesign**: Proposes modernizing the web presence while citing usability or layout observations.
-3. **New Website Proposal**: For businesses without a listed web presence; politely inquires about their online strategy.
-4. **Website Maintenance**: Offers ongoing monitoring, security patching, and uptime assurance.
-5. **General Introduction**: Introduces developer capabilities without unsupported technical claims.
-
-### Supported Tones
-- **Professional**: Authoritative, polite, and measured.
-- **Friendly**: Approachable, warm, and conversational.
-- **Concise**: Direct and under 100 words.
-- **Consultative**: Analytical, advisory, highlighting business impact.
-
----
-
-## API Endpoints
-
-### AI Provider & Configuration
-- `GET /api/ai/providers`: Lists available providers, configuration status, models, and privacy notices.
-- `GET /api/ai/settings`: Returns non-secret settings and developer profile context. (Secrets are masked).
-- `PUT /api/ai/settings`: Updates active provider, models, timeouts, and developer profile fields.
-- `POST /api/ai/test-connection`: Tests connectivity and measures latency to the selected provider.
-
-### Email Drafts Management
-- `POST /api/drafts/generate`: Generates a new evidence-backed draft for a prospect. Requires `privacy_consent: true`.
-- `POST /api/drafts/{id}/regenerate`: Regenerates an existing draft with updated purpose/tone/instructions.
-- `GET /api/drafts`: Lists saved drafts with optional `prospect_id` and `status` filters.
-- `GET /api/drafts/{id}`: Retrieves a single saved draft with claim citations and findings.
-- `PATCH /api/drafts/{id}`: Updates subject, body, or status (`draft`, `edited`, `approved`).
-- `DELETE /api/drafts/{id}`: Deletes a draft from SQLite.
-
----
-
-## Privacy & Key Management
-
-- **Local-First**: Secret API keys are stored in a local `.env` file (never committed to Git) and read into environment variables.
-- **No Client Exposure**: API keys are never passed to browser JavaScript, never stored in `localStorage`, and never returned in API responses.
-- **Explicit Privacy Consent**: Users must review and agree to transmit minimal required prospect details before any external AI call is executed.
-- **Zero Accidental Dispatch**: Email sending is strictly outside Phase 5. Approving a draft updates its review status in SQLite and does not invoke SMTP or external mail APIs.
-
----
-
-## Environment Configuration
-
-Copy `.env.example` to `.env`:
-
-```env
-# Database
-DATABASE_URL="sqlite:///./leddro.db"
-
-# Active AI Provider: "openai" | "anthropic" | "compatible"
-AI_PROVIDER="openai"
-
-# OpenAI Configuration
-OPENAI_API_KEY=""
-OPENAI_MODEL="gpt-4o-mini"
-OPENAI_BASE_URL="https://api.openai.com/v1"
-
-# Anthropic Claude Configuration
-ANTHROPIC_API_KEY=""
-ANTHROPIC_MODEL="claude-3-5-haiku-20241022"
-ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
-
-# Local Ollama / OpenAI-Compatible
-COMPATIBLE_API_KEY=""
-COMPATIBLE_MODEL="llama3"
-COMPATIBLE_BASE_URL="http://localhost:11434/v1"
-
-# Developer Profile Defaults
-DEV_NAME="Alex Morgan"
-DEV_TITLE="Independent Web Consultant & Full-Stack Developer"
-DEV_SERVICES="Website performance tuning, modern responsive redesigns, SSL/DNS remediation, and technical SEO"
-DEV_PORTFOLIO_URL=""
-DEV_EMAIL="consultant@example.com"
-# Google Cloud OAuth 2.0 & Gmail API Integration (Phase 6)
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-GOOGLE_REDIRECT_URI="http://localhost:8000/api/google/callback"
-GOOGLE_OAUTH_SCOPES="https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/gmail.send"
-FRONTEND_URL="http://localhost:5173"
-CREDENTIAL_ENCRYPTION_KEY=""
+```bash
+git clone https://github.com/PrajwalTheCoder/Leddro.git
+cd Leddro
 ```
 
----
+### 2. Backend Setup (FastAPI & Python)
 
-## Phase 6: Real Google OAuth & Gmail API Integration
+#### On Windows (PowerShell):
+```powershell
+# Create Python virtual environment
+python -m venv .venv
 
-Phase 6 implements authentic, secure Google OAuth 2.0 authorization and Gmail API email dispatch with strict responsible-sending and duplicate-prevention controls.
+# Activate virtual environment
+.\.venv\Scripts\Activate.ps1
 
-### 1. Google Cloud Project Setup Guide
+# Upgrade pip and install backend dependencies
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
+```
 
-Follow this 11-step procedure to configure your official Google Cloud project:
+#### On macOS / Linux:
+```bash
+# Create Python virtual environment
+python3 -m venv .venv
 
-1. **Open Google Cloud Console**: Navigate to [https://console.cloud.google.com](https://console.cloud.google.com).
-2. **Create or Select a Project**: Create a new project (e.g. `leddro-local-outreach`) or choose an existing project.
-3. **Enable Gmail API**:
-   - In the navigation menu, go to **APIs & Services > Library**.
-   - Search for **Gmail API**.
-   - Click **Enable**.
-4. **Configure OAuth Consent Screen**:
-   - Go to **APIs & Services > OAuth consent screen**.
-   - User Type: Select **External** (or **Internal** if using a Google Workspace organization).
-   - App Information: Enter App name (e.g. `Leddro Local Assistant`), User support email, and Developer contact information.
-   - Click **Save and Continue**.
-5. **Configure Scopes**:
-   - On the Scopes screen, click **Add or Remove Scopes**.
-   - Add the following two minimal scopes:
-     - `https://www.googleapis.com/auth/userinfo.email` (identifies the authenticated sender's email address).
-     - `https://www.googleapis.com/auth/gmail.send` (permits sending authorized individual messages).
-   - *Security Note*: Do **NOT** add `https://mail.google.com/` or `https://www.googleapis.com/auth/gmail.readonly`. Leddro requires send-only permissions and never reads or indexes user inboxes.
-   - Click **Save and Continue**.
-6. **Configure Test Users (Crucial for Testing Mode)**:
-   - While the app status is **Testing**, Google restricts access to explicit test accounts.
-   - Click **Add Users** under **Test users**.
-   - Enter your personal or work Gmail address that you intend to connect.
-   - Click **Save and Continue**.
-7. **Create OAuth 2.0 Web Client ID**:
-   - Go to **APIs & Services > Credentials**.
-   - Click **+ CREATE CREDENTIALS > OAuth client ID**.
-   - Application type: Select **Web application**.
-   - Name: `Leddro Local Client`.
-8. **Add Authorized Redirect URI**:
-   - Under **Authorized redirect URIs**, click **+ ADD URI**.
-   - Enter the exact callback URL configured on your backend:
-     `http://localhost:8000/api/google/callback`
-   - *Note*: Google requires an exact string match including port, scheme, and trailing slash semantics.
-9. **Obtain Client Credentials**:
-   - Click **Create**.
-   - Copy the generated **Client ID** and **Client Secret**.
-10. **Configure Leddro Environment**:
-    - Add the credentials to your `.env` file:
-      ```env
-      GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-      GOOGLE_CLIENT_SECRET="your-client-secret"
-      GOOGLE_REDIRECT_URI="http://localhost:8000/api/google/callback"
-      GOOGLE_OAUTH_SCOPES="https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/gmail.send"
-      FRONTEND_URL="http://localhost:5173"
-      ```
-11. **Start Leddro and Connect**:
-    - Launch backend and frontend dev servers.
-    - Navigate to `http://localhost:5173/integrations`.
-    - Click **Connect Google Account**. Follow Google's authentication prompt to authorize the application.
+# Activate virtual environment
+source .venv/bin/activate
 
----
+# Upgrade pip and install backend dependencies
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
+```
 
-### 2. Google OAuth Testing Mode & Verification Caveats
+### 3. Initialize Configuration
 
-- **Testing Mode Limitations**: Projects in "Testing" mode have a limit of 100 test users. Refresh tokens issued to test users may expire in 7 days, requiring reauthorization via the Integrations page.
-- **Sensitive & Restricted Scopes**: The `gmail.send` scope is classified by Google as a **Restricted Scope**. For public or multi-user production deployments, Google requires formal App Verification (including a third-party security assessment CASA Tier 2). For personal, local-first use by developer owners and designated test accounts, testing mode is fully operational.
-- **Verification is Not Automatic**: Google approval requires submitting privacy policy links, YouTube demo recordings, and domain verification. Never assume verification is automatic.
+Copy the sanitized template file to `.env`:
 
----
+```bash
+# Windows PowerShell:
+Copy-Item .env.example .env
 
-### 3. OAuth Security Architecture
+# macOS / Linux:
+cp .env.example .env
+```
 
-- **State & CSRF Defense**: The backend generates a cryptographically secure 32-byte hex token stored in `oauth_states` with a 10-minute expiry. Callback requests validate this state before exchanging authorization codes.
-- **PKCE (Proof Key for Code Exchange)**: S256 code challenge generation and verification are used to bind authorization codes to the originating backend session.
-- **At-Rest Token Encryption**: Refresh tokens and access tokens are encrypted using **Fernet symmetric encryption** (AES-128-CBC + HMAC-SHA256). A persistent encryption key is stored locally in `.leddro_encryption_key` with strict file permissions, or configured via `CREDENTIAL_ENCRYPTION_KEY`.
-- **Zero Token Leakage**: Tokens and secrets are never returned to frontend JavaScript, never stored in `localStorage` or `sessionStorage`, and never printed in server logs. All logs pass through credential-redaction helpers.
-- **Live Connection Testing**: The "Test Connection" endpoint makes a low-impact call to Google's `https://gmail.googleapis.com/gmail/v1/users/me/profile` to verify valid credentials and fetch current messages/threads totals.
-- **Safe Disconnection**: Disconnecting clears local database records and initiates token revocation with Google's endpoint (`https://oauth2.googleapis.com/revoke`).
+*(Out of the box, `.env` is preconfigured to use SQLite locally at `leddro.db`. You do not need an API key or cloud database to run the app).*
 
----
+### 4. Frontend Setup (React & Vite)
 
-### 4. Explicitly Approved Sending & Anti-Spam Safeguards
+In the same repository root:
 
-Leddro is designed exclusively for high-intent, evidence-backed individual consultations. It is **not** a bulk-mail or cold-spam tool:
-
-- **Strictly Individual Dispatch**: No bulk send, no batch operations, and no background mail loops.
-- **Explicit Separation**: "Save Draft", "Approve Draft", and "Send Email" are separate actions. Approving a draft in Phase 5 never sends an email.
-- **Final Confirmation Preview**: Before dispatch, a modal renders the exact `FROM`, `TO`, `SUBJECT`, and formatted `BODY` with a required confirmation checkbox.
-- **Suppression & Opt-Out Enforcement**: Recipient addresses and target domains are checked against the SQLite `suppression_records` table. Dispatches to suppressed recipients are blocked with HTTP 400. Addresses can be opted out directly from the Prospect Detail view.
-- **No Address Guessing**: Recipient emails are only utilized if discovered in source records or explicitly entered by the operator.
-- **Duplicate Prevention & Uncertain State Handling**:
-  - Each dispatch creates a durable record in `email_send_attempts` (`awaiting_confirmation` -> `sending` -> `sent` / `failed` / `uncertain`).
-  - Active attempts prevent concurrent duplicate sends.
-  - If a network timeout occurs during API submission, the attempt is marked `uncertain` (HTTP 504) and subsequent send attempts are blocked with HTTP 409 Conflict until operator reconciliation.
+```bash
+npm install
+```
 
 ---
 
 ## Running the Application
 
-### 1. Backend Setup
+Leddro consists of two processes running concurrently: the **FastAPI backend** on port `8000` and the **Vite dev server** on port `5173`.
 
+### Terminal 1: Start Backend API
+
+Activate your virtual environment and launch Uvicorn:
+
+#### Windows PowerShell:
 ```powershell
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# Run tests
-.venv\Scripts\pytest -v
-
-# Start FastAPI server
+.\.venv\Scripts\Activate.ps1
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Linux/macOS:
+#### macOS / Linux:
 ```bash
 source .venv/bin/activate
-pytest -v
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Backend will be available at:
-- API Base: `http://127.0.0.1:8000`
-- Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
-- Google Status: `http://127.0.0.1:8000/api/google/status`
+*Expected output:*
+```
+INFO:     Started server process [PID]
+INFO:     Waiting for application startup.
+INFO:     Initializing Leddro SQLite database schema...
+INFO:     Database already contains prospects.
+INFO:     Leddro backend engine initialized successfully.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
 
-### 2. Frontend Setup
+- **Interactive API Documentation (Swagger)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Health Check Endpoint**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
-```powershell
-# Install dependencies
-npm install
+### Terminal 2: Start Frontend Application
 
-# Build production bundle
-npm run build
+In a separate terminal window at the project root:
 
-# Start Vite dev server
+```bash
 npm run dev
 ```
 
-Frontend will be available at `http://localhost:5173`. Requests to `/api/*` are automatically proxied to `http://127.0.0.1:8000`.
+*Expected output:*
+```
+  VITE v8.3.4  ready in 450 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+```
+
+Open your browser and navigate to **`http://localhost:5173`**. The Vite dev server automatically proxies all `/api/*` calls to the FastAPI backend.
 
 ---
 
-## Running Automated Tests
+## First-Run Experience: Try This First
 
-Run the complete test suite:
+Follow this zero-credential quick path to experience the core workflow in under 2 minutes:
+
+1. **Open the Dashboard**: Navigate to `http://localhost:5173`. You will see the Command Center populated with 5 initial demonstration prospects.
+2. **Execute an Audit**:
+   - Go to **Prospects** in the sidebar.
+   - Locate **Northstar Interiors** or **Willow Studio**.
+   - Click the **Audit** button.
+   - Watch the real-time probe check DNS, inspect TLS certificates, and analyze DOM structure.
+3. **Inspect Findings**:
+   - Navigate to **Technical Audits** to view the findings (e.g., certificate validity, mobile viewport declarations, missing meta description).
+4. **Draft Outreach**:
+   - Click **Generate Draft** on the audited prospect.
+   - If an AI provider is configured (such as free Google Gemini), click **Generate Email Draft**.
+   - The AI will compose a polite letter quoting the observed audit evidence.
+5. **Edit the Draft**:
+   - Navigate to **Draft Studio** (`/drafts`) to refine the email copy and review alternative subject lines.
+
+---
+
+## Using Leddro Without AI
+
+**You do NOT need an AI API key to use Leddro.** 
+
+Without an AI provider configured:
+- ✅ **Prospect Discovery**: Fully functional using OpenStreetMap and CSV imports.
+- ✅ **Website Auditing**: Fully functional. Performs live DNS queries, TLS handshakes, HTTP crawl checks, and DOM evaluations.
+- ✅ **Record Management**: Fully functional. Track prospect statuses, opportunity scores, and notes in your local SQLite database.
+- ✅ **Manual Outreach Drafting**: Fully functional. Write and save drafts manually in Draft Studio.
+- ❌ **Automated AI Synthesis**: Requires at least one configured AI provider (Google Gemini free tier, OpenAI, Anthropic, or local Ollama).
+
+---
+
+## Configuring AI Providers
+
+Leddro supports 4 interchangeable AI providers. You only need to configure **one**:
+
+| Provider | Pricing / Tier | Default Model | Data Transmission Scope |
+| :--- | :--- | :--- | :--- |
+| **Google Gemini** | **100% Free Tier Available** via Google AI Studio | `gemini-3.5-flash-lite` | Minimal business & audit finding titles sent to Google API servers |
+| **Local Ollama** | **100% Free & Local** (Zero external network) | `llama3` | 100% on-device inference; zero external data transfer |
+| **OpenAI** | Commercial pay-per-token API | `gpt-4o-mini` | Minimal business & audit finding titles sent to OpenAI API servers |
+| **Anthropic** | Commercial pay-per-token API | `claude-3-5-haiku-20241022` | Minimal business & audit finding titles sent to Anthropic API servers |
+
+### 1. Google Gemini (Recommended Free Tier)
+1. Get a free API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Set the key in your `.env` file:
+   ```env
+   AI_PROVIDER="gemini"
+   GEMINI_API_KEY="your_gemini_api_key_here"
+   GEMINI_MODEL="gemini-3.5-flash-lite"
+   ```
+3. Or configure it directly in the app UI at **Integrations** (`/integrations`).
+
+### 2. Local Ollama (Zero External Transfer)
+1. Install Ollama from [ollama.com](https://ollama.com).
+2. Pull a model in your terminal: `ollama run llama3`.
+3. Set in `.env`:
+   ```env
+   AI_PROVIDER="compatible"
+   COMPATIBLE_BASE_URL="http://localhost:11434/v1"
+   COMPATIBLE_MODEL="llama3"
+   ```
+4. No API key is required. All processing remains on your machine.
+
+---
+
+## Google OAuth & Gmail Setup (Optional)
+
+> **Advanced & Optional**: You can use discovery, auditing, and AI drafting without configuring Google OAuth. Only configure Gmail if you intend to send real individual consultation emails directly from the app.
+
+### 11-Step Setup Guide
+
+1. Open the [Google Cloud Console](https://console.cloud.google.com).
+2. Create a new project (e.g., `leddro-local-outreach`).
+3. Enable the **Gmail API** in **APIs & Services > Library**.
+4. Configure the **OAuth consent screen** (User Type: **External**).
+5. Add minimal scopes:
+   - `https://www.googleapis.com/auth/userinfo.email`
+   - `https://www.googleapis.com/auth/gmail.send`
+   *(Security Note: Leddro strictly uses send-only scope. It never reads or indexes your inbox).*
+6. Add your personal email address under **Test users** (required while app status is "Testing").
+7. Go to **Credentials > Create Credentials > OAuth client ID** (Application type: **Web application**).
+8. Add the exact authorized redirect URI:
+   `http://localhost:8000/api/google/callback`
+9. Copy your **Client ID** and **Client Secret**.
+10. Add them to `.env`:
+    ```env
+    GOOGLE_CLIENT_ID="your_client_id.apps.googleusercontent.com"
+    GOOGLE_CLIENT_SECRET="your_client_secret"
+    GOOGLE_REDIRECT_URI="http://localhost:8000/api/google/callback"
+    ```
+11. Restart the backend, open `http://localhost:5173/integrations`, and click **Connect Google Account**.
+
+---
+
+## Configuration Reference (.env)
+
+| Variable | Required? | Purpose | Safe Example / Default |
+| :--- | :---: | :--- | :--- |
+| `DATABASE_URL` | **Yes** | Database connection string | `sqlite:///./leddro.db` |
+| `AI_PROVIDER` | No | Active engine (`gemini`, `openai`, `anthropic`, `compatible`) | `gemini` |
+| `GEMINI_API_KEY` | No | API key for Google Gemini | `replace_with_your_gemini_key` |
+| `GEMINI_MODEL` | No | Gemini model identifier | `gemini-3.5-flash-lite` |
+| `OPENAI_API_KEY` | No | API key for OpenAI GPT models | `replace_with_your_openai_key` |
+| `OPENAI_MODEL` | No | OpenAI model identifier | `gpt-4o-mini` |
+| `ANTHROPIC_API_KEY` | No | API key for Anthropic Claude models | `replace_with_your_anthropic_key` |
+| `ANTHROPIC_MODEL` | No | Anthropic model identifier | `claude-3-5-haiku-20241022` |
+| `COMPATIBLE_BASE_URL`| No | REST URL for local Ollama / vLLM | `http://localhost:11434/v1` |
+| `COMPATIBLE_MODEL` | No | Model name for local Ollama | `llama3` |
+| `GOOGLE_CLIENT_ID` | No | OAuth 2.0 Web Client ID | `replace_with_client_id.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET`| No | OAuth 2.0 Web Client Secret | `replace_with_client_secret` |
+| `GOOGLE_REDIRECT_URI` | No | Callback endpoint matching Google Console | `http://localhost:8000/api/google/callback` |
+| `FRONTEND_URL` | No | Frontend origin allowed by CORS | `http://localhost:5173` |
+| `CREDENTIAL_ENCRYPTION_KEY` | No | 32-urlsafe base64 key for token encryption | `(Auto-generated in .leddro_encryption_key if blank)` |
+| `OSM_OVERPASS_URL` | No | Public endpoint for Overpass API | `https://overpass-api.de/api/interpreter` |
+| `OSM_NOMINATIM_URL`| No | Public endpoint for Nominatim search | `https://nominatim.openstreetmap.org/search` |
+
+---
+
+## Database & Data Storage
+
+### SQLite (Default)
+By default, Leddro creates and maintains an SQLite database file at `leddro.db` in the repository root. All prospects, audit findings, draft emails, and history records persist automatically across server reboots.
+
+### Atomic Backup & Recovery
+Leddro includes a native Python backup engine in [backend/app/core/backup.py](backend/app/core/backup.py) utilizing the atomic SQLite online backup API (`sqlite3_backup`). This ensures zero corrupted bytes even while background writes occur.
+
+#### Create a Backup:
+```powershell
+# Windows PowerShell:
+.\.venv\Scripts\python.exe -c "from backend.app.core.backup import backup_sqlite_database; print('Backup saved:', backup_sqlite_database())"
+
+# macOS / Linux:
+python3 -c "from backend.app.core.backup import backup_sqlite_database; print('Backup saved:', backup_sqlite_database())"
+```
+Backups are saved to the `backups/` directory with UTC timestamps (e.g., `backups/leddro_backup_20261018_120000.db`).
+
+#### Restore from Backup:
+```powershell
+# Validates PRAGMA integrity_check and takes a safety snapshot before overwriting
+.\.venv\Scripts\python.exe -c "from pathlib import Path; from backend.app.core.backup import restore_sqlite_database; restore_sqlite_database(Path('backups/your_backup_file.db'))"
+```
+
+### Optional Neon Serverless PostgreSQL
+To use cloud-hosted PostgreSQL with Neon:
+1. Copy your pooled connection string from the [Neon Console](https://console.neon.tech).
+2. Set in `.env`:
+   ```env
+   DATABASE_URL="postgresql://user:password@ep-...neon.tech/neondb?sslmode=require"
+   ```
+3. Restart the backend. Leddro automatically applies table migrations and column checks.
+
+---
+
+## Privacy, Security & Responsible Use
+
+- **Local-First Boundary**: Secrets (`.env`, encryption keys, SQLite database) are never committed to version control and are ignored by `.gitignore`.
+- **SSRF Defenses**: The audit crawler validates every target domain against DNS rebinding, private IP subnets (`127.0.0.0/8`, `10.0.0.0/8`, `192.168.0.0/16`, `172.16.0.0/12`), and cloud metadata (`169.254.169.254`).
+- **Prompt-Injection Defense**: Model prompts enclose untrusted crawl pages and business names in strict `<untrusted_prospect_data>` and `<untrusted_audit_data>` tags.
+- **Strictly Single-Message Dispatch**: Leddro contains zero mass-mail sequences or automated dispatch triggers. Approving an email draft updates review status in SQLite only; dispatch requires explicit confirmation.
+- **Suppression Registry**: Recipient emails and domains are verified against `suppression_records` to prevent messaging unsubscribed contacts.
+
+---
+
+## Troubleshooting
+
+| Problem | Likely Cause | Diagnosis & Solution |
+| :--- | :--- | :--- |
+| **`python: command not found`** | Python not installed or not in PATH | Use `python3` on Linux/macOS or verify Python was installed with the "Add Python to PATH" option checked on Windows. |
+| **`pip install -r backend/requirements.txt` fails** | Outdated pip or missing C compiler for psycopg2 | Run `python -m pip install --upgrade pip`. `psycopg2-binary` provides precompiled wheels. |
+| **`npm run dev` fails with module error** | Incomplete npm installation | Run `npm install` or `npm ci` in the repository root. Ensure Node.js is version 20+. |
+| **Frontend displays "Backend Offline"** | FastAPI server not running on port 8000 | Verify Terminal 1 is running `uvicorn backend.app.main:app --port 8000`. Test `http://127.0.0.1:8000/api/health` directly in your browser. |
+| **Port 8000 or 5173 already in use** | A previous instance is still running | Find and terminate the dangling process, or start Uvicorn on another port (e.g., `--port 8001`) and update `vite.config.ts`. |
+| **AI Draft displays "Missing Configuration"** | Active engine has no API key in `.env` | Select **Google Gemini (Flash & Pro)** in the in-modal dropdown if you have a Gemini key, or add your key to `.env` or the **Integrations** page. |
+| **Google OAuth Redirect URI Mismatch** | Redirect URL doesn't match Google Cloud Console | Ensure Google Console contains the exact URI: `http://localhost:8000/api/google/callback` (check port, scheme, and trailing slashes). |
+| **SSRF Policy URL Rejected** | Target URL resolves to localhost or private IP | Auditing localhost or private RFC1918 IPs is blocked by design for security. Test with public URLs (e.g., `https://example.com`). |
+
+---
+
+## Updating Leddro
+
+To pull the latest updates from GitHub without losing your local configuration:
 
 ```bash
-pytest -v
+# 1. Back up your local database first
+.\.venv\Scripts\python.exe -c "from backend.app.core.backup import backup_sqlite_database; backup_sqlite_database()"
+
+# 2. Pull updates
+git pull origin main
+
+# 3. Update dependencies
+pip install -r backend/requirements.txt
+npm install
+
+# 4. Restart backend and frontend servers
 ```
 
-Automated test coverage includes:
-- **Phase 7 Data Safety & Recovery**:
-  - Atomic SQLite online backup generation (`sqlite3_backup`)
-  - Pre-restore `PRAGMA integrity_check` validation
-  - Automatic pre-restore safety snapshots
-  - Full round-trip data restoration verification
-- **Neon PostgreSQL Support**:
-  - Serverless connection pool pre-ping
-  - URL normalization (`postgres://` -> `postgresql://`)
-  - Database-agnostic schema migration
-- **Google Gemini & Fast AI Drafting**:
-  - Native integration with sub-second model `gemini-3.5-flash-lite`
-  - Real-time provider connectivity testing
-  - Direct inline key configuration
-- **Google OAuth 2.0 & Gmail API Dispatch**:
-  - PKCE S256 code challenge generation and validation
-  - CSRF state creation and tampering rejection
-  - Token encryption/decryption with Fernet AES-128
-  - Suppression list matching and duplicate-send prevention
-- **Website Audits & Discovery**:
-  - SSRF socket validation blocking private and loopback networks
-  - OpenStreetMap Overpass and Nominatim discovery
+*(Your local `.env` and `leddro.db` files are ignored by Git and will not be overwritten by `git pull`).*
 
 ---
 
-## Phase 7: Neon Serverless PostgreSQL Setup
+## Testing & Development
 
-Leddro works seamlessly with either a local SQLite database or cloud Neon PostgreSQL.
+Leddro maintains a comprehensive automated test suite:
 
-### Quick Setup with Neon:
-1. Sign up or log into [Neon](https://neon.tech).
-2. In your Neon dashboard, copy your pooled connection string:
-   ```
-   postgresql://neondb_owner:PASSWORD@ep-lingering-mud-aornz4jg-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-   ```
-3. Paste it into your `.env` as `DATABASE_URL`:
-   ```ini
-   DATABASE_URL="postgresql://neondb_owner:PASSWORD@ep-lingering-mud-aornz4jg-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-   ```
-4. Restart the backend. Leddro automatically runs database-agnostic schema migrations and initializes all tables on Neon.
+```bash
+# Run complete backend pytest suite (88 automated tests)
+pytest backend/tests/ -v
+
+# Run frontend TypeScript typecheck
+npx tsc --noEmit
+
+# Test production bundle compilation
+npm run build
+
+# Run frontend linter
+npm run lint
+```
+
+### Test Coverage Highlights
+- `test_ai_drafting.py`: Fact-checking validation, prompt-injection defense, and fallback routing.
+- `test_audit_engine.py`: HTTP status codes, malformed HTML, and response timeouts.
+- `test_ssrf_validator.py`: Private IP blocking, cloud metadata blocks, and DNS rebinding prevention.
+- `test_google_oauth_and_email.py`: Token encryption, PKCE verification, and duplicate-send prevention.
+- `test_backup_and_recovery.py`: SQLite online backup, corruption recovery, and restoration.
 
 ---
 
-## Local-First Database Backup & Recovery
+## Project Architecture
 
-To create an atomic backup of your local database:
-```python
-from backend.app.core.backup import backup_sqlite_database, restore_sqlite_database
-
-# Create atomic backup in backups/
-backup_file = backup_sqlite_database()
-
-# Restore safely (validates PRAGMA integrity and creates a pre-restore safety snapshot)
-restore_sqlite_database(backup_file)
+```mermaid
+flowchart TD
+    User([Operator / Consultant]) <--> UI[React 19 + Vite Frontend]
+    UI <--> API[FastAPI Backend Engine]
+    API <--> DB[(SQLite Database\nleddro.db)]
+    API <--> Audits[Website Audit Crawler\nSSRF Protected]
+    API <--> Discovery[OpenStreetMap\nOverpass & Nominatim]
+    API <--> AI[AI Engines\nGemini / OpenAI / Ollama]
+    API <--> Gmail[Gmail API Gateway\nSingle Send with Confirmation]
 ```
 
+### Directory Structure
+```
+Leddro/
+├── backend/
+│   ├── app/
+│   │   ├── ai/             # AI providers, prompts & claim validation
+│   │   ├── api/            # FastAPI REST routers (/prospects, /audits, /drafts)
+│   │   ├── core/           # Config, database engine, security & backup
+│   │   ├── discovery/      # OSM Overpass, Google Places & CSV normalization
+│   │   ├── models/         # SQLAlchemy database models
+│   │   ├── schemas/        # Pydantic request/response schemas
+│   │   ├── services/       # Audit engine, SSRF validator & Gmail client
+│   │   └── main.py         # FastAPI application entry point
+│   ├── requirements.txt    # Python dependencies
+│   └── tests/              # 88 automated pytest test cases
+├── docs/
+│   └── screenshots/        # Verified application screenshots
+├── public/                 # Static assets & SVG icons
+├── src/
+│   ├── components/         # Modals, buttons, badges, navigation
+│   ├── context/            # React AppContext global state
+│   ├── pages/              # Overview, Prospects, Audits, Drafts, Integrations
+│   └── App.tsx             # Application routing
+├── .env.example            # Sanitized configuration template
+├── package.json            # Node.js dependencies & scripts
+├── vite.config.ts          # Vite configuration & backend proxy
+└── README.md               # Product documentation
+```
+
+---
+
+## Roadmap
+
+- [x] **Phase 1-4**: Core architecture, website audit engine, UI system & prospect discovery.
+- [x] **Phase 5**: Evidence-based AI drafting with anti-hallucination verification.
+- [x] **Phase 6**: Secure Google OAuth 2.0 with Fernet token encryption & safe email dispatch.
+- [x] **Phase 7**: Production readiness, SQLite backup/recovery, Neon PostgreSQL compatibility & CI pipeline.
+- [ ] **Phase 8 (Planned)**: Scheduled recurring website re-audits with diff notifications.
+- [ ] **Phase 9 (Planned)**: Local LLM one-click packaging via bundled llama.cpp sidecar.
+
+---
+
+## Contributing
+
+We welcome community contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on setting up your local environment, coding standards, and submitting pull requests.
+
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feat/my-improvement`).
+3. Commit your changes (`git commit -m 'feat: add my improvement'`).
+4. Ensure all tests pass (`pytest backend/tests/` and `npm run build`).
+5. Open a Pull Request.
+
+---
+
+## Security Disclosures
+
+Please review our [SECURITY.md](SECURITY.md) for vulnerability reporting guidelines. If you discover a security issue or potential vulnerability, please report it responsibly by opening a confidential advisory or contacting the maintainers directly. Do **not** disclose security vulnerabilities in public GitHub issues.
+
+---
+
+## License & Acknowledgments
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+- OpenStreetMap data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licensed under ODbL 1.0.
+- Icons by [Lucide](https://lucide.dev/).
+- Built with [FastAPI](https://fastapi.tiangolo.com/), [React](https://react.dev/), and [Tailwind CSS](https://tailwindcss.com/).
