@@ -31,7 +31,9 @@ import {
   Check,
   Minus,
   Maximize2,
-  AlertCircle
+  AlertCircle,
+  Radio,
+  Send
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -51,7 +53,8 @@ export const Overview: React.FC = () => {
     auditProgressMessage,
     auditReports,
     filterQuery,
-    setFilterQuery
+    setFilterQuery,
+    googleStatus
   } = useApp();
 
   const navigate = useNavigate();
@@ -122,15 +125,17 @@ export const Overview: React.FC = () => {
   const offlineCount = prospects.filter((p) => ['unreachable', 'dns_error', 'ssl_expired'].includes(p.websiteStatus)).length;
   const auditCoveragePercent = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 0;
 
-  // Precomputed coordinates for radar target nodes
+  // Precomputed coordinates for Central Hub ("YOU") and orbiting target nodes
+  const hubPos = { top: '50%', left: '50%', x: 50, y: 50 };
+
   const radarNodes = useMemo(() => {
     const defaultPositions = [
-      { top: '48%', left: '58%' }, // Center-right (primary target)
-      { top: '28%', left: '42%' }, // Top-left
-      { top: '72%', left: '74%' }, // Bottom-right
-      { top: '35%', left: '70%' }, // Top-right
-      { top: '65%', left: '38%' }, // Bottom-left
-      { top: '22%', left: '56%' }, // Top-center
+      { top: '50%', left: '68%', x: 68, y: 50 }, // East of hub (Apex Precision Tech)
+      { top: '26%', left: '38%', x: 38, y: 26 }, // North-West of hub (Mintmorsel)
+      { top: '74%', left: '78%', x: 78, y: 74 }, // South-East of hub (Kaveri Logistics)
+      { top: '32%', left: '76%', x: 76, y: 32 }, // North-East of hub (Kanchan)
+      { top: '68%', left: '34%', x: 34, y: 68 }, // South-West of hub (Sai Sagar)
+      { top: '16%', left: '50%', x: 50, y: 16 }, // North of hub (Northstar Interiors)
     ];
 
     return prospects.slice(0, 6).map((p, idx) => {
@@ -305,34 +310,58 @@ export const Overview: React.FC = () => {
             </button>
           </div>
 
-          {/* Right Side Tactical Toggles (Matching Image 1) */}
+          {/* Right Side Tactical Toggles (Matching Image 3) */}
           <div className="flex items-center gap-4 text-xs font-mono text-[#8B949E] px-2">
             {/* Toggle 1: Show Diagnostic Logs */}
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-              <span>Show logs</span>
-              <input 
-                type="checkbox" 
-                checked={showLogs} 
-                onChange={(e) => setShowLogs(e.target.checked)}
-                className="sr-only peer" 
-              />
-              <div className="w-9 h-5 bg-[#232938] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D2F824] peer-checked:after:bg-black"></div>
-            </label>
+            <div className="inline-flex items-center gap-2.5 select-none">
+              <span 
+                className="cursor-pointer hover:text-white transition-colors"
+                onClick={() => setShowLogs(!showLogs)}
+              >
+                Show logs
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showLogs}
+                onClick={() => setShowLogs(!showLogs)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                  showLogs ? 'bg-[#D2F824]' : 'bg-[#232938]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${
+                    showLogs ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
+                  }`}
+                />
+              </button>
+            </div>
 
             {/* Toggle 2: Real-time Radar */}
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none border-l border-[#262D3D] pl-4">
-              <span className="flex items-center gap-1">
+            <div className="inline-flex items-center gap-2.5 select-none border-l border-[#262D3D] pl-4">
+              <span 
+                className="flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                onClick={() => setLiveRadar(!liveRadar)}
+              >
                 <span className={`w-1.5 h-1.5 rounded-full ${liveRadar ? 'bg-emerald-400 animate-pulse' : 'bg-[#586274]'}`}></span> 
                 Live radar
               </span>
-              <input 
-                type="checkbox" 
-                checked={liveRadar} 
-                onChange={(e) => setLiveRadar(e.target.checked)}
-                className="sr-only peer" 
-              />
-              <div className="w-9 h-5 bg-[#232938] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D2F824] peer-checked:after:bg-black"></div>
-            </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={liveRadar}
+                onClick={() => setLiveRadar(!liveRadar)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                  liveRadar ? 'bg-[#D2F824]' : 'bg-[#232938]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[3px] ${
+                    liveRadar ? 'translate-x-[18px] bg-black' : 'translate-x-[3px] bg-white'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -371,12 +400,129 @@ export const Overview: React.FC = () => {
               </div>
             </div>
 
-            {/* MiroFish-style Node Network Lines Connecting Targets */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30">
-              <line x1="58%" y1="48%" x2="42%" y2="28%" stroke="#D2F824" strokeWidth="1" strokeDasharray="3,3" />
-              <line x1="58%" y1="48%" x2="74%" y2="72%" stroke="#F43F5E" strokeWidth="1" strokeDasharray="3,3" />
-              <line x1="42%" y1="28%" x2="70%" y2="35%" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3,3" />
+            {/* Dynamic Reactive Network Vectors: Hub ("YOU") ↔ Prospects */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+              <defs>
+                <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="glow-lime" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              {radarNodes.map((node) => {
+                const isContacted = node.status === 'contacted';
+                const isDraftReady = node.status === 'draft_ready';
+                const isSelected = activeTarget?.id === node.id;
+                const isBeingAudited = isAuditing && auditingProspectId === node.id;
+
+                const strokeColor = isSelected || isBeingAudited
+                  ? '#D2F824'
+                  : isContacted
+                  ? '#10B981'
+                  : isDraftReady
+                  ? '#F59E0B'
+                  : '#262D3D';
+
+                const strokeWidth = isSelected || isContacted || isBeingAudited ? 2 : 1;
+                const strokeDash = isDraftReady ? '4,4' : isContacted ? '5,5' : isSelected ? '0' : '2,3';
+                const opacity = isContacted || isSelected || isDraftReady || isBeingAudited ? 0.85 : 0.25;
+
+                return (
+                  <g key={`vector-${node.id}`}>
+                    {/* Glow halo for connected or selected links */}
+                    {(isContacted || isSelected || isBeingAudited) && (
+                      <line
+                        x1={`${hubPos.x}%`}
+                        y1={`${hubPos.y}%`}
+                        x2={`${node.pos.x}%`}
+                        y2={`${node.pos.y}%`}
+                        stroke={strokeColor}
+                        strokeWidth={5}
+                        opacity={0.3}
+                        filter={isContacted ? 'url(#glow-emerald)' : 'url(#glow-lime)'}
+                      />
+                    )}
+
+                    {/* Primary Vector Beam */}
+                    <line
+                      x1={`${hubPos.x}%`}
+                      y1={`${hubPos.y}%`}
+                      x2={`${node.pos.x}%`}
+                      y2={`${node.pos.y}%`}
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeDasharray={strokeDash}
+                      opacity={opacity}
+                    />
+                  </g>
+                );
+              })}
             </svg>
+
+            {/* CENTRAL HUB NODE: "YOU" / SENDER / OPERATOR (Gmail Gateway Beacon) */}
+            <div
+              style={{ top: hubPos.top, left: hubPos.left }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
+              onClick={() => navigate('/integrations')}
+              title="Click to view connected Gmail & AI integrations"
+            >
+              <div className="relative flex h-10 w-10 items-center justify-center">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-25"></span>
+                <span className="absolute inline-flex h-8 w-8 rounded-full bg-gradient-to-tr from-emerald-500/30 to-[#D2F824]/20 border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></span>
+                <div className="relative inline-flex items-center justify-center rounded-full h-6 w-6 bg-[#0D1017] border border-emerald-400 text-emerald-400">
+                  <Radio className="w-3.5 h-3.5 animate-pulse" />
+                </div>
+              </div>
+
+              <div className="mt-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#161A23]/95 border border-emerald-400/50 text-white shadow-xl flex items-center gap-1 whitespace-nowrap group-hover:border-emerald-300 transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-emerald-400">YOU</span>
+                <span className="text-[#8B949E] text-[8px] max-w-[110px] truncate">
+                  ({googleStatus?.is_connected && googleStatus.email ? googleStatus.email : 'Leddro Hub'})
+                </span>
+              </div>
+            </div>
+
+            {/* Connection Status Badges Over Network Vector Midpoints */}
+            {radarNodes.map((node) => {
+              const midX = (hubPos.x + node.pos.x) / 2;
+              const midY = (hubPos.y + node.pos.y) / 2;
+
+              if (node.status === 'contacted') {
+                return (
+                  <div 
+                    key={`badge-${node.id}`}
+                    style={{ left: `${midX}%`, top: `${midY}%` }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+                  >
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-emerald-500/60 text-[8px] font-mono font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.35)] whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      CONNECTED • VIA GMAIL
+                    </div>
+                  </div>
+                );
+              }
+
+              if (node.status === 'draft_ready') {
+                return (
+                  <div 
+                    key={`badge-${node.id}`}
+                    style={{ left: `${midX}%`, top: `${midY}%` }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+                  >
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0D1017]/95 border border-amber-500/60 text-[8px] font-mono font-bold text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)] whitespace-nowrap">
+                      DRAFT READY
+                    </div>
+                  </div>
+                );
+              }
+
+              return null;
+            })}
 
             {/* Pulsing Target Nodes on Map */}
             {radarNodes.map((node) => {
@@ -397,6 +543,11 @@ export const Overview: React.FC = () => {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D2F824] opacity-40"></span>
                       <span className="relative inline-flex rounded-full h-4 w-4 bg-[#D2F824] shadow-[0_0_12px_#D2F824]"></span>
                     </span>
+                  ) : node.status === 'contacted' ? (
+                    <span className="relative flex h-5 w-5 items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-30"></span>
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] opacity-90 group-hover:opacity-100"></span>
+                    </span>
                   ) : node.colorType === 'rose' ? (
                     <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] opacity-80 group-hover:opacity-100"></span>
                   ) : node.colorType === 'amber' ? (
@@ -408,9 +559,12 @@ export const Overview: React.FC = () => {
                   <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-lg transition-all ${
                     isSelected
                       ? 'bg-[#1C212D]/95 border border-[#D2F824]/60 text-[#D2F824]'
+                      : node.status === 'contacted'
+                      ? 'bg-[#161A23]/90 border border-emerald-500/50 text-emerald-300'
                       : 'bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E] group-hover:text-white'
                   }`}>
                     {node.websiteUrl ? node.websiteUrl.replace(/https?:\/\//, '') : node.name}
+                    {node.status === 'contacted' && ' • Connected'}
                     {node.websiteStatus === 'broken_pages' && ' • 404 Route'}
                     {node.websiteStatus === 'ssl_expired' && ' • SSL Expiring'}
                   </div>
@@ -420,7 +574,7 @@ export const Overview: React.FC = () => {
 
             {/* OVERLAID ACTIVE INSPECTION PANEL (Exact match from Image 1) */}
             {activeTarget && showInspectorCard && (
-              <div className="absolute top-4 left-4 z-20 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2">
+              <div className="absolute top-4 left-4 z-30 w-[92%] sm:w-[410px] bg-[#161A23]/95 backdrop-blur-xl border border-[#262D3D] rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-left-2">
                 {/* Header of card */}
                 <div className="flex items-start justify-between pb-3 border-b border-[#262D3D]">
                   <div className="flex items-center gap-3">
@@ -448,6 +602,35 @@ export const Overview: React.FC = () => {
                   >
                     <X className="w-4 h-4" />
                   </button>
+                </div>
+
+                {/* Network Relationship to US */}
+                <div className="py-2.5 border-b border-[#262D3D]">
+                  {activeTarget.status === 'contacted' ? (
+                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs font-mono text-emerald-400">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="font-semibold">CONNECTED TO YOU</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-300 font-mono">Sent via Gmail</span>
+                    </div>
+                  ) : activeTarget.status === 'draft_ready' ? (
+                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs font-mono text-amber-400">
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span className="font-semibold">DRAFT QUEUED</span>
+                      </div>
+                      <span className="text-[10px] text-amber-300 font-mono">Ready to Dispatch</span>
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-lg bg-[#1C212D] border border-[#262D3D] flex items-center justify-between text-xs font-mono text-[#8B949E]">
+                      <div className="flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-[#D2F824] shrink-0" />
+                        <span>Recon Discovered</span>
+                      </div>
+                      <span className="text-[10px] text-[#586274]">Target Host Scanned</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Route / Audit Scope Progress Bar */}
@@ -577,10 +760,34 @@ export const Overview: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button 
-                      onClick={(e) => handleCreateDraftClick(activeTarget.id, e)}
-                      className="px-2 py-0.5 rounded bg-[#D2F824] text-black font-semibold text-[10px] font-mono hover:bg-[#bce018] transition-colors"
+                      onClick={(e) => {
+                        if (activeTarget.status === 'contacted') {
+                          navigate('/drafts');
+                        } else {
+                          handleCreateDraftClick(activeTarget.id, e);
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded font-semibold text-[10px] font-mono transition-colors flex items-center gap-1 ${
+                        activeTarget.status === 'contacted'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                          : activeTarget.status === 'draft_ready'
+                          ? 'bg-amber-400 text-black hover:bg-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
+                          : 'bg-[#D2F824] text-black hover:bg-[#bce018] shadow-[0_0_8px_rgba(210,248,36,0.3)]'
+                      }`}
                     >
-                      Draft Pitch
+                      {activeTarget.status === 'contacted' ? (
+                        <>
+                          <Check className="w-3 h-3" />
+                          <span>Sent via Gmail</span>
+                        </>
+                      ) : activeTarget.status === 'draft_ready' ? (
+                        <>
+                          <Mail className="w-3 h-3" />
+                          <span>Review Draft</span>
+                        </>
+                      ) : (
+                        <span>Draft Pitch</span>
+                      )}
                     </button>
                     <button 
                       onClick={(e) => handleAuditClick(activeTarget.id, e)}
@@ -596,7 +803,7 @@ export const Overview: React.FC = () => {
             )}
 
             {/* Bottom Floating Map Utilities HUD */}
-            <div className="absolute bottom-3 left-4 z-20 hidden md:flex items-center gap-2 text-[11px] font-mono text-[#586274]">
+            <div className={`absolute bottom-3 ${showInspectorCard ? 'left-[436px]' : 'left-4'} z-10 hidden lg:flex items-center gap-2 text-[11px] font-mono text-[#586274] transition-all duration-300`}>
               <span className="px-2 py-1 rounded bg-[#161A23]/80 border border-[#262D3D] text-[#8B949E]">
                 Space + Drag to pan
               </span>
