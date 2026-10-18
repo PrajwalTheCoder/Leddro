@@ -522,13 +522,13 @@ npm run lint
 
 ```mermaid
 flowchart TD
-    User([Operator / Consultant]) <--> UI[React 19 + Vite Frontend]
-    UI <--> API[FastAPI Backend Engine]
-    API <--> DB[(SQLite Database\nleddro.db)]
-    API <--> Audits[Website Audit Crawler\nSSRF Protected]
-    API <--> Discovery[OpenStreetMap\nOverpass & Nominatim]
-    API <--> AI[AI Engines\nGemini / OpenAI / Ollama]
-    API <--> Gmail[Gmail API Gateway\nSingle Send with Confirmation]
+    User["Operator / Consultant"] <--> UI["React 19 + Vite Frontend"]
+    UI <--> API["FastAPI Backend Engine"]
+    API <--> DB[("SQLite Database (leddro.db)")]
+    API <--> Audits["Website Audit Crawler (SSRF Protected)"]
+    API <--> Discovery["OpenStreetMap (Overpass and Nominatim)"]
+    API <--> AI["AI Engines (Gemini, OpenAI, Ollama)"]
+    API <--> Gmail["Gmail API Gateway (Safe Single Send)"]
 ```
 
 ### Directory Structure
