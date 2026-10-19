@@ -53,3 +53,10 @@ backups/
 .leddro_encryption_key
 .neon
 
+# Video build & launch artifacts
+brag-output/
+brag-output-vertical/
+
+# Local Agent customizations
+.agents/
+skills-lock.json

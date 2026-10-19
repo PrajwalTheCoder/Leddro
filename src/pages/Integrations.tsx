@@ -58,20 +58,30 @@ export const Integrations: React.FC = () => {
   const [googleOAuthError, setGoogleOAuthError] = useState<string | null>(null);
   const [isTestingSMTP, setIsTestingSMTP] = useState(false);
   const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smtpTestPassword, setSmtpTestPassword] = useState('');
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [showSmtpTester, setShowSmtpTester] = useState(false);
 
   const handleTestSMTP = async () => {
     setIsTestingSMTP(true);
     setSmtpTestResult(null);
     try {
+      const payload: { user?: string; password?: string } = {};
+      if (smtpTestEmail.trim() && smtpTestPassword.trim()) {
+        payload.user = smtpTestEmail.trim();
+        payload.password = smtpTestPassword.trim();
+      }
       const res = await fetch('/api/email/test-smtp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
         setSmtpTestResult({ success: true, message: data.message || 'SMTP authentication verified successfully.' });
         addToast('SMTP authentication verified successfully', 'success');
+        await fetchEmailDispatchStatus();
       } else {
         const errMsg = data.detail || 'SMTP test connection failed';
         setSmtpTestResult({ success: false, message: errMsg });
@@ -676,13 +686,241 @@ export const Integrations: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 3: Genuine Google OAuth 2.0 & Gmail API Gateway */}
+        {/* Section 3: Direct SMTP Gateway (Google App Password) - PREFERRED */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <Mail className="w-4 h-4 text-[#D8E7A2]" />
+              <h2 className="text-[15px] font-semibold text-[#F3F4F6]">
+                Direct SMTP Gateway (Google App Password)
+              </h2>
+              <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border bg-[#202718] text-[#D8E7A2] border-[#3B4D22] shadow-[0_0_12px_rgba(216,231,162,0.12)]">
+                <Sparkles className="w-3 h-3 text-[#D8E7A2]" /> Preferred · Fastest (30s)
+              </span>
+            </div>
+            {emailDispatchStatus?.method === 'smtp' ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#18261F] text-[#80B89A] border-[#253D30]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#80B89A]" />
+                Active Dispatch Method
+              </span>
+            ) : emailDispatchStatus?.smtp_configured ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#1D2530] text-[#91B7D8] border-[#2B3A4F]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#91B7D8]" />
+                Configured (Ready)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#212328] text-[#727780] border-[#30343A]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#727780]" />
+                Not Configured
+              </span>
+            )}
+          </div>
+
+          <div className="rounded border border-[#2B2F36] bg-[#17191C] p-5 flex flex-col gap-4">
+            {/* Account Card Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#24272D] pb-4">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className={`w-11 h-11 rounded-lg border flex items-center justify-center shrink-0 ${
+                  emailDispatchStatus?.smtp_configured
+                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                    : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
+                }`}>
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                      {emailDispatchStatus?.sender_email ? (
+                        <span className="font-mono">{emailDispatchStatus.sender_email}</span>
+                      ) : (
+                        'Gmail SMTP Gateway'
+                      )}
+                    </h3>
+                    {emailDispatchStatus?.smtp_configured && (
+                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Configured in .env
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[12px] text-[#727780] mt-0.5">
+                    Direct TLS delivery using a 16-character Google App Password. Zero Google Cloud Console setup or OAuth client needed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={(!emailDispatchStatus?.smtp_configured && (!smtpTestEmail.trim() || !smtpTestPassword.trim())) || isTestingSMTP}
+                  isLoading={isTestingSMTP}
+                  onClick={handleTestSMTP}
+                  leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                >
+                  Test SMTP Connection
+                </Button>
+                <Button
+                  variant="accent-subtle"
+                  size="sm"
+                  onClick={() => setShowSmtpTester(!showSmtpTester)}
+                  leftIcon={<Key className="w-3.5 h-3.5 text-[#D8E7A2]" />}
+                >
+                  {showSmtpTester ? 'Hide Quick Test' : 'Test Credentials'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Test Connection Result Box */}
+            {smtpTestResult && (
+              <div className={`p-3 rounded text-[12px] border ${
+                smtpTestResult.success
+                  ? 'bg-[#16211B] border-[#2D4536] text-[#80B89A]'
+                  : 'bg-[#241515] border-[#4D2424] text-[#D78383]'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {smtpTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{smtpTestResult.message}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Test Inline Form (Optional) */}
+            {showSmtpTester && (
+              <div className="p-4 rounded bg-[#131518] border border-[#2E333B] flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[12px] font-medium text-[#F3F4F6]">
+                    <Key className="w-3.5 h-3.5 text-[#D8E7A2]" />
+                    <span>Quick Test Google App Password (Live TLS Verification)</span>
+                  </div>
+                  <span className="text-[11px] text-[#727780]">Tested safely over TLS without logging</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-mono text-[#727780] mb-1">Gmail Address (SMTP_USER)</label>
+                    <input
+                      type="email"
+                      value={smtpTestEmail}
+                      onChange={(e) => setSmtpTestEmail(e.target.value)}
+                      placeholder="your.email@gmail.com"
+                      className="w-full bg-[#1A1D21] border border-[#2B2F36] rounded px-3 py-1.5 text-[12px] font-mono text-[#F3F4F6] placeholder-[#555A64] focus:border-[#4B5361] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-mono text-[#727780] mb-1">16-Character App Password (SMTP_PASSWORD)</label>
+                    <div className="relative">
+                      <input
+                        type={showSmtpPassword ? 'text' : 'password'}
+                        value={smtpTestPassword}
+                        onChange={(e) => setSmtpTestPassword(e.target.value)}
+                        placeholder="xxxx xxxx xxxx xxxx"
+                        className="w-full bg-[#1A1D21] border border-[#2B2F36] rounded pl-3 pr-9 py-1.5 text-[12px] font-mono text-[#F3F4F6] placeholder-[#555A64] focus:border-[#4B5361] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#727780] hover:text-[#F3F4F6]"
+                      >
+                        {showSmtpPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-[#A0A5AD]">
+                    Enter credentials above and click <strong>Test SMTP Connection</strong> to test live. Once verified, copy them to your <code className="font-mono text-[#F3F4F6]">.env</code>.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Step-by-Step Setup Guide */}
+            <div className="p-4 rounded bg-[#182015] border border-[#2F4420] text-[12px] flex flex-col gap-2.5 text-[#C9DC95]">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 font-medium text-[#F3F4F6]">
+                  <Sparkles className="w-4 h-4 text-[#D8E7A2]" />
+                  <span>How to Complete SMTP Setup in 30 Seconds</span>
+                </div>
+                <span className="font-mono text-[10px] uppercase bg-[#202C1B] text-[#D8E7A2] border border-[#3E5A2A] px-2 py-0.5 rounded">
+                  Preferred / Recommended Method
+                </span>
+              </div>
+              <p className="text-[12px] leading-relaxed text-[#A0A5AD]">
+                Follow these 5 simple steps to connect your Gmail account instantly. No Google Cloud Console, app verification, or OAuth client setup required:
+              </p>
+              <div className="mt-1 pt-2 border-t border-[#2F4420] text-[11px] text-[#A0A5AD] leading-relaxed">
+                <ol className="list-decimal list-inside space-y-2 text-[#C5C9D0]">
+                  <li>
+                    <strong className="text-[#F3F4F6]">Turn ON 2-Step Verification:</strong> Go to{' '}
+                    <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-[#D8E7A2] hover:underline inline-flex items-center gap-0.5">
+                      Google Account Security <ExternalLink className="w-3 h-3 inline ml-0.5" />
+                    </a>{' '}
+                    and ensure 2-Step Verification is active.
+                  </li>
+                  <li>
+                    <strong className="text-[#F3F4F6]">Generate an App Password:</strong> Open{' '}
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-[#D8E7A2] hover:underline inline-flex items-center gap-0.5">
+                      myaccount.google.com/apppasswords <ExternalLink className="w-3 h-3 inline ml-0.5" />
+                    </a>{' '}
+                    (or search "App passwords" in Google Account settings).
+                  </li>
+                  <li>
+                    <strong className="text-[#F3F4F6]">Name the App:</strong> Type <code className="font-mono text-[#D8E7A2] bg-[#111315] px-1.5 py-0.5 rounded border border-[#2B2F36]">Leddro</code> and click <strong className="text-[#F3F4F6]">Create</strong>. Google will generate a 16-character password (e.g., <code className="font-mono text-[#D8E7A2] bg-[#111315] px-1.5 py-0.5 rounded border border-[#2B2F36]">abcd efgh ijkl mnop</code>).
+                  </li>
+                  <li>
+                    <strong className="text-[#F3F4F6]">Save in your <code className="font-mono text-[#F3F4F6]">.env</code> file:</strong> Open the <code className="font-mono text-[#F3F4F6]">.env</code> file in your Leddro root directory and add or update:
+                    <div className="mt-2 p-3 rounded bg-[#111315] border border-[#2B2F36] font-mono text-[11px] text-[#D8E7A2] space-y-1 select-all">
+                      <div>SMTP_HOST=smtp.gmail.com</div>
+                      <div>SMTP_PORT=587</div>
+                      <div>SMTP_USER=your.email@gmail.com</div>
+                      <div>SMTP_PASSWORD=abcd efgh ijkl mnop</div>
+                    </div>
+                  </li>
+                  <li>
+                    <strong className="text-[#F3F4F6]">Test &amp; Send:</strong> Click <strong className="text-[#F3F4F6]">"Test SMTP Connection"</strong> above to confirm TLS delivery. Once verified, all approved client outreach emails will send directly from your personal Gmail!
+                  </li>
+                </ol>
+              </div>
+            </div>
+
+            {/* SMTP Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">SMTP Gateway Host</span>
+                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
+                  {emailDispatchStatus?.smtp_host || 'smtp.gmail.com'}:{emailDispatchStatus?.smtp_port || 587}
+                </span>
+                <span className="text-[10px] text-[#727780]">STARTTLS Encrypted (Port 587)</span>
+              </div>
+
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Authentication</span>
+                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
+                  Google App Password
+                </span>
+                <span className="text-[10px] text-[#727780]">Zero Cloud Console overhead</span>
+              </div>
+
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Dispatch Routing</span>
+                <span className="font-mono text-[12px] text-[#80B89A] mt-0.5">
+                  {emailDispatchStatus?.method === 'smtp' ? 'Active Dispatcher' : 'Ready / Deterministic'}
+                </span>
+                <span className="text-[10px] text-[#727780]">Direct delivery without third-party APIs</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3.1: Enterprise Google Cloud OAuth 2.0 & Gmail API Gateway */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-[#80B89A]" />
-              <h2 className="text-[15px] font-semibold text-[#F3F4F6]">
-                Google Gmail API Gateway (OAuth 2.0)
+              <h2 className="text-[15px] font-semibold text-[#F3F4F6] flex items-center gap-2">
+                <span>Google Gmail API Gateway (OAuth 2.0)</span>
+                <span className="font-mono text-[10px] text-[#727780] bg-[#1E2024] px-2 py-0.5 rounded border border-[#2E3238]">
+                  Alternative Method · Enterprise Cloud
+                </span>
               </h2>
             </div>
             {googleStatus?.is_connected ? (
@@ -729,7 +967,7 @@ export const Integrations: React.FC = () => {
                   <span>Google Cloud OAuth Credentials Required</span>
                 </div>
                 <p className="text-[12px] leading-relaxed text-[#A0A5AD]">
-                  To connect your real Gmail account, configure your Google Cloud OAuth application. Missing configuration keys:
+                  To connect via OAuth 2.0, configure your Google Cloud OAuth application. Missing configuration keys:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {googleStatus.missing_config.map((key) => (
@@ -903,121 +1141,6 @@ export const Integrations: React.FC = () => {
                 <span className="font-mono text-[11px] text-[#A0A5AD] shrink-0">Official Google OAuth 2.0</span>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Section 3.1: Direct SMTP Gateway (Google App Password) */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[#D8E7A2]" />
-              <h2 className="text-[15px] font-semibold text-[#F3F4F6]">
-                Direct SMTP Gateway (Google App Password)
-              </h2>
-            </div>
-            {emailDispatchStatus?.method === 'smtp' ? (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#18261F] text-[#80B89A] border-[#253D30]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#80B89A]" />
-                Active Dispatch Method
-              </span>
-            ) : emailDispatchStatus?.smtp_configured ? (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#1D2530] text-[#91B7D8] border-[#2B3A4F]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#91B7D8]" />
-                Configured (Standby)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#212328] text-[#727780] border-[#30343A]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#727780]" />
-                Not Configured
-              </span>
-            )}
-          </div>
-
-          <div className="rounded border border-[#2B2F36] bg-[#17191C] p-5 flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#24272D] pb-4">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className={`w-11 h-11 rounded-lg border flex items-center justify-center shrink-0 ${
-                  emailDispatchStatus?.smtp_configured
-                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
-                    : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
-                }`}>
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[14px] font-medium text-[#F3F4F6]">
-                      {emailDispatchStatus?.sender_email ? (
-                        <span className="font-mono">{emailDispatchStatus.sender_email}</span>
-                      ) : (
-                        'SMTP Sender Credentials'
-                      )}
-                    </h3>
-                    {emailDispatchStatus?.smtp_configured && (
-                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Configured
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[12px] text-[#727780] mt-0.5">
-                    Direct submission via TLS using a 16-character Google App Password. Zero Google Cloud Console setup required.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!emailDispatchStatus?.smtp_configured || isTestingSMTP}
-                  isLoading={isTestingSMTP}
-                  onClick={handleTestSMTP}
-                  leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-                >
-                  Test SMTP Connection
-                </Button>
-              </div>
-            </div>
-
-            {/* Test Connection Result Box */}
-            {smtpTestResult && (
-              <div className={`p-3 rounded text-[12px] border ${
-                smtpTestResult.success
-                  ? 'bg-[#16211B] border-[#2D4536] text-[#80B89A]'
-                  : 'bg-[#241515] border-[#4D2424] text-[#D78383]'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {smtpTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                  <span>{smtpTestResult.message}</span>
-                </div>
-              </div>
-            )}
-
-            {/* SMTP Details Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
-              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
-                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">SMTP Gateway Host</span>
-                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
-                  {emailDispatchStatus?.smtp_host || 'smtp.gmail.com'}:{emailDispatchStatus?.smtp_port || 587}
-                </span>
-                <span className="text-[10px] text-[#727780]">STARTTLS Encrypted</span>
-              </div>
-
-              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
-                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Authentication</span>
-                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
-                  Google App Password
-                </span>
-                <span className="text-[10px] text-[#727780]">Configured via local .env (never logged)</span>
-              </div>
-
-              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
-                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Dispatch Policy</span>
-                <span className="font-mono text-[12px] text-[#80B89A] mt-0.5">
-                  Deterministic Fallback
-                </span>
-                <span className="text-[10px] text-[#727780]">Used automatically when OAuth is not connected</span>
-              </div>
-            </div>
           </div>
         </div>
 

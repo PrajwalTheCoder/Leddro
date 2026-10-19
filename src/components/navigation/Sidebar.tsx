@@ -50,14 +50,8 @@ export const Sidebar: React.FC = () => {
         {/* Top Product Logo Symbol */}
         <div className="flex flex-col items-center gap-6">
           <div className="relative group">
-            <div className="w-10 h-10 rounded-xl bg-[#1D2024] border border-[#30343A] flex items-center justify-center cursor-pointer transition-all hover:border-[#D8E7A2]/50">
-              {/* Minimal Product Glyph with Lime Accent like screenshot */}
-              <div className="w-5 h-5 flex items-center justify-center">
-                <div className="relative w-4 h-4">
-                  <div className="absolute inset-x-1.5 inset-y-0 bg-[#D8E7A2] rounded-xs" />
-                  <div className="absolute inset-y-1.5 inset-x-0 bg-[#D8E7A2] rounded-xs" />
-                </div>
-              </div>
+            <div className="w-10 h-10 rounded-xl bg-[#111214] border border-[#30343A] flex items-center justify-center cursor-pointer transition-all hover:border-[#D8E7A2]/60 overflow-hidden p-1 shadow-[0_0_12px_rgba(216,231,162,0.2)]">
+              <img src="/logo.png" alt="Leddro Intelligence" className="w-full h-full object-contain rounded-lg" />
             </div>
             {/* Tooltip */}
             <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center px-2.5 py-1 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
@@ -165,8 +159,8 @@ export const Sidebar: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
           <div className="w-full max-w-lg rounded border border-[#30343A] bg-[#17191C] shadow-2xl p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-[#262A30] pb-3">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-[#D8E7A2]" />
+              <div className="flex items-center gap-2.5">
+                <img src="/logo.png" alt="Leddro" className="w-5 h-5 rounded object-contain" />
                 <h3 className="text-[14px] font-medium text-[#F3F4F6]">Leddro Keyboard Shortcuts &amp; Principles</h3>
               </div>
               <button onClick={() => setShowHelpModal(false)} className="text-[#727780] hover:text-[#F3F4F6]">
