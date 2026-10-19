@@ -9,6 +9,7 @@
     "backup": "python -m backend.app.core.backup --backup",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "lint:readme": "python scripts/check_readme.py",
     "preview": "vite preview"
   },
   "dependencies": {

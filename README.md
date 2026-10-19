@@ -17,49 +17,50 @@
 
 Instead of relying on generic mass-scraped email blasts and hallucinated AI flattery, Leddro anchors your outreach directly to **deterministic technical evidence**—such as expired TLS/SSL certificates, DNS misconfigurations, slow server response times (TTFB), broken headers, or missing mobile viewport declarations.
 
-[Features](#features) • [Screenshots](#screenshots-and-interface-tour) • [Quick Start](#installation-quick-start) • [Architecture](#project-architecture) • [Testing](#testing-and-development) • [Contributing](#contributing) • [Security](#security-disclosures)
+[Overview](#overview) • [Screenshots](#screenshots-interface-tour) • [Quick Start](#quick-start) • [Workflow](#workflow-overview) • [Features](#features-technical-depth) • [Architecture](#project-architecture) • [Testing](#testing-and-development)
 
 ---
 
 ## Table of Contents
 
-- [What Is Leddro?](#what-is-leddro)
-- [Workflow Overview](#workflow-overview)
+- [⚡ Overview](#overview)
 - [Why Leddro?](#why-leddro)
-- [Features](#features)
-- [Prospect Intelligence and Explainable Scoring](#prospect-intelligence-and-explainable-scoring)
-- [Website Auditing and Telemetry](#website-auditing-and-telemetry)
-- [Website Audit Comparison and Change Detection](#website-audit-comparison-and-change-detection)
-- [Contact Intelligence and Email Discovery](#contact-intelligence-and-email-discovery)
-- [Evidence-Aware AI Drafting](#evidence-aware-ai-drafting)
-- [Email Integration and Safe Dispatch](#email-integration-and-safe-dispatch)
-- [Data Safety and Infrastructure](#data-safety-and-infrastructure)
-- [Screenshots and Interface Tour](#screenshots-and-interface-tour)
-- [System Requirements](#system-requirements)
-- [Installation: Quick Start](#installation-quick-start)
-- [Running the Application](#running-the-application)
-- [First-Run Experience](#first-run-experience)
-- [Using Leddro Without AI](#using-leddro-without-ai)
-- [Configuring AI Providers](#configuring-ai-providers)
-- [Contact Discovery Provider Setup](#contact-discovery-provider-setup)
-- [Email Integration Setup](#email-integration-setup)
-- [Configuration Reference](#configuration-reference)
-- [Database and Data Storage](#database-and-data-storage)
-- [Backup and Recovery](#backup-and-recovery)
-- [Privacy, Security, and Responsible Use](#privacy-security-and-responsible-use)
-- [Troubleshooting](#troubleshooting)
-- [Updating Leddro](#updating-leddro)
-- [Testing and Development](#testing-and-development)
-- [Project Architecture](#project-architecture)
-- [Directory Structure](#directory-structure)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Security Disclosures](#security-disclosures)
-- [License and Acknowledgements](#license-and-acknowledgements)
+- [📸 Screenshots & Interface Tour](#screenshots-interface-tour)
+- [🔄 Workflow Overview](#workflow-overview)
+- [🚀 Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Step 1: Clone the Repository](#step-1-clone-the-repository)
+  - [Step 2: Backend Setup (Python)](#step-2-backend-setup-python)
+  - [Step 3: Initialize Configuration](#step-3-initialize-configuration)
+  - [Step 4: Frontend Setup (React & Vite)](#step-4-frontend-setup-react-vite)
+  - [Running the Application](#running-the-application)
+  - [Interactive Terminal CLI Audit Mode](#interactive-terminal-cli-audit-mode)
+  - [First-Run Experience (2 Minutes)](#first-run-experience-2-minutes)
+  - [Using Leddro Without AI](#using-leddro-without-ai)
+- [🔍 Features & Technical Depth](#features-technical-depth)
+  - [1. Prospect Discovery & Management](#1-prospect-discovery-management)
+  - [2. Diagnostic Website Auditing & Telemetry](#2-diagnostic-website-auditing-telemetry)
+  - [3. Prospect Intelligence & Explainable Scoring](#3-prospect-intelligence-explainable-scoring)
+  - [4. Website Audit Comparison & Change Detection](#4-website-audit-comparison-change-detection)
+  - [5. Contact Intelligence & Email Discovery](#5-contact-intelligence-email-discovery)
+  - [6. Evidence-Aware AI Outreach Drafting](#6-evidence-aware-ai-outreach-drafting)
+  - [7. Safe Email Dispatch](#7-safe-email-dispatch)
+- [⚙️ Configuration Reference (.env)](#configuration-reference-env)
+- [💾 Database, Backup & Recovery](#database-backup-recovery)
+- [🛡️ Privacy, Security, and Responsible Use](#privacy-security-and-responsible-use)
+- [🔧 Troubleshooting](#troubleshooting)
+- [🔄 Updating Leddro](#updating-leddro)
+- [🧪 Testing and Development](#testing-and-development)
+- [🏗️ Project Architecture](#project-architecture)
+- [📁 Directory Structure](#directory-structure)
+- [🗺️ Roadmap](#roadmap)
+- [🤝 Contributing](#contributing)
+- [🔒 Security Disclosures](#security-disclosures)
+- [📄 License and Acknowledgements](#license-and-acknowledgements)
 
 ---
 
-## What Is Leddro?
+## ⚡ Overview
 
 Independent developers and digital consultants often struggle with client acquisition. Traditional sales automation tools treat outreach as a volume game: they scrape thousands of unverified email addresses and blast generic templates that damage sender reputation and yield near-zero response rates.
 
@@ -74,282 +75,21 @@ Leddro provides an evidence-based alternative:
 
 ---
 
-## Workflow Overview
-
-Leddro integrates discovery, diagnostics, contact extraction, and outreach into a unified, operator-supervised pipeline:
-
-```mermaid
-flowchart LR
-    A["1. Discovery<br>(OSM / CSV / Places)"] --> B["2. Diagnostic Audit<br>(DNS / TLS / HTTP / DOM)"]
-    B --> C["3. Scoring Engine<br>(Opportunity & Confidence)"]
-    C --> D["4. Contact Crawler<br>(MX Verified & Phone/WA)"]
-    D --> E["5. Evidence AI Draft<br>(Gemini / Ollama / Claude)"]
-    E --> F["6. Human Review<br>& Safe Dispatch (SMTP / Gmail)"]
-```
-
-### The 6-Stage Operator Lifecycle
-
-1. **Discover & Ingest**: Query local businesses via OpenStreetMap (Overpass & Nominatim), search via Google Places API, or import CSV lead files. Leddro applies domain and phone normalization with deduplication.
-2. **Execute Diagnostic Audits**: Run server-side probes against target domains. Leddro inspects DNS records (A, AAAA, MX, NS), TLS certificate chains, HTTP status codes, socket TTFB latency, and DOM elements (mobile viewport, meta descriptions).
-3. **Evaluate Opportunities**: Review the deterministic **Opportunity Score** (0–100) and decoupled **Data Confidence Score** (0–100) with complete evidence traceability.
-4. **Extract Verified Contacts**: The crawler scans the homepage and contact subpages for authentic public emails and phone numbers, validating active DNS MX mail records before saving. When no email exists, Leddro provides direct click-to-call and WhatsApp actions.
-5. **Draft Fact-Checked Proposals**: Select an AI provider (Google Gemini free tier, local Ollama, OpenAI, or Anthropic). Leddro generates proposals citing authentic audit finding IDs and flags any ungrounded assertions.
-6. **Review & Dispatch Safely**: Polish subject lines and copy in the split-pane Draft Studio. Dispatch individually through your preferred Gmail SMTP or Google Cloud OAuth gateway.
-
----
-
-## Why Leddro?
+### Why Leddro?
 
 | Dimension | Conventional Outreach Platforms | Leddro Developer Workspace |
 | :--- | :--- | :--- |
 | **Data Architecture** | Closed SaaS database; vendor controls your data | **Local-First SQLite**; complete ownership on your machine |
 | **Outreach Grounding** | Vague flattery (*"I loved your website..."*) | **Deterministic Evidence** (*"Your SSL certificate expires in 4 days..."*) |
 | **Contact Integrity** | Fabricates guessed emails (`contact@company.com`) | **Zero Fake Emails Policy**; MX checks and direct Phone/WhatsApp actions |
-| **Email Dispatch** | Automated sequence blasts and cold drip campaigns | **Strictly Single-Message Dispatch**; operator review required for every email |
+| **Email Dispatch** | Bulk sequence automation & auto-dialers | **Strictly Single-Message Dispatch**; human approval required for every send |
 | **AI Transparency** | Black-box prompts with unchecked hallucinations | **Factual Claim Mapping**; assertions verified against audit finding IDs |
 | **Cost & Licensing** | $80–$300/month subscription lock-in | **100% Free & Open Source (MIT)**; runs with free-tier APIs or offline LLMs |
 | **Network Security** | Unrestricted external crawling | **Hardened SSRF Defenses**; blocks loopback, private subnets, and metadata IPs |
 
 ---
 
-## Features
-
-### 🔍 Prospect Discovery
-- **OpenStreetMap Integration**: Query local businesses by city, state, or postal code via Overpass API and Nominatim geocoding with zero API keys required.
-- **CSV Batch Import**: Ingest existing lead lists with automatic column detection, duplicate identification, and formula injection protection (`=`, `+`, `-`, `@`).
-- **Google Places API (New)**: Optional integration for high-accuracy business lookups, official websites, and phone numbers using Google Cloud's $200 free monthly credit.
-- **Deterministic Deduplication**: Cross-references source provider IDs, canonical registered web domains (`extract_registered_domain`), and normalized business names + locality to prevent duplicate records.
-
-### 🛡️ Diagnostic Website Auditing
-- **DNS Zone Analysis**: Queries A, AAAA, MX, and NS records with millisecond resolution timing.
-- **TLS / SSL Verification**: Inspects certificate authorities, validity dates, protocol support (TLSv1.2, TLSv1.3), and cipher configurations.
-- **HTTP & Server Telemetry**: Evaluates socket connection latency, Time To First Byte (TTFB), HTTP status codes (200, 301, 404, 500), and security response headers.
-- **DOM & Mobile Evaluation**: Checks for mobile responsive `<meta name="viewport">` tags, document `<title>`, meta descriptions, and OpenGraph social cards.
-- **SSRF Network Security**: Outbound crawler strictly blocks loopback addresses (`127.0.0.0/8`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud instance metadata endpoints (`169.254.169.254`).
-
-### 📊 Explainable Opportunity & Confidence Scoring
-- **Heuristic Opportunity Score (0–100)**: Transparent point-based assessment of observable technical room for improvement across 4 decoupled dimensions.
-- **Data Confidence Score (0–100)**: Reflects audit completeness and recency, applying deterministic decay penalties for stale data (>30 days: -15 pts; >90 days: -30 pts).
-- **Diagnostic Failure Isolation**: Network timeouts and runner errors are classified as `failed_diagnostic` and reduce confidence rather than penalizing the prospect's score.
-- **Full Evidence Traceability**: Every score links directly to stored audit finding IDs and raw network telemetry dumps.
-
-### 🔄 Audit Comparison & Change Detection
-- **Before/After Analysis**: Compare older and newer audits for the same website to monitor remediation or regressions.
-- **Positive-Evidence Rule**: Issues are only classified as resolved if the newer audit provides positive evidence that the check passed.
-- **Four-Way Classification**: Categorizes findings into `RESOLVED`, `NEW`, `PERSISTENT`, or `INCONCLUSIVE`.
-- **Telemetry Deltas**: Directional deltas for TTFB latency (ms and %), DOM ready latency, payload size (KB), responsive viewport state, and TLS protocol upgrades.
-
-### 📬 Contact Intelligence & Verification
-- **Autonomous Contact Crawler**: Scans the homepage and contact subpages (`/contact`, `/about`, `/reach-us`, `/location`) for public emails and phone numbers.
-- **DNS MX Mailbox Verification**: Validates that discovered email domains maintain active, responsive mail exchange records before saving.
-- **Zero Fake Emails Policy**: Never fabricates placeholder email addresses. If no email is discovered, the address remains empty with clear visual warnings.
-- **Direct Phone & WhatsApp Actions**: Click-to-call (`tel:`) and 1-click WhatsApp web chat (`https://wa.me/`) with pre-filled technical audit outreach messages.
-- **Hunter.io B2B Email Finder**: Search verified professional emails, executive names, positions, and confidence scores (25 free monthly searches).
-- **Quick-Fill Email Pills**: 1-click `+ info@{domain}` and `+ contact@{domain}` pills in the draft editor when the operator knows the address.
-
-### ✍️ Evidence-Aware AI Outreach Drafting
-- **Multi-Provider Architecture**: Toggle between Google Gemini (Free tier via Google AI Studio), OpenAI (`gpt-4o-mini`), Anthropic Claude (`claude-3-5-haiku-20241022`), or local Ollama (`llama3`).
-- **In-Modal Provider Switcher**: Change AI engines directly inside the draft generation dialog without navigating away.
-- **Factual Claim Mapping**: Automatically parses generated drafts, cross-references technical assertions with stored audit finding IDs, and flags unverified claims.
-- **Prompt Injection Containment**: Crawled page content and untrusted business metadata are encapsulated within strict `<untrusted_prospect_data>` XML delimiters.
-- **Operator Customization**: Select specific outreach purposes (Modernization, Performance, Security), adjust tone (Professional, Friendly, Concise, Consultative), and provide up to 500 characters of custom guidance.
-
-### ✉️ Safe Email Dispatch
-- **Direct Gmail SMTP (Preferred)**: Connect using a 16-character Google App Password with STARTTLS (`smtp.gmail.com:587`). Requires zero Google Cloud Console configuration.
-- **Google Cloud OAuth 2.0**: Connect via Gmail REST API using Proof Key for Code Exchange (PKCE) and Fernet token encryption at rest (`.leddro_encryption_key`).
-- **Human-Confirmed Single Sends**: Strict 1-by-1 sending requiring human confirmation. Zero bulk automation or background loops.
-- **Header Injection Defenses**: Rejects carriage returns (`\r`), newlines (`\n`), and null bytes (`\0`) in recipient, sender, and subject headers.
-- **Suppression Registry**: Automatically blocks dispatch to unsubscribed addresses or blacklisted domains.
-- **Uncertain State Handling**: Network timeouts during dispatch mark attempts as `uncertain` to prevent accidental duplicate sending.
-
-### 💾 Data Safety & Infrastructure
-- **Local-First SQLite**: Zero setup required; all data persists in `leddro.db`.
-- **Atomic Online Backups**: Native SQLite backup engine (`sqlite3_backup`) creates consistent snapshots without locking active database writes.
-- **Integrity Validation**: Automated `PRAGMA integrity_check` before any backup restoration with automatic safety snapshots.
-- **Optional Neon PostgreSQL**: Seamlessly connect to cloud serverless PostgreSQL simply by updating `DATABASE_URL`.
-
----
-
-## Prospect Intelligence and Explainable Scoring
-
-Leddro provides an explainable heuristic to rank prospects based on verified technical need. Every score is directly traceable to observed website issues and discovery metadata.
-
-> [!NOTE]
-> **What the Opportunity Score Means**: A transparent 0–100 heuristic ranking prospects based on observable technical deficiencies (such as DNS errors, server failures, missing HTTPS, or security headers). Higher scores indicate stronger technical room for improvement.
->
-> **What It Does NOT Mean**: It does **NOT** predict whether a business will buy, convert, or reply. It is not an opaque machine learning probability score.
-
-### Four Decoupled Dimensions
-
-1. **Opportunity Score (0–100)**: Heuristic of technical need and room for improvement based on observed website evidence.
-2. **Data Confidence (0–100)**: Measure of how complete, fresh, and reliable the diagnostic evidence is.
-3. **Audit Severity**: Exact count of high, medium, low, and informational findings from real audit probes.
-4. **Contact Readiness**: Verification state of communication channels (`verified`, `unverified`, `absent`, `unknown`).
-
-### Scoring Factors and Weights (Sum: 100 Points)
-
-| Factor | Max Pts | Contribution Rules |
-| :--- | :---: | :--- |
-| **1. Website Accessibility** | 25 pts | • DNS resolution failure (NXDOMAIN / missing A records): +25 pts<br>• Confirmed HTTP server error (4xx/5xx): +20 pts<br>• No website registered: +15 pts (opportunity for initial web presence)<br>• Confirmed reachable (HTTP 200/3xx): +0 pts<br>• Diagnostic error / timeout: +0 pts (marked inconclusive; lowers confidence) |
-| **2. Technical Findings & Severity** | 55 pts | • High-severity findings: +15 pts each (capped at 35 pts)<br>• Medium-severity findings: +5 pts each (capped at 20 pts)<br>• Low-severity findings: +1 pt each (capped at 5 pts)<br>• Informational notices: +0 pts<br>• Duplicate findings sharing category and title are deduplicated automatically |
-| **3. HTTPS & Transport Security** | 20 pts | • Invalid, expired, or untrusted certificate: +20 pts<br>• HTTP-only website with no HTTPS: +15 pts<br>• Valid TLS certificate (v1.2/v1.3): +0 pts<br>• Unchecked or diagnostic connection failure: +0 pts (marked unconfirmed) |
-| **4. Contact Readiness & Completeness** | 0 pts | • Direct contact readiness is tracked separately and **never inflates Opportunity Score**.<br>• Unverified contact or incomplete profile details penalize Data Confidence (-8 to -15 pts) and populate explicit limitations. |
-
-### Evidence Quality, Recency & Diagnostic Failures
-
-- **Diagnostic Failures**: An audit that fails due to a network timeout or runner connection error is **never** penalized as a website defect. The factor is marked `check_failed` (nature: `failed_diagnostic`) and data confidence is reduced.
-- **Audit Recency Decay**: Audits older than 30 days decay confidence (-15 pts), and audits older than 90 days decay confidence further (-30 pts). Stale audits do **not** artificially inflate opportunity score.
-- **Contact Verification**: Contact addresses in the database are labeled `unverified` unless explicitly verified. Leddro does not perform unsolicited SMTP handshakes or test sends to verify contacts.
-- **Traceability**: Every displayed evidence item links directly to an authentic stored audit finding ID and recorded HTTP/DNS evidence.
-
----
-
-## Website Auditing and Telemetry
-
-Leddro executes non-destructive diagnostic probes directly from your local machine.
-
-```
-[Target URL] ──► [SSRF Security Check] ──► [DNS Probe] ──► [TLS Handshake] ──► [HTTP / TTFB] ──► [DOM Parser]
-```
-
-### Audit Capabilities
-
-- **DNS Zone Inspection**: Queries A, AAAA, MX, and NS records with millisecond resolution timing. Identifies missing records, zone misconfigurations, and mail host routing.
-- **TLS / SSL Certificate Verification**: Connects via SSL socket to evaluate certificate authority trust, expiry countdown, protocol versions (TLSv1.2, TLSv1.3), and cipher suites.
-- **HTTP Reachability & TTFB**: Measures socket connect latency, Time To First Byte (TTFB), status codes (200, 301, 404, 500), and response headers (`Strict-Transport-Security`, `X-Content-Type-Options`).
-- **HTML DOM Diagnostics**: Parses the initial HTML payload to detect mobile viewport declarations (`<meta name="viewport">`), document `<title>`, meta descriptions, and OpenGraph social preview tags.
-- **SSRF Network Security**: Outbound audit crawlers strictly block loopback (`127.0.0.1`), private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud metadata IP endpoints (`169.254.169.254`).
-
----
-
-## Website Audit Comparison and Change Detection
-
-Leddro includes a deterministic before/after comparison engine allowing operators to evaluate changes between two audits of the same website over time.
-
-> [!IMPORTANT]
-> **Resolution Rule**: A missing finding in a newer audit does **NOT** automatically mean an issue was fixed. Leddro requires explicit positive proof of a passing check to classify any issue as resolved.
-
-### 1. The Four Finding Classifications
-
-| Classification | Meaning | Rule & Evidence Requirement |
-| :--- | :--- | :--- |
-| **RESOLVED** | Issue confirmed fixed | A finding was confirmed in the older audit, and the newer audit provides positive evidence that the relevant check completed successfully and passed. |
-| **NEW** | Newly detected issue | An issue was not present in the older audit, and the newer audit confirms a new defect with evidence. The older check must have run successfully or baseline evidence must be complete. |
-| **PERSISTENT** | Issue confirmed in both | The same underlying defect is confirmed in both audits with ongoing evidence. |
-| **INCONCLUSIVE** | Evidence insufficient | Evidence cannot establish whether an issue was fixed, appeared, or persisted. Occurs if the newer audit failed, timed out, skipped the check, or omitted the finding without pass evidence. |
-
-### 2. Technical Telemetry Comparison
-
-Leddro compares raw observations only when both sides contain valid, comparable values:
-- **HTTP Response Latency (TTFB)**: Measures latency delta (ms) and percentage change without division-by-zero errors.
-- **Document Processing Time**: Evaluates DOM ready and crawl latency changes.
-- **HTML Document Payload Size**: Tracks document weight differences in KB.
-- **Mobile Responsive Viewport**: Compares before/after presence of mobile viewport declarations.
-- **DNS Resolution Time**: Evaluates DNS query latency deltas.
-- **TLS Certificate Validity & Expiration**: Distinguishes valid, invalid, expired, and renewed certificates.
-- **TLS Protocol Version**: Evaluates protocol version upgrades/downgrades categorically (TLSv1.3 > TLSv1.2 > TLSv1.1) rather than treating versions as continuous numbers.
-- **HTTP Response Status**: Evaluates HTTP status transitions semantically (e.g., 500 → 200 is an improvement, not an arithmetic difference of -300).
-
-### 3. Reliability and Execution Status
-- **Both Completed**: Full comparison with high confidence across all completed checks.
-- **Partial / Newer Failed**: Disappeared findings are retained as inconclusive rather than falsely declared resolved.
-- **Cross-Website Guard**: Comparisons are strictly enforced against identical prospect records or canonical website domain identities (`extract_registered_domain`). Accidental comparisons across different websites are rejected.
-
----
-
-## Contact Intelligence and Email Discovery
-
-Finding legitimate decision-maker contact information is essential for ethical, effective outreach. Leddro provides an autonomous, multi-tiered contact discovery architecture:
-
-```
-[Target Website] ──► [SSRF Check] ──► [Page Scraper (/, /contact, /about)] ──► [Filter Junk] ──► [DNS MX Check] ──► [Verified Contacts]
-                                                                                                          ▲
-                                      [Hunter.io API (B2B Directory)] ─────────────────────────────────────┤
-                                      [Google Places API (Phone & Web)] ───────────────────────────────────┘
-```
-
-### Autonomous Website Contact Crawler
-- **Targeted Crawling**: Fetches the homepage and up to 2 high-probability contact subpages (e.g., `/contact`, `/contact-us`, `/about`, `/about-us`, `/location`) with SSRF validation.
-- **Multi-Source Extraction**: Scans HTML `mailto:` anchors, click-to-call `tel:` links, body text regex patterns, and footer attributes.
-- **Junk & Template Filtering**: Automatically filters out image file extensions (`.png`, `.svg`, `.jpg`), code assets (`.js`, `.css`), and placeholder domains (`example.com`, `sentry.io`, `wixpress.com`, `wordpress.org`).
-- **DNS MX Mailbox Verification**: Performs live DNS lookups for MX mail exchangers (`dns.resolver.resolve(domain, "MX")`) to verify the domain is configured to receive incoming mail before saving.
-- **Domain Affinity Ranking**: Prioritizes corporate domain emails (`info@business.com`) above generic webmail addresses.
-
-### Zero Fake Emails Policy
-- **Never Guesses**: Leddro **never** synthesizes fake emails like `contact@{domain}.com` or `admin@{domain}.com`. Fabricating unverified addresses damages sender domain reputation with Google and Microsoft mail filters.
-- **Amber Warning State**: If no email address can be discovered, the recipient field remains empty and displays an amber alert:
-  `⚠️ No verified email found — use phone or enter email manually.`
-- **Quick-Fill Pills**: Provides convenient `+ info@{domain}` and `+ contact@{domain}` quick-fill pills in the draft editor when the operator knows the address.
-
-### Direct Phone & WhatsApp Actions
-- **Click-to-Call**: Extracted and normalized phone numbers render as clickable `📞 Call` links (`tel:+...`) for instant dialing via desktop softphones or paired mobile devices.
-- **WhatsApp Web Integration**: Includes a 1-click `💬 WhatsApp` button linking to `https://wa.me/{phone}` with a pre-filled, professional technical audit summary ready to send.
-
-### Third-Party Provider Enrichments
-- **Hunter.io B2B Email Search**: Free tier provides 25 monthly searches for verified corporate emails, department tags, executive names, and deliverability confidence scores.
-- **Google Places API (New)**: Enriches discovery with official business telephone numbers, formatted street addresses, and verified websites using Google Cloud's $200 free monthly credit.
-
----
-
-## Evidence-Aware AI Drafting
-
-Leddro turns dry technical audit data into polite, consultative business proposals.
-
-### Multi-Provider Engine Architecture
-Use any of 4 supported AI engines with zero code changes:
-- **Google Gemini**: Recommended free tier via [Google AI Studio](https://aistudio.google.com/app/apikey) (`gemini-3.5-flash-lite`).
-- **Local Ollama**: 100% private, on-device inference (`llama3`) with zero external network transmission.
-- **OpenAI**: Commercial API integration (`gpt-4o-mini`).
-- **Anthropic Claude**: Commercial API integration (`claude-3-5-haiku-20241022`).
-
-### Anti-Hallucination Claim Validation
-Unlike generic AI tools, Leddro prevents models from inventing false claims:
-1. The AI engine is provided only verified findings from your local SQLite database.
-2. The draft response is parsed to identify all technical claims.
-3. Every claim is cross-referenced with stored audit finding IDs.
-4. If a claim cannot be verified against stored evidence, Leddro marks it with an **Unverified Claim** warning badge in the Draft Studio.
-
-### Prompt-Injection Containment
-Untrusted crawled text, business descriptions, and OpenStreetMap tags are strictly sanitized and enclosed within `<untrusted_prospect_data>` XML boundaries in the prompt, preventing malicious websites from manipulating the AI output.
-
----
-
-## Email Integration and Safe Dispatch
-
-Leddro prioritizes sender reputation, deliverability, and human oversight.
-
-### Two Supported Delivery Gateways
-
-```
-                          ┌──► [Option A: Direct SMTP Gateway] ────► smtp.gmail.com:587 (App Password)
-[Draft Studio] ──► [Send] ┤
-                          └──► [Option B: Google Cloud OAuth 2.0] ─► Gmail REST API (PKCE + Token Encryption)
-```
-
-1. **Direct SMTP Gateway (Preferred & Recommended)**: Connect directly to `smtp.gmail.com:587` with STARTTLS using a 16-character Google App Password. Instant setup with zero Google Cloud Console configuration.
-2. **Google Cloud OAuth 2.0 (Gmail API Gateway)**: Authorize via Google Cloud OAuth with Proof Key for Code Exchange (PKCE) and CSRF verification. Refresh tokens are encrypted at rest using AES-128-CBC via Fernet (`.leddro_encryption_key`). Uses send-only scope (`gmail.send`) and never reads or indexes your inbox.
-
-### Delivery Safeguards
-
-- **Strictly Single-Message Dispatch**: Leddro has zero bulk-send sequences, no drip campaigns, and no automated dispatch triggers. Every send requires explicit human review and confirmation.
-- **Header Injection Defenses**: Rejects any recipient, sender, or subject string containing carriage returns (`\r`), newlines (`\n`), or null bytes (`\0`).
-- **Suppression Registry**: Automatically verifies target addresses against local `suppression_records` to prevent messaging unsubscribed contacts or blocked domains.
-- **Uncertain State Handling**: If a network timeout occurs during dispatch, the attempt is marked `uncertain` with error code `SMTP_TIMEOUT` or `NETWORK_TIMEOUT`. Leddro prevents accidental re-sends and advises the operator to check their Sent folder.
-
----
-
-## Data Safety and Infrastructure
-
-Leddro is designed from the ground up as a local-first application.
-
-- **Local-First SQLite**: All prospects, audit findings, draft emails, and history records persist automatically in `leddro.db` in the repository root.
-- **Atomic Online Backups**: Leddro utilizes the native SQLite online backup API (`sqlite3_backup`) to create consistent snapshot backups without locking active writes.
-- **Integrity Validation**: Automated `PRAGMA integrity_check` runs before any database restoration, accompanied by an automatic safety snapshot of the active database.
-- **Optional Neon Serverless PostgreSQL**: Seamlessly transition to cloud auto-scaling serverless PostgreSQL simply by updating `DATABASE_URL`.
-
----
-
-## Screenshots and Interface Tour
+## 📸 Screenshots & Interface Tour
 
 All screenshots below represent the live Leddro application interface:
 
@@ -379,70 +119,85 @@ Manage AI engine keys, select default models, test connectivity latencies, and m
 
 ---
 
-## System Requirements
+## 🔄 Workflow Overview
 
-| Component | Minimum Requirement | Recommended |
-| :--- | :--- | :--- |
-| **Operating System** | Windows 10/11, macOS 12+, or Ubuntu 20.04+ | Any modern 64-bit OS |
-| **Python** | 3.11 or higher | 3.11, 3.12, or 3.13 |
-| **Node.js** | 20.0.0 or higher | Node.js 22 LTS |
-| **Package Managers** | `pip` (Python) and `npm` (Node) | Latest `npm` and `pip` |
-| **Disk Space** | ~500 MB (codebase, virtual environment, dependencies) | 1 GB free |
-| **Network** | Active internet connection for audits and API calls | Broadband connection |
+Leddro integrates discovery, diagnostics, contact extraction, and outreach into a unified, operator-supervised pipeline:
 
-### Verify Your Installed Versions
-
-Run these commands in your terminal:
-
-```bash
-git --version
-python --version   # (On macOS/Linux, use: python3 --version)
-node --version
-npm --version
+```mermaid
+flowchart LR
+    A["1. Discovery<br>(OSM / CSV / Places)"] --> B["2. Diagnostic Audit<br>(DNS / TLS / HTTP / DOM)"]
+    B --> C["3. Scoring Engine<br>(Opportunity & Confidence)"]
+    C --> D["4. Contact Crawler<br>(MX Verified & Phone/WA)"]
+    D --> E["5. Evidence AI Draft<br>(Gemini / Ollama / Claude)"]
+    E --> F["6. Human Review<br>& Safe Dispatch (SMTP / Gmail)"]
 ```
+
+### The 6-Stage Operator Lifecycle
+
+1. **Discover & Ingest**: Query local businesses via OpenStreetMap (Overpass & Nominatim), search via Google Places API, or import CSV lead files. Leddro applies domain and phone normalization with deduplication.
+2. **Execute Diagnostic Audits**: Run server-side probes against target domains. Leddro inspects DNS records (A, AAAA, MX, NS), TLS certificate chains, HTTP status codes, socket TTFB latency, and DOM elements (mobile viewport, meta descriptions).
+3. **Evaluate Opportunities**: Review the deterministic **Opportunity Score** (0–100) and decoupled **Data Confidence Score** (0–100) with complete evidence traceability.
+4. **Extract Verified Contacts**: The crawler scans the homepage and contact subpages for authentic public emails and phone numbers, validating active DNS MX mail records before saving. When no email exists, Leddro provides direct click-to-call and WhatsApp actions.
+5. **Draft Fact-Checked Proposals**: Select an AI provider (Google Gemini free tier, local Ollama, OpenAI, or Anthropic). Leddro generates proposals citing authentic audit finding IDs and flags any ungrounded assertions.
+6. **Review & Dispatch Safely**: Polish subject lines and copy in the split-pane Draft Studio. Dispatch individually through your preferred Gmail SMTP or Google Cloud OAuth gateway.
 
 ---
 
-## Installation: Quick Start
+## 🚀 Quick Start
 
-Follow these verified steps to set up Leddro on your system:
+Get Leddro installed and running locally in under 3 minutes:
 
-### 1. Clone the Repository
+### Prerequisites
+
+| Component | Minimum Requirement | Verified Version | Check Command |
+| :--- | :--- | :--- | :--- |
+| **Python** | 3.11 or higher | 3.11, 3.12, 3.13 | `python --version` *(or `python3 --version`)* |
+| **Node.js** | 20.0.0 or higher | Node.js 20 or 22 LTS | `node --version` |
+| **Package Managers** | `pip` and `npm` | Latest stable | `npm --version` |
+| **Operating System** | Windows 10/11, macOS 12+, Ubuntu 20.04+ | 64-bit OS | `git --version` |
+
+---
+
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/PrajwalTheCoder/Leddro.git
 cd Leddro
 ```
 
-### 2. Backend Setup (FastAPI & Python)
+---
+
+### Step 2: Backend Setup (Python)
 
 #### On Windows (PowerShell):
 ```powershell
-# Create Python virtual environment
+# Create virtual environment
 python -m venv .venv
 
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# Upgrade pip and install backend dependencies
+# Upgrade pip & install dependencies
 python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
 #### On macOS / Linux:
 ```bash
-# Create Python virtual environment
+# Create virtual environment
 python3 -m venv .venv
 
 # Activate virtual environment
 source .venv/bin/activate
 
-# Upgrade pip and install backend dependencies
+# Upgrade pip & install dependencies
 python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
-### 3. Initialize Configuration
+---
+
+### Step 3: Initialize Configuration
 
 Copy the sanitized template file to `.env`:
 
@@ -454,9 +209,11 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-*(By default, `.env` is preconfigured to use local SQLite at `leddro.db`. You do not need any API keys or cloud databases to run the application).*
+*(By default, `.env` is preconfigured to use local SQLite at `leddro.db`. You do **not** need an API key or cloud database to run the app).*
 
-### 4. Frontend Setup (React & Vite)
+---
+
+### Step 4: Frontend Setup (React & Vite)
 
 In the same repository root:
 
@@ -466,9 +223,9 @@ npm install
 
 ---
 
-## Running the Application
+### Running the Application
 
-### Method 1: One-Command Development Launcher (Recommended)
+#### Method 1: Single-Command Development Launcher (Recommended)
 
 Run both the FastAPI backend and Vite frontend together in a single terminal with automated port conflict checks and multiplexed logs:
 
@@ -493,67 +250,70 @@ python run_dev.py
 Press CTRL+C at any time to cleanly stop both services.
 ```
 
+Open your browser and navigate to **`http://localhost:5173`**.
+
 ---
 
-### Method 2: Run in Separate Terminals (Troubleshooting Fallback)
+#### Method 2: Run in Separate Terminals (Troubleshooting Fallback)
 
-If you prefer separate processes or are debugging a specific service:
+If you prefer separate processes:
 
-#### Terminal 1: Start Backend API
-
-Activate your virtual environment and launch Uvicorn:
-
-##### Windows PowerShell:
-```powershell
+**Terminal 1 (Backend API):**
+```bash
+# Windows PowerShell:
 .\.venv\Scripts\Activate.ps1
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
-```
 
-##### macOS / Linux:
-```bash
+# macOS / Linux:
 source .venv/bin/activate
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+- Interactive API Docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- Health Check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
-- **Interactive API Documentation (Swagger)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Health Check Endpoint**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
-
-#### Terminal 2: Start Frontend Application
-
-In a separate terminal window at the project root:
-
+**Terminal 2 (Frontend):**
 ```bash
 npm run dev
 ```
-
-Open your browser and navigate to **`http://localhost:5173`**. The Vite dev server automatically proxies all `/api/*` calls to the FastAPI backend.
+Navigate to **`http://localhost:5173`**.
 
 ---
 
-## First-Run Experience
+### Interactive Terminal CLI Audit Mode
 
-Follow this zero-credential quick path to experience the core workflow in under 2 minutes:
+You can also run instant, non-destructive website audits directly from your terminal without opening the web interface:
 
-1. **Open the Dashboard**: Navigate to `http://localhost:5173`. You will see the Command Center populated with your initial demonstration prospects.
+```bash
+# Human-readable colored report with telemetry and findings
+python -m backend.app.cli audit https://example.com
+
+# Raw JSON output (for scripting and CI pipelines)
+python -m backend.app.cli audit https://example.com --json
+```
+
+---
+
+### First-Run Experience (2 Minutes)
+
+Follow this zero-credential path to experience the core workflow right away:
+
+1. **Open Dashboard**: Go to `http://localhost:5173` to see your Command Center with initial demonstration prospects.
 2. **Execute an Audit**:
-   - Go to **Prospects** in the sidebar.
-   - Locate any target business (e.g., **Northstar Interiors** or **Willow Studio**).
-   - Click the **Audit** button.
-   - Watch the real-time probe check DNS, inspect TLS certificates, and analyze DOM structure.
+   - Navigate to **Prospects** in the sidebar.
+   - Click **Audit** on any target business (e.g., **Northstar Interiors**).
+   - Watch the real-time probe test DNS, TLS certificates, HTTP status, and DOM layout.
 3. **Inspect Findings**:
-   - Navigate to **Technical Audits** to view the findings (e.g., certificate validity, mobile viewport declarations, missing meta description).
+   - Navigate to **Technical Audits** to view the findings (certificate validity, mobile viewport declarations, missing meta description).
 4. **Inspect Contact Information**:
    - Notice the extracted website contact details, verified MX status, and direct `📞 Call` / `💬 WhatsApp` action buttons.
 5. **Draft Outreach**:
    - Click **Generate Draft** on the audited prospect.
    - If an AI provider is configured (such as free Google Gemini), click **Generate Email Draft**.
    - The AI will compose a polite letter quoting the observed audit evidence.
-6. **Edit the Draft**:
-   - Navigate to **Draft Studio** (`/drafts`) to refine the email copy and review alternative subject lines.
 
 ---
 
-## Using Leddro Without AI
+### Using Leddro Without AI
 
 **You do NOT need an AI API key to use Leddro.**
 
@@ -567,9 +327,96 @@ Without an AI provider configured:
 
 ---
 
-## Configuring AI Providers
+## 🔍 Features & Technical Depth
 
-Leddro supports 4 interchangeable AI providers. You only need to configure **one**:
+### 1. Prospect Discovery & Management
+- **OpenStreetMap Integration**: Query local businesses by city, state, or postal code via Overpass API and Nominatim geocoding with zero API keys required.
+- **CSV Batch Import**: Ingest existing lead lists with automatic column detection, duplicate identification, and formula injection protection (`=`, `+`, `-`, `@`). Includes an annotated sample template at [docs/sample_import.csv](docs/sample_import.csv).
+- **Interactive Terminal CLI Mode**: Perform rapid non-destructive audits directly from your shell using `python -m backend.app.cli audit <url>` with rich ANSI color telemetry or raw `--json` machine output.
+- **Google Places API (New)**: Optional integration for high-accuracy business lookups, official websites, and phone numbers using Google Cloud's $200 free monthly credit.
+- **Deterministic Deduplication**: Cross-references source provider IDs, canonical registered web domains (`extract_registered_domain`), and normalized business names + locality to prevent duplicate records.
+
+---
+
+### 2. Diagnostic Website Auditing & Telemetry
+- **DNS Zone Analysis**: Queries A, AAAA, MX, and NS records with millisecond resolution timing. Identifies missing records, zone misconfigurations, and mail host routing.
+- **TLS / SSL Verification**: Inspects certificate authorities, validity dates, protocol support (TLSv1.2, TLSv1.3), and cipher configurations.
+- **HTTP & Server Telemetry**: Evaluates socket connection latency, Time To First Byte (TTFB), HTTP status codes (200, 301, 404, 500), and security response headers (`Strict-Transport-Security`, `X-Content-Type-Options`).
+- **DOM & Mobile Evaluation**: Checks for mobile responsive `<meta name="viewport">` tags, document `<title>`, meta descriptions, and OpenGraph social cards.
+- **SSRF Network Security**: Outbound crawler strictly blocks loopback addresses (`127.0.0.0/8`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud instance metadata endpoints (`169.254.169.254`).
+
+---
+
+### 3. Prospect Intelligence & Explainable Scoring
+
+Leddro provides an explainable heuristic to prioritize prospects based on verified technical need. Every score is directly traceable to observed website issues and discovery metadata.
+
+> [!NOTE]
+> **What the Opportunity Score Means**: A transparent 0–100 heuristic ranking prospects based on observable technical deficiencies (such as DNS errors, server failures, missing HTTPS, or security headers). Higher scores indicate stronger technical room for improvement.
+>
+> **What It Does NOT Mean**: It does **NOT** predict whether a business will buy, convert, or reply. It is not an opaque machine learning probability score.
+
+#### Four Decoupled Dimensions
+1. **Opportunity Score (0–100)**: Heuristic of technical need / room for improvement based on observed website evidence.
+2. **Data Confidence (0–100)**: Measure of how complete, fresh, and reliable the diagnostic evidence is.
+3. **Audit Severity**: Exact count of high, medium, low, and informational findings from real audit probes.
+4. **Contact Readiness**: Verification state of communication channels (`verified`, `unverified`, `absent`, `unknown`).
+
+#### Scoring Factors and Weights (Sum: 100 Points)
+
+| Factor | Max Pts | Contribution Rules |
+| :--- | :---: | :--- |
+| **1. Website Accessibility** | 25 pts | • DNS resolution failure (NXDOMAIN / missing A records): +25 pts<br>• Confirmed HTTP server error (4xx/5xx): +20 pts<br>• No website registered: +15 pts (potential opportunity for web presence creation)<br>• Confirmed reachable (HTTP 200/3xx): +0 pts<br>• Diagnostic error / timeout: +0 pts (marked inconclusive; lowers confidence) |
+| **2. Technical Findings & Severity** | 55 pts | • High-severity findings: +15 pts each (capped at 35 pts)<br>• Medium-severity findings: +5 pts each (capped at 20 pts)<br>• Low-severity findings: +1 pt each (capped at 5 pts)<br>• Informational notices: +0 pts<br>• Duplicate findings sharing category and title are deduplicated automatically |
+| **3. HTTPS & Transport Security** | 20 pts | • Invalid, expired, or untrusted certificate: +20 pts<br>• HTTP-only website with no HTTPS: +15 pts<br>• Valid TLS certificate (v1.2/v1.3): +0 pts<br>• Unchecked or diagnostic connection failure: +0 pts (marked unconfirmed) |
+| **4. Contact Readiness & Completeness** | 0 pts | • Direct contact readiness is tracked separately and **never inflates Opportunity Score**.<br>• Unverified contact or incomplete profile details penalize Data Confidence (-8 to -15 pts) and populate explicit limitations. |
+
+- **Diagnostic Failures**: An audit that fails due to a network timeout or runner connection error is **never** penalized as a website defect. The factor is marked `check_failed` (nature: `failed_diagnostic`) and data confidence is reduced.
+- **Audit Recency Decay**: Audits older than 30 days decay confidence (-15 pts), and audits older than 90 days decay confidence further (-30 pts).
+- **Full Evidence Traceability**: Every displayed evidence item links directly to an authentic stored audit finding ID and recorded HTTP/DNS evidence.
+
+---
+
+### 4. Website Audit Comparison & Change Detection
+
+Leddro includes a deterministic before/after comparison engine allowing operators to evaluate changes between two audits of the same website over time.
+
+> [!IMPORTANT]
+> **Resolution Rule**: A missing finding in a newer audit does **NOT** automatically mean an issue was fixed. Leddro requires explicit positive proof of a passing check to classify any issue as resolved.
+
+| Classification | Meaning | Rule & Evidence Requirement |
+| :--- | :--- | :--- |
+| **RESOLVED** | Issue confirmed fixed | A finding was confirmed in the older audit, and the newer audit provides positive evidence that the relevant check completed successfully and passed. |
+| **NEW** | Newly detected issue | An issue was not present in the older audit, and the newer audit confirms a new defect with evidence. The older check must have run successfully or baseline evidence must be complete. |
+| **PERSISTENT** | Issue confirmed in both | The same underlying defect is confirmed in both audits with ongoing evidence. |
+| **INCONCLUSIVE** | Evidence insufficient | Evidence cannot establish whether an issue was fixed, appeared, or persisted. Occurs if the newer audit failed, timed out, skipped the check, or omitted the finding without pass evidence. |
+
+- **Telemetry Deltas**: Directional deltas for TTFB latency (ms and %), DOM ready latency, payload size (KB), responsive viewport state, and TLS protocol upgrades.
+- **Cross-Domain Guard**: Comparisons are strictly enforced against identical prospect records or canonical website domain identities (`extract_registered_domain`).
+
+---
+
+### 5. Contact Intelligence & Email Discovery
+
+```
+[Target Website] ──► [SSRF Check] ──► [Page Scraper (/, /contact, /about)] ──► [Filter Junk] ──► [DNS MX Check] ──► [Verified Contacts]
+                                                                                                          ▲
+                                      [Hunter.io API (B2B Directory)] ─────────────────────────────────────┤
+                                      [Google Places API (Phone & Web)] ───────────────────────────────────┘
+```
+
+- **Autonomous Contact Crawler**: Scans the homepage and contact subpages (`/contact`, `/about`, `/reach-us`, `/location`) for public emails and phone numbers.
+- **DNS MX Mailbox Verification**: Validates that discovered email domains maintain active, responsive mail exchange records before saving.
+- **Zero Fake Emails Policy**: Never fabricates placeholder email addresses like `contact@{domain}.com`. If no email is discovered, the address remains empty with clear visual warnings.
+- **Direct Phone & WhatsApp Actions**: Click-to-call (`tel:`) and 1-click WhatsApp web chat (`https://wa.me/`) with pre-filled technical audit outreach messages.
+- **Hunter.io B2B Email Finder**: Search verified professional emails, executive names, positions, and confidence scores (25 free monthly searches).
+- **Quick-Fill Email Pills**: 1-click `+ info@{domain}` and `+ contact@{domain}` pills in the draft editor when the operator knows the address.
+
+---
+
+### 6. Evidence-Aware AI Outreach Drafting
+
+Leddro supports 4 interchangeable AI providers:
 
 | Provider | Pricing / Tier | Default Model | Data Transmission Scope |
 | :--- | :--- | :--- | :--- |
@@ -578,91 +425,25 @@ Leddro supports 4 interchangeable AI providers. You only need to configure **one
 | **OpenAI** | Commercial pay-per-token API | `gpt-4o-mini` | Minimal business & audit finding titles sent to OpenAI API servers |
 | **Anthropic** | Commercial pay-per-token API | `claude-3-5-haiku-20241022` | Minimal business & audit finding titles sent to Anthropic API servers |
 
-### 1. Google Gemini (Recommended Free Tier)
-1. Get a free API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Set the key in your `.env` file:
-   ```env
-   AI_PROVIDER="gemini"
-   GEMINI_API_KEY="your_gemini_api_key_here"
-   GEMINI_MODEL="gemini-3.5-flash-lite"
-   ```
-3. Or configure it directly in the application UI at **Integrations** (`/integrations`).
-
-### 2. Local Ollama (Zero External Transfer)
-1. Install Ollama from [ollama.com](https://ollama.com).
-2. Pull a model in your terminal: `ollama run llama3`.
-3. Set in `.env`:
-   ```env
-   AI_PROVIDER="compatible"
-   COMPATIBLE_BASE_URL="http://localhost:11434/v1"
-   COMPATIBLE_MODEL="llama3"
-   ```
-4. No API key is required. All processing remains strictly on your machine.
-
-### 3. OpenAI
-1. Generate an API key at [OpenAI Platform](https://platform.openai.com/api-keys).
-2. Set in `.env`:
-   ```env
-   AI_PROVIDER="openai"
-   OPENAI_API_KEY="your_openai_api_key_here"
-   OPENAI_MODEL="gpt-4o-mini"
-   ```
-
-### 4. Anthropic Claude
-1. Generate an API key at [Anthropic Console](https://console.anthropic.com/).
-2. Set in `.env`:
-   ```env
-   AI_PROVIDER="anthropic"
-   ANTHROPIC_API_KEY="your_anthropic_api_key_here"
-   ANTHROPIC_MODEL="claude-3-5-haiku-20241022"
-   ```
+- **Anti-Hallucination Claim Validation**: Automatically parses generated drafts, cross-references technical assertions with stored audit finding IDs in SQLite, and flags unverified claims with warning badges.
+- **Prompt Injection Containment**: Crawled page content and untrusted business metadata are encapsulated within `<untrusted_prospect_data>` XML delimiters.
+- **In-Modal Provider Switcher**: Toggle engines directly inside the draft generation dialog without navigating away.
 
 ---
 
-## Contact Discovery Provider Setup
+### 7. Safe Email Dispatch
 
-### 1. Built-in Website Crawler (Zero Configuration)
-- Works automatically out of the box with zero setup.
-- Crawls the prospect website homepage and contact subpages for emails and phones.
-- Automatically executes DNS MX record verification on discovered email addresses.
+Leddro prioritizes sender reputation, deliverability, and human oversight.
 
-### 2. Hunter.io B2B Email Finder (Optional)
-1. Create a free account at [hunter.io](https://hunter.io/api) (includes 25 free monthly searches).
-2. Copy your API key from the Hunter dashboard.
-3. Add to `.env`:
-   ```env
-   HUNTER_API_KEY="your_hunter_api_key_here"
-   ```
-4. Test the integration on the **Integrations** page to view available search credits.
+#### Two Supported Delivery Gateways
 
-### 3. Google Places API (New) (Optional)
-1. Open the [Google Cloud Console](https://console.cloud.google.com).
-2. Enable the **Places API (New)**.
-3. Create an API key with Places API restrictions.
-4. Add to `.env`:
-   ```env
-   GOOGLE_PLACES_API_KEY="your_google_places_api_key_here"
-   ```
-*(Google Cloud provides a recurring $200 free monthly credit for Maps Platform services).*
+```
+                          ┌──► [Option A: Direct SMTP Gateway] ────► smtp.gmail.com:587 (App Password)
+[Draft Studio] ──► [Send] ┤
+                          └──► [Option B: Google Cloud OAuth 2.0] ─► Gmail REST API (PKCE + Token Encryption)
+```
 
-### 4. OpenStreetMap Discovery (Zero Configuration)
-- Uses public Overpass and Nominatim endpoints by default (`https://overpass-api.de/api/interpreter`).
-- No API keys or registration required.
-
----
-
-## Email Integration Setup
-
-> **Optional**: You can use discovery, auditing, and AI drafting without setting up email dispatch. Configure an email option only if you intend to send real individual consultation emails directly from the app.
-
-### Option A: Direct Gmail SMTP (Preferred & Recommended)
-
-This is the fastest, completely free way to send emails with **zero Google Cloud Console configuration**:
-
-1. Go to your Google Account security settings: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
-2. Type an App name (e.g., `Leddro`) and click **Create**.
-3. Google generates a 16-character password (e.g., `abcd efgh ijkl mnop`).
-4. Add to your `.env` file:
+1. **Option A: Direct Gmail SMTP (Preferred & Recommended)**: Connect directly to `smtp.gmail.com:587` with STARTTLS using a 16-character Google App Password. Instant setup with zero Google Cloud Console configuration:
    ```env
    SMTP_HOST="smtp.gmail.com"
    SMTP_PORT=587
@@ -670,38 +451,17 @@ This is the fastest, completely free way to send emails with **zero Google Cloud
    SMTP_PASSWORD="your_16_char_app_password"
    SMTP_USE_TLS=True
    ```
-5. Restart your backend (`npm run dev:all`). You can now dispatch emails directly!
+2. **Option B: Google Cloud OAuth 2.0**: Connect via Gmail REST API using Proof Key for Code Exchange (PKCE) and Fernet token encryption at rest (`.leddro_encryption_key`). Send-only scope (`gmail.send`); never reads or indexes your inbox.
+
+#### Delivery Safeguards
+- **Strictly Single-Message Dispatch**: Zero bulk automation, no drip campaigns, and no automated dispatch triggers. Every send requires explicit human review and confirmation.
+- **Header Injection Defenses**: Rejects any recipient, sender, or subject string containing carriage returns (`\r`), newlines (`\n`), or null bytes (`\0`).
+- **Suppression Registry**: Automatically verifies target addresses against local `suppression_records` to prevent messaging unsubscribed contacts or blocked domains.
+- **Uncertain State Handling**: Network timeouts during dispatch mark attempts as `uncertain` to prevent accidental duplicate sending.
 
 ---
 
-### Option B: Google Cloud OAuth 2.0 (Advanced)
-
-If you prefer OAuth 2.0 token authorization through Google Cloud:
-
-1. Open the [Google Cloud Console](https://console.cloud.google.com).
-2. Create a new project (e.g., `leddro-local-outreach`).
-3. Enable the **Gmail API** in **APIs & Services > Library**.
-4. Configure the **OAuth consent screen** (User Type: **External**).
-5. Add minimal scopes:
-   - `https://www.googleapis.com/auth/userinfo.email`
-   - `https://www.googleapis.com/auth/gmail.send`
-   *(Security Note: Leddro strictly uses send-only scope. It never reads or indexes your inbox).*
-6. Add your personal email address under **Test users** (required while app status is "Testing").
-7. Go to **Credentials > Create Credentials > OAuth client ID** (Application type: **Web application**).
-8. Add the exact authorized redirect URI:
-   `http://localhost:8000/api/google/callback`
-9. Copy your **Client ID** and **Client Secret**.
-10. Add them to `.env`:
-    ```env
-    GOOGLE_CLIENT_ID="your_client_id.apps.googleusercontent.com"
-    GOOGLE_CLIENT_SECRET="your_client_secret"
-    GOOGLE_REDIRECT_URI="http://localhost:8000/api/google/callback"
-    ```
-11. Restart the backend, open `http://localhost:5173/integrations`, and click **Connect Google Account**.
-
----
-
-## Configuration Reference
+## ⚙️ Configuration Reference (.env)
 
 All settings are managed through environment variables in `.env` (derived from `.env.example`):
 
@@ -750,10 +510,26 @@ All settings are managed through environment variables in `.env` (derived from `
 
 ---
 
-## Database and Data Storage
+## 💾 Database, Backup & Recovery
 
 ### SQLite (Default)
 Leddro maintains an SQLite database file at `leddro.db` in the repository root. All prospects, audit findings, draft emails, and history records persist automatically across server reboots. The database utilizes WAL (Write-Ahead Logging) mode for enhanced concurrency and durability.
+
+### Atomic Backup & Recovery
+Leddro includes a native Python backup engine in [backend/app/core/backup.py](backend/app/core/backup.py) utilizing the atomic SQLite online backup API (`sqlite3_backup`). This ensures zero corrupted bytes even while background writes occur.
+
+```bash
+# Create an atomic backup snapshot
+npm run backup
+# or via Python:
+python -m backend.app.core.backup --backup
+
+# Verify an existing backup integrity
+python -m backend.app.core.backup --verify backups/your_backup_file.db
+
+# Safe restore (validates PRAGMA integrity_check and takes a safety snapshot before restore)
+python -m backend.app.core.backup --restore backups/your_backup_file.db
+```
 
 ### Optional Neon Serverless PostgreSQL
 To use cloud-hosted serverless PostgreSQL with Neon:
@@ -766,32 +542,7 @@ To use cloud-hosted serverless PostgreSQL with Neon:
 
 ---
 
-## Backup and Recovery
-
-Leddro includes a native Python backup engine in [backend/app/core/backup.py](backend/app/core/backup.py) utilizing the atomic SQLite online backup API (`sqlite3_backup`). This ensures zero corrupted bytes even while background writes occur.
-
-### Create an Atomic Backup
-```bash
-npm run backup
-# or via Python:
-python -m backend.app.core.backup --backup
-```
-Backups are validated using `PRAGMA integrity_check` and saved to `backups/` with UTC timestamps (e.g., `backups/leddro_backup_20261019_120000.db`).
-
-### Verify an Existing Backup
-```bash
-python -m backend.app.core.backup --verify backups/your_backup_file.db
-```
-
-### Restore from Backup
-```bash
-# Validates PRAGMA integrity_check and automatically creates a safety snapshot before overwriting
-python -m backend.app.core.backup --restore backups/your_backup_file.db
-```
-
----
-
-## Privacy, Security, and Responsible Use
+## 🛡️ Privacy, Security, and Responsible Use
 
 - **Local-First Boundary**: Secrets (`.env`, encryption keys, SQLite database) are never committed to version control and are ignored by `.gitignore`.
 - **SSRF Defenses**: The audit crawler validates every target domain against DNS rebinding, private IP subnets (`127.0.0.0/8`, `10.0.0.0/8`, `192.168.0.0/16`, `172.16.0.0/12`), and cloud metadata endpoints (`169.254.169.254`).
@@ -803,7 +554,7 @@ python -m backend.app.core.backup --restore backups/your_backup_file.db
 
 ---
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
 | Problem | Likely Cause | Diagnosis & Solution |
 | :--- | :--- | :--- |
@@ -821,7 +572,7 @@ python -m backend.app.core.backup --restore backups/your_backup_file.db
 
 ---
 
-## Updating Leddro
+## 🔄 Updating Leddro
 
 To pull the latest updates from GitHub without losing your local configuration:
 
@@ -844,13 +595,16 @@ npm run dev:all
 
 ---
 
-## Testing and Development
+## 🧪 Testing and Development
 
-Leddro maintains a comprehensive automated test suite with **196 passing tests** across backend services and security layers:
+Leddro maintains a comprehensive automated test suite with **200 passing tests** across backend services, CLI tools, and security layers:
 
 ```bash
-# Run complete backend pytest suite (196 automated tests)
+# Run complete backend pytest suite (200 automated tests)
 python -m pytest backend/tests/ -v
+
+# Run interactive CLI test suite
+python -m pytest backend/tests/test_cli.py -v
 
 # Run audit comparison & change detection test suite (21 tests)
 python -m pytest backend/tests/test_audit_comparison.py -v
@@ -870,6 +624,14 @@ python -m pytest backend/tests/test_ssrf_validator.py -v
 # Run SQLite backup and recovery test suite
 python -m pytest backend/tests/test_backup_and_recovery.py -v
 
+# Run documentation integrity & anchor linter
+npm run lint:readme
+# or directly with Python:
+python scripts/check_readme.py
+
+# Run interactive terminal audit via CLI
+python -m backend.app.cli audit https://example.com
+
 # Run frontend TypeScript typecheck
 npx tsc --noEmit
 
@@ -881,6 +643,7 @@ npm run lint
 ```
 
 ### Test Suite Highlights
+- `test_cli.py`: Terminal report generation, ANSI color styling, uncolored mode, `--json` serialization, score badge heuristics, and version flags.
 - `test_prospect_scoring.py`: Determinism, score bounds [0, 100], no-audit handling, diagnostic failure handling, HTTPS status distinctions, finding severity weighting, duplicate findings deduplication, audit recency decay, contact readiness verification, evidence traceability, and query performance (N+1 elimination).
 - `test_audit_comparison.py`: Four-way finding classification (RESOLVED, NEW, PERSISTENT, INCONCLUSIVE), positive-evidence rule enforcement, telemetry deltas, and cross-domain protection.
 - `test_email_scraper.py`: Contact extraction, junk extension rejection, placeholder domain filtering, and DNS MX deliverability verification.
@@ -892,14 +655,16 @@ npm run lint
 
 ---
 
-## Project Architecture
+## 🏗️ Project Architecture
 
 ```mermaid
 flowchart TD
     User["Operator / Consultant"] <--> UI["React 19 + Vite Frontend"]
+    User <--> CLI["Terminal CLI (python -m backend.app.cli)"]
     UI <--> API["FastAPI Backend Engine"]
+    CLI <--> Audits["Website Audit Crawler (SSRF Protected)"]
     API <--> DB[("SQLite Database (leddro.db)")]
-    API <--> Audits["Website Audit Crawler (SSRF Protected)"]
+    API <--> Audits
     API <--> Contacts["Contact Crawler & DNS MX Verifier"]
     API <--> Discovery["OpenStreetMap & Google Places"]
     API <--> Hunter["Hunter.io B2B Email Finder"]
@@ -910,7 +675,7 @@ flowchart TD
 
 ---
 
-## Directory Structure
+## 📁 Directory Structure
 
 ```
 Leddro/
@@ -924,12 +689,16 @@ Leddro/
 │   │   ├── models/         # SQLAlchemy database models
 │   │   ├── schemas/        # Pydantic request/response schemas
 │   │   ├── services/       # Audit engine, comparison, contact scraper, SSRF & Gmail client
+│   │   ├── cli.py          # Terminal CLI audit and diagnostic tool
 │   │   └── main.py         # FastAPI application entry point
 │   ├── requirements.txt    # Python dependencies
-│   └── tests/              # 196 automated pytest test cases
+│   └── tests/              # 200 automated pytest test cases
 ├── docs/
-│   └── screenshots/        # Verified application screenshots
+│   ├── screenshots/        # Verified application screenshots
+│   └── sample_import.csv   # Annotated sample CSV import dataset
 ├── public/                 # Static assets & SVG icons
+├── scripts/
+│   └── check_readme.py     # Automated README anchor & asset link linter
 ├── src/
 │   ├── components/         # Modals, buttons, badges, navigation
 │   ├── context/            # React AppContext global state
@@ -945,7 +714,7 @@ Leddro/
 
 ---
 
-## Roadmap
+## 🗺️ Roadmap
 
 ### Completed
 - [x] **Phase 1-4**: Core architecture, diagnostic website audit engine, UI system & prospect discovery.
@@ -955,18 +724,20 @@ Leddro/
 - [x] **Phase 8.1-8.2**: Explainable heuristic scoring (Opportunity & Data Confidence) with full evidence traceability.
 - [x] **Phase 8.3**: Website audit comparison & change detection engine with directional telemetry deltas.
 - [x] **Contact Intelligence & Verification**: Autonomous website contact scraper, DNS MX mail verification, Hunter.io integration, Google Places API, Zero Fake Emails policy, and direct Phone/WhatsApp actions.
+- [x] **Terminal CLI Audit Engine**: Interactive command line interface (`python -m backend.app.cli audit`) with colored telemetry and `--json` support.
+- [x] **CI Documentation & Asset Linter**: Automated anchor and relative asset validation in CI (`python scripts/check_readme.py`).
+- [x] **Annotated CSV Import Dataset**: Standardized sample spreadsheet at [docs/sample_import.csv](docs/sample_import.csv).
 
 ### In Progress
 - [ ] **Phase 9**: Premium documentation, developer onboarding excellence, and open-source release readiness.
 
 ### Planned
 - [ ] **Scheduled Recurring Re-Audits**: Background periodic re-auditing with automated change diffs and email notifications.
-- [ ] **Headless CLI Audit Mode**: Run single or batch audits directly from the command line for CI/CD pipeline integration.
 - [ ] **Local LLM Sidecar**: Bundled `llama.cpp` sidecar for zero-dependency offline AI inference without requiring manual Ollama installation.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 We welcome community contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on setting up your local environment, coding standards, and submitting pull requests.
 
@@ -978,7 +749,7 @@ We welcome community contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.m
 
 ---
 
-## Security Disclosures
+## 🔒 Security Disclosures
 
 Please review our [SECURITY.md](SECURITY.md) for vulnerability reporting guidelines. If you discover a security issue or potential vulnerability, please report it responsibly by opening a confidential advisory or contacting the maintainers directly. Do **not** disclose security vulnerabilities in public GitHub issues.
 
@@ -986,7 +757,7 @@ Automated security checks and secret scanning run on every pull request via Gitl
 
 ---
 
-## License and Acknowledgements
+## 📄 License and Acknowledgements
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 

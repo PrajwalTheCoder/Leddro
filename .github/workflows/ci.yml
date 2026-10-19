@@ -26,6 +26,9 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pytest pytest-asyncio httpx
 
+      - name: Validate README Anchors and Asset Links
+        run: python scripts/check_readme.py
+
       - name: Run Pytest Test Suite
         env:
           DATABASE_URL: "sqlite:///./test_ci.db"
