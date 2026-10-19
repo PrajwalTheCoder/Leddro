@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { 
-  Mail, 
-  Cpu, 
-  Compass, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  Mail,
+  Cpu,
+  Compass,
+  CheckCircle2,
+  AlertCircle,
   RefreshCw,
   User,
   ShieldCheck,
@@ -22,14 +22,16 @@ import { Button } from '../components/common/Button';
 import { AIProviderStatus, AISettings } from '../types';
 
 export const Integrations: React.FC = () => {
-  const { 
-    integrations, 
-    googleStatus, 
-    fetchGoogleStatus, 
-    connectGoogle, 
-    testGoogleConnection, 
-    disconnectGoogle, 
-    addToast 
+  const {
+    integrations,
+    googleStatus,
+    fetchGoogleStatus,
+    emailDispatchStatus,
+    fetchEmailDispatchStatus,
+    connectGoogle,
+    testGoogleConnection,
+    disconnectGoogle,
+    addToast
   } = useApp();
 
   // AI Providers & Settings
@@ -48,12 +50,41 @@ export const Integrations: React.FC = () => {
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ provider_id: string; success: boolean; message: string; latency_ms?: number } | null>(null);
 
-  // Phase 6: Google OAuth states
+  // Phase 6 & Phase 8: Google OAuth and SMTP states
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   const [isTestingGoogle, setIsTestingGoogle] = useState(false);
   const [isDisconnectingGoogle, setIsDisconnectingGoogle] = useState(false);
   const [googleTestDetails, setGoogleTestDetails] = useState<{ success: boolean; message: string; latency_ms?: number } | null>(null);
   const [googleOAuthError, setGoogleOAuthError] = useState<string | null>(null);
+  const [isTestingSMTP, setIsTestingSMTP] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestSMTP = async () => {
+    setIsTestingSMTP(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch('/api/email/test-smtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSmtpTestResult({ success: true, message: data.message || 'SMTP authentication verified successfully.' });
+        addToast('SMTP authentication verified successfully', 'success');
+      } else {
+        const errMsg = data.detail || 'SMTP test connection failed';
+        setSmtpTestResult({ success: false, message: errMsg });
+        addToast(errMsg, 'error');
+      }
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to connect to SMTP server';
+      setSmtpTestResult({ success: false, message: errMsg });
+      addToast(errMsg, 'error');
+    } finally {
+      setIsTestingSMTP(false);
+    }
+  };
 
   // Developer Profile form
   const [devName, setDevName] = useState('');
@@ -390,10 +421,10 @@ export const Integrations: React.FC = () => {
                         {p.is_configured ? 'Insert / Update API Key' : 'Insert Your API Key'}
                       </span>
                       {p.provider_id === 'gemini' && (
-                        <a 
-                          href="https://aistudio.google.com/app/apikey" 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noreferrer"
                           className="text-[#D8E7A2] hover:underline flex items-center gap-1 font-mono text-[11px]"
                         >
                           <span>Get Free Key at Google AI Studio</span>
@@ -401,10 +432,10 @@ export const Integrations: React.FC = () => {
                         </a>
                       )}
                       {p.provider_id === 'openai' && (
-                        <a 
-                          href="https://platform.openai.com/api-keys" 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href="https://platform.openai.com/api-keys"
+                          target="_blank"
+                          rel="noreferrer"
                           className="text-[#91B7D8] hover:underline flex items-center gap-1 font-mono text-[11px]"
                         >
                           <span>OpenAI Platform API Keys</span>
@@ -412,10 +443,10 @@ export const Integrations: React.FC = () => {
                         </a>
                       )}
                       {p.provider_id === 'anthropic' && (
-                        <a 
-                          href="https://console.anthropic.com/" 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href="https://console.anthropic.com/"
+                          target="_blank"
+                          rel="noreferrer"
                           className="text-[#D78383] hover:underline flex items-center gap-1 font-mono text-[11px]"
                         >
                           <span>Anthropic Console Keys</span>
@@ -681,8 +712,8 @@ export const Integrations: React.FC = () => {
                   <div className="font-medium text-[#F3F4F6]">Google Authentication Error</div>
                   <div className="mt-0.5">{googleOAuthError}</div>
                 </div>
-                <button 
-                  onClick={() => setGoogleOAuthError(null)} 
+                <button
+                  onClick={() => setGoogleOAuthError(null)}
                   className="text-[#727780] hover:text-[#F3F4F6]"
                 >
                   ✕
@@ -724,8 +755,8 @@ export const Integrations: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#24272D] pb-4">
               <div className="flex items-start sm:items-center gap-3">
                 <div className={`w-11 h-11 rounded-lg border flex items-center justify-center shrink-0 ${
-                  googleStatus?.is_connected 
-                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]' 
+                  googleStatus?.is_connected
+                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
                     : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
                 }`}>
                   <Mail className="w-5 h-5" />
@@ -746,7 +777,7 @@ export const Integrations: React.FC = () => {
                     )}
                   </div>
                   <p className="text-[12px] text-[#727780] mt-0.5">
-                    {googleStatus?.is_connected 
+                    {googleStatus?.is_connected
                       ? 'Authenticated via official Google OAuth 2.0. Tokens encrypted locally with Fernet AES-128.'
                       : 'Connect your authenticated Google account to send individual approved outreach letters.'}
                   </p>
@@ -872,6 +903,121 @@ export const Integrations: React.FC = () => {
                 <span className="font-mono text-[11px] text-[#A0A5AD] shrink-0">Official Google OAuth 2.0</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Section 3.1: Direct SMTP Gateway (Google App Password) */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-[#D8E7A2]" />
+              <h2 className="text-[15px] font-semibold text-[#F3F4F6]">
+                Direct SMTP Gateway (Google App Password)
+              </h2>
+            </div>
+            {emailDispatchStatus?.method === 'smtp' ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#18261F] text-[#80B89A] border-[#253D30]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#80B89A]" />
+                Active Dispatch Method
+              </span>
+            ) : emailDispatchStatus?.smtp_configured ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#1D2530] text-[#91B7D8] border-[#2B3A4F]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#91B7D8]" />
+                Configured (Standby)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded border bg-[#212328] text-[#727780] border-[#30343A]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#727780]" />
+                Not Configured
+              </span>
+            )}
+          </div>
+
+          <div className="rounded border border-[#2B2F36] bg-[#17191C] p-5 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#24272D] pb-4">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className={`w-11 h-11 rounded-lg border flex items-center justify-center shrink-0 ${
+                  emailDispatchStatus?.smtp_configured
+                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                    : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
+                }`}>
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                      {emailDispatchStatus?.sender_email ? (
+                        <span className="font-mono">{emailDispatchStatus.sender_email}</span>
+                      ) : (
+                        'SMTP Sender Credentials'
+                      )}
+                    </h3>
+                    {emailDispatchStatus?.smtp_configured && (
+                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Configured
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[12px] text-[#727780] mt-0.5">
+                    Direct submission via TLS using a 16-character Google App Password. Zero Google Cloud Console setup required.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!emailDispatchStatus?.smtp_configured || isTestingSMTP}
+                  isLoading={isTestingSMTP}
+                  onClick={handleTestSMTP}
+                  leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                >
+                  Test SMTP Connection
+                </Button>
+              </div>
+            </div>
+
+            {/* Test Connection Result Box */}
+            {smtpTestResult && (
+              <div className={`p-3 rounded text-[12px] border ${
+                smtpTestResult.success
+                  ? 'bg-[#16211B] border-[#2D4536] text-[#80B89A]'
+                  : 'bg-[#241515] border-[#4D2424] text-[#D78383]'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {smtpTestResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{smtpTestResult.message}</span>
+                </div>
+              </div>
+            )}
+
+            {/* SMTP Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">SMTP Gateway Host</span>
+                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
+                  {emailDispatchStatus?.smtp_host || 'smtp.gmail.com'}:{emailDispatchStatus?.smtp_port || 587}
+                </span>
+                <span className="text-[10px] text-[#727780]">STARTTLS Encrypted</span>
+              </div>
+
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Authentication</span>
+                <span className="font-mono text-[12px] text-[#F3F4F6] mt-0.5">
+                  Google App Password
+                </span>
+                <span className="text-[10px] text-[#727780]">Configured via local .env (never logged)</span>
+              </div>
+
+              <div className="rounded bg-[#141618] border border-[#262A30] p-3 flex flex-col gap-1">
+                <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">Dispatch Policy</span>
+                <span className="font-mono text-[12px] text-[#80B89A] mt-0.5">
+                  Deterministic Fallback
+                </span>
+                <span className="text-[10px] text-[#727780]">Used automatically when OAuth is not connected</span>
+              </div>
+            </div>
           </div>
         </div>
 

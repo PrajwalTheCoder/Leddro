@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import settings
 from backend.app.core.database import get_db
-from backend.app.models.google_auth import EmailSendAttemptModel
+from backend.app.models.google_auth import EmailSendAttemptModel, GoogleAccountModel
 from backend.app.models.history import EmailHistoryModel, SuppressionRecordModel
 from backend.app.services.gmail_client import send_draft_via_gmail
 
@@ -25,6 +26,73 @@ class EmailSendRequest(BaseModel):
 class SuppressionCreateRequest(BaseModel):
     email_or_domain: str = Field(..., description="Email address or domain (e.g. business.com) to suppress")
     reason: Optional[str] = Field("Operator requested opt-out", description="Reason for suppression")
+
+class SMTPTestRequest(BaseModel):
+    user: Optional[str] = None
+    password: Optional[str] = None
+
+@router.get("/status")
+def get_email_dispatch_status(db: Session = Depends(get_db)):
+    """
+    Returns the active email dispatch configuration status (OAuth, SMTP, or none).
+    Acts as the backend source of truth for safe provider selection.
+    """
+    account = db.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    has_oauth = bool(account and account.is_connected and account.email)
+    has_smtp = bool(settings.SMTP_USER.strip() and settings.SMTP_PASSWORD.strip())
+
+    method = "oauth" if has_oauth else ("smtp" if has_smtp else "none")
+    provider_name = "Gmail API (OAuth 2.0)" if has_oauth else ("Gmail SMTP" if has_smtp else "None")
+    sender_email = account.email if has_oauth else (settings.SMTP_USER.strip() if has_smtp else None)
+
+    return {
+        "is_ready": has_oauth or has_smtp,
+        "method": method,
+        "provider_name": provider_name,
+        "sender_email": sender_email,
+        "smtp_configured": has_smtp,
+        "oauth_configured": has_oauth,
+        "smtp_host": settings.SMTP_HOST,
+        "smtp_port": settings.SMTP_PORT
+    }
+
+@router.post("/test-smtp")
+def test_smtp_connection(payload: SMTPTestRequest = SMTPTestRequest()):
+    """
+    Tests Gmail SMTP connection using configured or provided App Password.
+    Never exposes credentials or raw auth errors in responses or logs.
+    """
+    import smtplib
+    user = (payload.user if payload.user is not None else settings.SMTP_USER).strip()
+    pwd = (payload.password if payload.password is not None else settings.SMTP_PASSWORD).strip().replace(" ", "")
+
+    if not user or not pwd:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Both SMTP_USER and SMTP_PASSWORD are required to test connection."
+        )
+
+    try:
+        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12)
+        if settings.SMTP_USE_TLS:
+            server.starttls()
+        server.login(user, pwd)
+        server.quit()
+        return {
+            "success": True,
+            "message": f"Successfully authenticated with Gmail SMTP gateway as {user}!",
+            "user": user
+        }
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Gmail SMTP Authentication failed. Ensure your 16-character Google App Password is correct."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"SMTP Connection error: {type(e).__name__}"
+        )
 
 @router.post("/send")
 async def send_email(payload: EmailSendRequest, db: Session = Depends(get_db)):
@@ -176,8 +244,13 @@ def add_suppression(payload: SuppressionCreateRequest, db: Session = Depends(get
         reason=payload.reason or "Operator requested opt-out"
     )
     db.add(rec)
-    db.commit()
-    db.refresh(rec)
+    try:
+        db.commit()
+        db.refresh(rec)
+    except Exception:
+        db.rollback()
+        raise
+
     return {
         "id": rec.id,
         "email_or_domain": rec.email_or_domain,
@@ -191,7 +264,11 @@ def delete_suppression(suppression_id: str, db: Session = Depends(get_db)):
     rec = db.query(SuppressionRecordModel).filter(SuppressionRecordModel.id == suppression_id).first()
     if not rec:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Suppression record not found")
-    db.delete(rec)
-    db.commit()
+    try:
+        db.delete(rec)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return None
 

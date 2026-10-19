@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { 
-  Search, 
-  Bell, 
-  ChevronDown, 
-  ShieldCheck, 
-  Sparkles, 
-  Activity, 
-  CheckCircle2, 
-  Mail, 
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  ShieldCheck,
+  Sparkles,
+  Activity,
+  CheckCircle2,
+  Mail,
   Database,
   ExternalLink,
   Clock
@@ -16,14 +16,16 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 export const TopBar: React.FC = () => {
-  const { 
-    prospects, 
-    emailDrafts, 
-    emailHistory, 
-    activities, 
+  const {
+    prospects,
+    emailDrafts,
+    emailHistory,
+    activities,
     setIsCommandPaletteOpen,
     integrations,
-    backendOnline 
+    backendOnline,
+    checkBackendHealth,
+    aiStatus
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -56,9 +58,22 @@ export const TopBar: React.FC = () => {
     <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-6 shrink-0 z-20">
       {/* Left: Compact Status Indicators (Like Haulix Top Chips) */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-[#D8E7A2]' : 'bg-[#E5A96A]'}`} />
-          <span>Engine: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? 'FastAPI Active' : 'Offline'}</strong></span>
+        <div
+          onClick={!backendOnline ? () => checkBackendHealth() : undefined}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] ${!backendOnline ? 'cursor-pointer hover:border-[#E5A96A]' : ''}`}
+          title={backendOnline ? "FastAPI Backend is healthy" : "Click to retry backend connection"}
+        >
+          <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-[#D8E7A2]' : 'bg-[#E5A96A] animate-pulse'}`} />
+          <span>Engine: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? 'FastAPI Active' : 'Offline (Retry)'}</strong></span>
+        </div>
+
+        <div
+          onClick={() => navigate('/integrations')}
+          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] hover:border-[#3E444F] text-[12px] text-[#A0A5AD] cursor-pointer transition-colors"
+          title="Click to view AI & OAuth integration settings"
+        >
+          <Sparkles className={`w-3.5 h-3.5 ${aiStatus?.isConfigured ? 'text-[#D8E7A2]' : 'text-[#727780]'}`} />
+          <span>AI: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? (aiStatus?.isConfigured ? aiStatus.activeName : 'No Key (Manual)') : 'Offline'}</strong></span>
         </div>
 
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">

@@ -9,8 +9,10 @@ import {
   ProspectStatus,
   Finding,
   GoogleOAuthStatus,
+  EmailDispatchStatus,
   EmailSendAttempt,
-  SuppressionRecord
+  SuppressionRecord,
+  AuditComparisonResponse
 } from '../types';
 import { 
   INITIAL_PROSPECTS, 
@@ -39,6 +41,8 @@ interface AppContextType {
   
   auditReports: Record<string, AuditReport>;
   runAudit: (prospectId: string) => Promise<AuditReport>;
+  fetchProspectAudits: (prospectId: string) => Promise<AuditReport[]>;
+  compareAudits: (olderAuditId: string, newerAuditId: string) => Promise<AuditComparisonResponse>;
   isAuditing: boolean;
   auditingProspectId: string | null;
   auditProgressMessage: string;
@@ -51,11 +55,13 @@ interface AppContextType {
   refreshDrafts: () => Promise<void>;
   createEmailDraftForProspect: (prospectId: string) => EmailDraft;
   submitEmailDraft: (draftId: string) => Promise<{ success: boolean; messageId: string }>;
-  sendEmailDraft: (payload: { draftId: string; recipient: string; subject: string; body: string; confirmed: boolean }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+  sendEmailDraft: (payload: { draftId: string; recipient: string; subject: string; body: string; confirmed: boolean }) => Promise<{ success: boolean; messageId?: string; provider?: string; error?: string }>;
   
   // Real Phase 6 Google OAuth & Gmail Gateway
   googleStatus: GoogleOAuthStatus | null;
   fetchGoogleStatus: () => Promise<GoogleOAuthStatus | null>;
+  emailDispatchStatus: EmailDispatchStatus | null;
+  fetchEmailDispatchStatus: () => Promise<EmailDispatchStatus | null>;
   connectGoogle: () => Promise<void>;
   testGoogleConnection: () => Promise<{ success: boolean; message: string; latency_ms?: number }>;
   disconnectGoogle: () => Promise<void>;
@@ -86,6 +92,8 @@ interface AppContextType {
   backendOnline: boolean | null;
   backendDetails: { version: string; database: string; engine: string; prospectsCount: number; auditsCount: number } | null;
   checkBackendHealth: () => Promise<boolean>;
+  aiStatus: { activeName: string; isConfigured: boolean; activeProvider: string } | null;
+  refreshAIStatus: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -158,9 +166,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [backendDetails, setBackendDetails] = useState<any>(null);
 
-  // Phase 6: Real Google OAuth & Suppression state
+  // Phase 6 & Phase 8: Google OAuth, Direct SMTP & Suppression state
   const [googleStatus, setGoogleStatus] = useState<GoogleOAuthStatus | null>(null);
+  const [emailDispatchStatus, setEmailDispatchStatus] = useState<EmailDispatchStatus | null>(null);
   const [suppressions, setSuppressions] = useState<SuppressionRecord[]>([]);
+  const [aiStatus, setAIStatus] = useState<{ activeName: string; isConfigured: boolean; activeProvider: string } | null>(null);
+
+  const refreshAIStatus = async () => {
+    try {
+      const res = await fetch('/api/ai/providers');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const active = data.find((p: any) => p.is_active && p.is_configured) ||
+                         data.find((p: any) => p.is_configured) ||
+                         data.find((p: any) => p.is_active) ||
+                         data[0];
+          setAIStatus({
+            activeName: active.name,
+            isConfigured: active.is_configured,
+            activeProvider: active.provider_id
+          });
+        }
+      }
+    } catch {
+      // Backend unavailable
+    }
+  };
 
   const fetchGoogleStatus = async (): Promise<GoogleOAuthStatus | null> => {
     try {
@@ -184,6 +216,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             sendQuotaRemaining: 500
           }
         }));
+        return data;
+      }
+    } catch {
+      // Backend unavailable
+    }
+    return null;
+  };
+
+  const fetchEmailDispatchStatus = async (): Promise<EmailDispatchStatus | null> => {
+    try {
+      const res = await fetch('/api/email/status');
+      if (res.ok) {
+        const data: EmailDispatchStatus = await res.json();
+        setEmailDispatchStatus(data);
         return data;
       }
     } catch {
@@ -276,8 +322,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           })
           .catch(() => {});
 
-        // Fetch Google status, dispatches, and suppression records
+        // Fetch Google status, dispatches, suppression records, and AI status
         fetchGoogleStatus();
+        fetchEmailDispatchStatus();
+        refreshAIStatus();
         refreshEmailHistory();
         fetchSuppressions();
       }
@@ -510,6 +558,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const fetchProspectAudits = async (prospectId: string): Promise<AuditReport[]> => {
+    try {
+      const res = await fetch(`/api/audits/prospect/${prospectId}`);
+      if (res.ok) {
+        const list: AuditReport[] = await res.json();
+        if (Array.isArray(list)) {
+          setAuditReports((prev) => {
+            const updated = { ...prev };
+            list.forEach((r) => {
+              updated[r.id] = r;
+            });
+            return updated;
+          });
+          return list;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return Object.values(auditReports).filter((r) => r.prospectId === prospectId);
+  };
+
+  const compareAudits = async (olderAuditId: string, newerAuditId: string): Promise<AuditComparisonResponse> => {
+    const response = await fetch('/api/audits/compare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        older_audit_id: olderAuditId,
+        newer_audit_id: newerAuditId
+      })
+    });
+
+    if (!response.ok) {
+      let errorDetail = `Audit comparison failed (${response.status})`;
+      try {
+        const errData = await response.json();
+        if (errData.detail) errorDetail = errData.detail;
+      } catch {
+        // ignore
+      }
+      addToast(errorDetail, 'error');
+      throw new Error(errorDetail);
+    }
+
+    const data: AuditComparisonResponse = await response.json();
+    return data;
+  };
+
   const createEmailDraftForProspect = (prospectId: string): EmailDraft => {
     const prospect = prospects.find((p) => p.id === prospectId);
     if (!prospect) throw new Error('Prospect not found');
@@ -730,7 +826,7 @@ Research & Technical Auditing Lead`,
     subject: string;
     body: string;
     confirmed: boolean;
-  }): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+  }): Promise<{ success: boolean; messageId?: string; provider?: string; error?: string }> => {
     try {
       const res = await fetch('/api/email/send', {
         method: 'POST',
@@ -749,19 +845,24 @@ Research & Technical Auditing Lead`,
       if (!res.ok) {
         const errMsg = data.detail || 'Failed to dispatch email';
         addToast(errMsg, 'error');
+        await refreshDrafts();
+        await refreshEmailHistory();
         return { success: false, error: errMsg };
       }
 
       const messageId = data.gmail_message_id;
+      const provider = data.provider || (data.delivery_method === 'smtp' ? 'Gmail SMTP' : 'Gmail API');
       await refreshDrafts();
       await refreshEmailHistory();
       await refreshProspects();
+      await fetchEmailDispatchStatus();
 
-      addToast(`Email delivered to Gmail gateway (Message ID: ${messageId})`, 'success');
-      return { success: true, messageId };
+      addToast(`Proposal accepted by ${provider} gateway (Message ID: ${messageId})`, 'success');
+      return { success: true, messageId, provider };
     } catch (err: any) {
       const errMsg = err.message || 'Network error dispatching email';
       addToast(errMsg, 'error');
+      await refreshDrafts();
       return { success: false, error: errMsg };
     }
   };
@@ -797,6 +898,8 @@ Research & Technical Auditing Lead`,
         refreshProspects,
         auditReports,
         runAudit,
+        fetchProspectAudits,
+        compareAudits,
         isAuditing,
         auditingProspectId,
         auditProgressMessage,
@@ -834,6 +937,10 @@ Research & Technical Auditing Lead`,
         backendOnline,
         backendDetails,
         checkBackendHealth,
+        aiStatus,
+        refreshAIStatus,
+        emailDispatchStatus,
+        fetchEmailDispatchStatus,
       }}
     >
 

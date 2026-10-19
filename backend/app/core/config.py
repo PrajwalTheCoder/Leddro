@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     CREDENTIAL_ENCRYPTION_KEY: str = ""
 
+    # Phase 7.3: Direct SMTP / Google App Password Dispatch (Zero Google Cloud Console Setup)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True
+
     # Developer Profile (Outreach sender identity & context - operator customizable)
     DEV_NAME: str = ""
     DEV_TITLE: str = "Independent Web Consultant & Technical Auditor"

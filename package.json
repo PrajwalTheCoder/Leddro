@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "python run_dev.py",
+    "backup": "python -m backend.app.core.backup --backup",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"

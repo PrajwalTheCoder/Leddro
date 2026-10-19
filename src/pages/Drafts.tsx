@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Mail, 
-  Save, 
-  Eye, 
-  CheckCircle2, 
-  AlertCircle, 
-  Building2, 
-  FileText, 
-  Lock, 
+import {
+  Mail,
+  Save,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  Building2,
+  FileText,
   Sparkles,
   ExternalLink,
-  ChevronDown,
   X,
   Copy,
   Trash2,
@@ -24,20 +22,20 @@ import {
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { GenerateDraftModal } from '../components/common/GenerateDraftModal';
-import { EmailDraft } from '../types';
 
 export const Drafts: React.FC = () => {
-  const { 
-    emailDrafts, 
-    activeDraft, 
-    setActiveDraftId, 
-    saveEmailDraft, 
+  const {
+    emailDrafts,
+    activeDraft,
+    setActiveDraftId,
+    saveEmailDraft,
     deleteEmailDraft,
     refreshDrafts,
-    prospects, 
-    auditReports, 
+    prospects,
+    auditReports,
     setSelectedProspectId,
     googleStatus,
+    emailDispatchStatus,
     sendEmailDraft,
     suppressions,
     addToast
@@ -57,7 +55,7 @@ export const Drafts: React.FC = () => {
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [explicitConfirm, setExplicitConfirm] = useState(false);
-  const [sendResult, setSendResult] = useState<{ success: boolean; messageId?: string; error?: string } | null>(null);
+  const [sendResult, setSendResult] = useState<{ success: boolean; messageId?: string; provider?: string; error?: string } | null>(null);
 
   // Modals
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
@@ -89,8 +87,8 @@ export const Drafts: React.FC = () => {
     }
   }, [activeDraft]);
 
-  const associatedProspect = activeDraft 
-    ? prospects.find((p) => p.id === activeDraft.prospectId) 
+  const associatedProspect = activeDraft
+    ? prospects.find((p) => p.id === activeDraft.prospectId)
     : undefined;
 
   const associatedAudit = (activeDraft?.auditId && auditReports[activeDraft.auditId])
@@ -131,6 +129,16 @@ export const Drafts: React.FC = () => {
     }
   };
 
+  const isSenderConfigured = Boolean(
+    emailDispatchStatus?.is_ready ||
+    googleStatus?.is_connected ||
+    (emailDispatchStatus?.method === 'smtp' && emailDispatchStatus.sender_email)
+  );
+
+  const activeProviderName = emailDispatchStatus?.provider_name || (googleStatus?.is_connected ? 'Gmail API (OAuth 2.0)' : 'Gmail SMTP');
+  const activeSenderEmail = emailDispatchStatus?.sender_email || googleStatus?.email || 'Authenticated Account';
+  const isSMTP = emailDispatchStatus?.method === 'smtp' || (!googleStatus?.is_connected && Boolean(emailDispatchStatus?.smtp_configured));
+
   const isRecipientSuppressed = () => {
     if (!recipient) return null;
     const clean = recipient.trim().toLowerCase();
@@ -143,8 +151,16 @@ export const Drafts: React.FC = () => {
 
   const handleOpenSendModal = () => {
     if (!activeDraft) return;
-    if (!googleStatus?.is_connected) {
-      addToast('Cannot send: Google Gmail account is not connected. Connect in Integrations.', 'error');
+    if (activeDraft.status === 'uncertain') {
+      addToast('Cannot send: This draft is in an uncertain delivery state. Please check your Sent folder.', 'error');
+      return;
+    }
+    if (activeDraft.status === 'submitted') {
+      addToast('Cannot send: This draft has already been submitted.', 'error');
+      return;
+    }
+    if (!isSenderConfigured) {
+      addToast('Cannot send: No email provider configured. Configure SMTP or connect Google in Integrations.', 'error');
       navigate('/integrations');
       return;
     }
@@ -304,19 +320,24 @@ export const Drafts: React.FC = () => {
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Sent</span>
                   </div>
+                ) : activeDraft.status === 'uncertain' ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2A2417] border border-[#4A3D22] text-[12px] text-[#D8B16C] font-mono" title="Ambiguous network outcome on prior dispatch. Duplicate retries locked.">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Uncertain Delivery</span>
+                  </div>
                 ) : (
                   <Button
                     variant="primary"
                     size="md"
                     onClick={handleOpenSendModal}
                     leftIcon={<Mail className="w-4 h-4" />}
-                    disabled={!googleStatus?.is_connected || !recipient.trim()}
+                    disabled={!isSenderConfigured || !recipient.trim()}
                     title={
-                      !googleStatus?.is_connected
-                        ? 'Connect Google account in Integrations before sending'
+                      !isSenderConfigured
+                        ? 'Configure Google OAuth or SMTP in Integrations before sending'
                         : !recipient.trim()
                         ? 'Add recipient email before sending'
-                        : 'Review and confirm email dispatch'
+                        : `Review and confirm email dispatch via ${activeProviderName}`
                     }
                   >
                     Send Email
@@ -427,8 +448,10 @@ export const Drafts: React.FC = () => {
                 <div className="flex items-center gap-1.5 text-[11px] text-[#727780]">
                   <span>Status:</span>
                   <span className={`font-mono px-1.5 py-0.5 rounded border text-[10px] ${
-                    activeDraft.status === 'approved'
+                    activeDraft.status === 'approved' || activeDraft.status === 'submitted'
                       ? 'bg-[#18261F] text-[#80B89A] border-[#253D30]'
+                      : activeDraft.status === 'uncertain'
+                      ? 'bg-[#2A2417] text-[#D8B16C] border-[#4A3D22]'
                       : activeDraft.status === 'edited'
                       ? 'bg-[#1D2530] text-[#91B7D8] border-[#2B3A4F]'
                       : 'bg-[#22271B] text-[#D8E7A2] border-[#364024]'
@@ -805,7 +828,7 @@ export const Drafts: React.FC = () => {
                   Explicit Send Authorization
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setIsSendModalOpen(false)}
                 className="text-[#727780] hover:text-[#F3F4F6] transition-colors"
                 disabled={isSending}
@@ -819,11 +842,12 @@ export const Drafts: React.FC = () => {
               <div className="p-4 rounded bg-[#16211B] border border-[#2D4536] flex flex-col gap-3 text-[13px] text-[#80B89A]">
                 <div className="flex items-center gap-2 font-medium">
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>Outreach email accepted by Gmail API</span>
+                  <span>Outreach proposal accepted by {sendResult.provider || activeProviderName}</span>
                 </div>
                 <div className="text-[12px] text-[#A0A5AD] flex flex-col gap-1">
-                  <span>Gmail Message ID: <strong className="font-mono text-[#F3F4F6]">{sendResult.messageId}</strong></span>
+                  <span>Message ID: <strong className="font-mono text-[#F3F4F6]">{sendResult.messageId}</strong></span>
                   <span>Draft status updated to <strong>Submitted</strong> and recorded in Dispatch History. Retries are now locked.</span>
+                  <span className="text-[11px] text-[#727780] italic">Accepted by mail server gateway for transmission; inbox delivery depends on recipient mail policies.</span>
                 </div>
                 <div className="flex justify-end pt-2">
                   <Button variant="primary" size="md" onClick={() => setIsSendModalOpen(false)}>
@@ -834,20 +858,40 @@ export const Drafts: React.FC = () => {
             ) : (
               <>
                 {sendResult?.error && (
-                  <div className="p-3 rounded bg-[#2A1818] border border-[#4A2626] text-[12px] text-[#D78383] flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{sendResult.error}</span>
+                  <div className={`p-3.5 rounded border text-[12px] flex items-start gap-2.5 ${
+                    sendResult.error.toLowerCase().includes('uncertain')
+                      ? 'bg-[#2A2417] border-[#4A3D22] text-[#D8B16C]'
+                      : 'bg-[#2A1818] border-[#4A2626] text-[#D78383]'
+                  }`}>
+                    {sendResult.error.toLowerCase().includes('uncertain') ? (
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      {sendResult.error.toLowerCase().includes('uncertain') && (
+                        <div className="font-medium text-[#F3F4F6] mb-0.5">Uncertain Delivery State</div>
+                      )}
+                      <span>{sendResult.error}</span>
+                    </div>
                   </div>
                 )}
 
                 <div className="flex-1 overflow-y-auto flex flex-col gap-3 text-[12px]">
                   {/* Transmission Summary Box */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="p-3 rounded bg-[#131518] border border-[#262A30] flex flex-col gap-1">
-                      <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">FROM (Authenticated Account)</span>
+                      <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">FROM (Sender Account)</span>
                       <span className="font-mono text-[13px] text-[#80B89A] flex items-center gap-1.5 truncate">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#80B89A]" />
-                        {googleStatus?.email || 'Authenticated Google Account'}
+                        {activeSenderEmail}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded bg-[#131518] border border-[#262A30] flex flex-col gap-1">
+                      <span className="text-[11px] text-[#727780] uppercase tracking-wider font-medium">PROVIDER</span>
+                      <span className="font-mono text-[13px] text-[#D8E7A2] flex items-center gap-1.5 truncate">
+                        {activeProviderName}
                       </span>
                     </div>
 
@@ -893,9 +937,9 @@ export const Drafts: React.FC = () => {
                       className="mt-0.5 w-4 h-4 rounded border-[#30343A] bg-[#17191C] text-[#D8E7A2] focus:ring-0"
                     />
                     <div className="text-[12px] text-[#F3F4F6]">
-                      <span className="font-medium">I explicitly authorize sending this email.</span>
+                      <span className="font-medium">I explicitly authorize sending this proposal.</span>
                       <p className="text-[11px] text-[#A0A5AD] mt-0.5">
-                        I have verified the recipient address, subject, and content. I confirm dispatch from my authenticated Google account ({googleStatus?.email || 'Gmail'}).
+                        I have verified the recipient address, subject, and content. I confirm dispatch via {activeProviderName} from {activeSenderEmail}.
                       </p>
                     </div>
                   </label>
@@ -914,7 +958,7 @@ export const Drafts: React.FC = () => {
                     onClick={handleExecuteSend}
                     leftIcon={<Mail className="w-4 h-4" />}
                   >
-                    Authorize &amp; Send via Gmail
+                    Authorize &amp; Send via {isSMTP ? 'Gmail SMTP' : 'Gmail API'}
                   </Button>
                 </div>
               </>

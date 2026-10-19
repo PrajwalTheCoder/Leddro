@@ -39,7 +39,7 @@ def test_credential_redaction():
 def test_google_status_when_not_configured(client: TestClient, monkeypatch):
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "")
-    
+
     resp = client.get("/api/google/status")
     assert resp.status_code == 200
     data = resp.json()
@@ -61,7 +61,7 @@ def test_google_connect_generates_valid_oauth_url(client: TestClient, db_session
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "test-client-id.apps.googleusercontent.com")
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "test-secret")
     monkeypatch.setattr(settings, "GOOGLE_REDIRECT_URI", "http://localhost:8000/api/google/callback")
-    
+
     resp = client.get("/api/google/connect")
     assert resp.status_code == 200
     data = resp.json()
@@ -524,3 +524,341 @@ def test_suppression_api_crud(client: TestClient, db_session):
 
     remaining = client.get("/api/email/suppression").json()
     assert not any(i["id"] == sup_id for i in remaining)
+
+# ----------------- Priority 0: Hardened Delivery & SMTP Tests -----------------
+
+def test_header_injection_rejected_in_recipient(client: TestClient, db_session):
+    p_id = _create_seed_prospect(db_session, "pr-inj-1")
+    draft = EmailDraftModel(
+        id="draft-inj-1",
+        prospect_id=p_id,
+        recipient_name="Lead",
+        recipient_email="valid@target.com",
+        subject="Valid Subject",
+        body="Valid body content",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    # Recipient with CRLF injection
+    payload = {
+        "draft_id": "draft-inj-1",
+        "recipient_email": "victim@target.com\r\nBcc: evil@attacker.com",
+        "subject": "Valid Subject",
+        "body": "Body content",
+        "confirmed": True
+    }
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "Header injection detected" in resp.json()["detail"]
+
+    # Recipient with null byte
+    payload["recipient_email"] = "victim\0@target.com"
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "Header injection detected" in resp.json()["detail"]
+
+def test_header_injection_rejected_in_subject(client: TestClient, db_session):
+    p_id = _create_seed_prospect(db_session, "pr-inj-2")
+    draft = EmailDraftModel(
+        id="draft-inj-2",
+        prospect_id=p_id,
+        recipient_name="Lead",
+        recipient_email="lead@target.com",
+        subject="Valid Subject",
+        body="Valid body content",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    # Subject with CRLF injection
+    payload = {
+        "draft_id": "draft-inj-2",
+        "recipient_email": "lead@target.com",
+        "subject": "Injected Subject\r\nBcc: hacker@spy.org",
+        "body": "Body content",
+        "confirmed": True
+    }
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "Header injection detected" in resp.json()["detail"]
+
+    # Subject with newline
+    payload["subject"] = "Injected Subject\nCc: spy@org.com"
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "Header injection detected" in resp.json()["detail"]
+
+    # Subject with null byte
+    payload["subject"] = "Injected\0Subject"
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "Header injection detected" in resp.json()["detail"]
+
+def test_unconfigured_dispatcher_returns_400(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "SMTP_USER", "")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "")
+
+    acc = db_session.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    if acc:
+        acc.is_connected = False
+        db_session.commit()
+
+    p_id = _create_seed_prospect(db_session, "pr-unconf-1")
+    draft = EmailDraftModel(
+        id="draft-unconf-1",
+        prospect_id=p_id,
+        recipient_name="Lead",
+        recipient_email="lead@target.com",
+        subject="Valid Subject",
+        body="Body content",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    payload = {
+        "draft_id": "draft-unconf-1",
+        "recipient_email": "lead@target.com",
+        "subject": "Valid Subject",
+        "body": "Body content",
+        "confirmed": True
+    }
+    resp = client.post("/api/email/send", json=payload)
+    assert resp.status_code == 400
+    assert "No active email dispatcher is configured" in resp.json()["detail"]
+
+def test_smtp_successful_submission(client: TestClient, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "SMTP_USER", "consultant.auditor@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "mock-16char-passw")
+
+    acc = db_session.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    if acc:
+        acc.is_connected = False
+        db_session.commit()
+
+    p_id = _create_seed_prospect(db_session, "pr-smtp-1")
+    draft = EmailDraftModel(
+        id="draft-smtp-1",
+        prospect_id=p_id,
+        recipient_name="Operations Lead",
+        recipient_email="ops@techclient.in",
+        subject="Security & Accessibility Audit Review",
+        body="Dear Operations Lead,\nWe inspected your website.",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    mock_smtp_instance = MagicMock()
+    with patch("smtplib.SMTP", return_value=mock_smtp_instance):
+        payload = {
+            "draft_id": "draft-smtp-1",
+            "recipient_email": "ops@techclient.in",
+            "subject": "Security & Accessibility Audit Review",
+            "body": "Dear Operations Lead,\nWe inspected your website.",
+            "confirmed": True
+        }
+        resp = client.post("/api/email/send", json=payload)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["delivery_method"] == "smtp"
+    assert data["provider"] == "Gmail SMTP"
+    assert data["sender"] == "consultant.auditor@gmail.com"
+    assert data["recipient"] == "ops@techclient.in"
+    assert data["status"] == "submitted"
+    assert "gateway" in data["delivery_note"].lower()
+
+    mock_smtp_instance.starttls.assert_called_once()
+    mock_smtp_instance.login.assert_called_once_with("consultant.auditor@gmail.com", "mock-16char-passw")
+    mock_smtp_instance.send_message.assert_called_once()
+
+    # Verify Draft Status in DB
+    refreshed_draft = db_session.query(EmailDraftModel).filter(EmailDraftModel.id == "draft-smtp-1").first()
+    assert refreshed_draft.status == "submitted"
+    assert refreshed_draft.provider_message_id.startswith("smtp-")
+
+    # Verify Send Attempt in DB
+    attempt = db_session.query(EmailSendAttemptModel).filter(EmailSendAttemptModel.draft_id == "draft-smtp-1").first()
+    assert attempt is not None
+    assert attempt.status == "sent"
+
+    # Verify Email History Record in DB
+    history = db_session.query(EmailHistoryModel).filter(EmailHistoryModel.prospect_id == "pr-smtp-1").first()
+    assert history is not None
+    assert history.provider == "Gmail SMTP"
+    assert history.status == "submitted"
+
+    # Duplicate send is blocked
+    dup_resp = client.post("/api/email/send", json=payload)
+    assert dup_resp.status_code == 409
+    assert "already been submitted" in dup_resp.json()["detail"].lower() or "already sent" in dup_resp.json()["detail"].lower()
+
+def test_smtp_authentication_failure_handled_safely(client: TestClient, db_session, monkeypatch):
+    import smtplib
+    monkeypatch.setattr(settings, "SMTP_USER", "sender@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "bad_password_secret")
+
+    acc = db_session.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    if acc:
+        acc.is_connected = False
+        db_session.commit()
+
+    p_id = _create_seed_prospect(db_session, "pr-smtp-auth")
+    draft = EmailDraftModel(
+        id="draft-smtp-auth",
+        prospect_id=p_id,
+        recipient_name="Lead",
+        recipient_email="lead@example.com",
+        subject="Website Audit",
+        body="Audit body content",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    mock_smtp_instance = MagicMock()
+    mock_smtp_instance.login.side_effect = smtplib.SMTPAuthenticationError(535, b"5.7.8 Username and Password not accepted")
+
+    with patch("smtplib.SMTP", return_value=mock_smtp_instance):
+        payload = {
+            "draft_id": "draft-smtp-auth",
+            "recipient_email": "lead@example.com",
+            "subject": "Website Audit",
+            "body": "Audit body content",
+            "confirmed": True
+        }
+        resp = client.post("/api/email/send", json=payload)
+
+    assert resp.status_code == 400
+    err_detail = resp.json()["detail"]
+    assert "Gmail SMTP Authentication failed" in err_detail
+    # Credentials must NOT be leaked
+    assert "bad_password_secret" not in err_detail
+
+    # Verify attempt in DB is marked failed
+    attempt = db_session.query(EmailSendAttemptModel).filter(EmailSendAttemptModel.draft_id == "draft-smtp-auth").first()
+    assert attempt is not None
+    assert attempt.status == "failed"
+    assert attempt.error_code == "SMTP_AUTH_ERROR"
+    assert "bad_password_secret" not in (attempt.error_message or "")
+
+def test_smtp_connection_timeout_persists_uncertain_state(client: TestClient, db_session, monkeypatch):
+    import socket
+    monkeypatch.setattr(settings, "SMTP_USER", "sender@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "mock_pass")
+
+    acc = db_session.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    if acc:
+        acc.is_connected = False
+        db_session.commit()
+
+    p_id = _create_seed_prospect(db_session, "pr-smtp-timeout")
+    draft = EmailDraftModel(
+        id="draft-smtp-timeout",
+        prospect_id=p_id,
+        recipient_name="Lead",
+        recipient_email="lead@timeout.com",
+        subject="Important Audit Findings",
+        body="Findings body content",
+        status="approved"
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    with patch("smtplib.SMTP", side_effect=socket.timeout("Socket connection timed out")):
+        payload = {
+            "draft_id": "draft-smtp-timeout",
+            "recipient_email": "lead@timeout.com",
+            "subject": "Important Audit Findings",
+            "body": "Findings body content",
+            "confirmed": True
+        }
+        resp = client.post("/api/email/send", json=payload)
+
+    assert resp.status_code == 504
+    assert "UNCERTAIN" in resp.json()["detail"]
+
+    # Verify Send Attempt is marked 'uncertain'
+    attempt = db_session.query(EmailSendAttemptModel).filter(EmailSendAttemptModel.draft_id == "draft-smtp-timeout").first()
+    assert attempt is not None
+    assert attempt.status == "uncertain"
+    assert attempt.error_code == "SMTP_TIMEOUT"
+
+    # Verify Draft Model status updated to 'uncertain'
+    refreshed_draft = db_session.query(EmailDraftModel).filter(EmailDraftModel.id == "draft-smtp-timeout").first()
+    assert refreshed_draft.status == "uncertain"
+
+    # Verify Email History Model records uncertain state
+    history = db_session.query(EmailHistoryModel).filter(EmailHistoryModel.prospect_id == "pr-smtp-timeout").first()
+    assert history is not None
+    assert history.status == "uncertain"
+    assert history.provider == "Gmail SMTP"
+
+    # Verify blind retry is blocked with 409
+    retry_resp = client.post("/api/email/send", json=payload)
+    assert retry_resp.status_code == 409
+    assert "uncertain" in retry_resp.json()["detail"].lower()
+
+def test_email_dispatch_status_and_frontend_availability(client: TestClient, db_session, monkeypatch):
+    # Scenario A: OAuth connected
+    acc = GoogleAccountModel(
+        id="default",
+        email="oauth.verified@gmail.com",
+        encrypted_access_token=encrypt_credential("valid_tok"),
+        is_connected=True
+    )
+    db_session.merge(acc)
+    db_session.commit()
+
+    resp = client.get("/api/email/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_ready"] is True
+    assert data["method"] == "oauth"
+    assert data["provider_name"] == "Gmail API (OAuth 2.0)"
+    assert data["sender_email"] == "oauth.verified@gmail.com"
+
+    # Scenario B: OAuth disconnected, SMTP configured
+    acc_in_db = db_session.query(GoogleAccountModel).filter(GoogleAccountModel.id == "default").first()
+    acc_in_db.is_connected = False
+    db_session.commit()
+    monkeypatch.setattr(settings, "SMTP_USER", "smtp.ready@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "app_pwd_16chars")
+
+    resp2 = client.get("/api/email/status")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["is_ready"] is True
+    assert data2["method"] == "smtp"
+    assert data2["provider_name"] == "Gmail SMTP"
+    assert data2["sender_email"] == "smtp.ready@gmail.com"
+    assert data2["smtp_configured"] is True
+
+    # Scenario C: Neither configured
+    monkeypatch.setattr(settings, "SMTP_USER", "")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "")
+    resp3 = client.get("/api/email/status")
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["is_ready"] is False
+    assert data3["method"] == "none"
+    assert data3["sender_email"] is None
+
+def test_smtp_test_connection_endpoint(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "SMTP_USER", "")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "")
+    mock_server = MagicMock()
+    with patch("smtplib.SMTP", return_value=mock_server):
+        resp = client.post("/api/email/test-smtp", json={"user": "test@gmail.com", "password": "mockpassword1234"})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        mock_server.login.assert_called_once_with("test@gmail.com", "mockpassword1234")
+
+    # Missing credentials rejected
+    resp_empty = client.post("/api/email/test-smtp", json={"user": "", "password": ""})
+    assert resp_empty.status_code == 400

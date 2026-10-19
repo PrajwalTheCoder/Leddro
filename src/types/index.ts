@@ -66,6 +66,48 @@ export interface AuditReport {
   headers: Record<string, string>;
 }
 
+export interface ScoringEvidence {
+  findingId?: string;
+  title: string;
+  severity: string;
+  category?: string;
+  observed?: string;
+  contribution: number;
+}
+
+export interface ScoringFactor {
+  key: string;
+  label: string;
+  contribution: number;
+  maxContribution: number;
+  status: string;
+  nature?: 'confirmed_deficiency' | 'potential_opportunity' | 'unknown' | 'failed_diagnostic' | 'informational' | string;
+  summary: string;
+  evidence: ScoringEvidence[];
+}
+
+export interface SeveritySummary {
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export interface ProspectScoringExplanation {
+  opportunityScore: number;
+  scoreVersion: string;
+  confidenceScore: number;
+  priorityLabel: 'High' | 'Medium' | 'Low' | 'Needs Audit';
+  contactReadiness: 'verified' | 'unverified' | 'absent' | 'unknown';
+  auditStatus: 'completed' | 'failed' | 'running' | 'none';
+  auditAgeDays: number | null;
+  auditTimestamp: string | null;
+  severitySummary: SeveritySummary;
+  factors: ScoringFactor[];
+  limitations: string[];
+  recommendedActions: string[];
+}
+
 export interface Prospect {
   id: string;
   name: string;
@@ -97,6 +139,7 @@ export interface Prospect {
   sourceUrl?: string;
   discoveredAt?: string;
   lastVerifiedAt?: string;
+  scoring?: ProspectScoringExplanation;
 }
 
 export interface DiscoveryResultItem {
@@ -165,7 +208,7 @@ export interface DiscoveryRunRecord {
   warnings: string[];
 }
 
-export type DraftStatus = 'draft' | 'edited' | 'approved' | 'awaiting_approval' | 'submitted' | 'failed' | 'cancelled';
+export type DraftStatus = 'draft' | 'edited' | 'approved' | 'awaiting_approval' | 'submitted' | 'failed' | 'cancelled' | 'uncertain';
 
 export interface EmailDraft {
   id: string;
@@ -303,6 +346,17 @@ export interface GoogleOAuthStatus {
   requires_reauth: boolean;
 }
 
+export interface EmailDispatchStatus {
+  is_ready: boolean;
+  method: 'oauth' | 'smtp' | 'none';
+  provider_name: string;
+  sender_email: string | null;
+  smtp_configured: boolean;
+  oauth_configured: boolean;
+  smtp_host?: string;
+  smtp_port?: number;
+}
+
 export interface EmailSendAttempt {
   id: string;
   draft_id: string;
@@ -351,5 +405,72 @@ export interface IntegrationConfig {
     activeName: string;
     rateLimitRemaining: number;
   };
+}
+
+export type FindingComparisonState = 'resolved' | 'new' | 'persistent' | 'inconclusive';
+
+export interface FindingComparisonItem {
+  state: FindingComparisonState;
+  checkKey: string;
+  title: string;
+  category: string;
+  severity: SeverityLevel;
+  olderFindingId?: string;
+  newerFindingId?: string;
+  olderEvidence?: string;
+  newerEvidence?: string;
+  olderObserved?: string;
+  newerObserved?: string;
+  reason: string;
+}
+
+export interface MeasurementComparisonItem {
+  key: string;
+  label: string;
+  before: any;
+  after: any;
+  unit?: string;
+  change?: number;
+  changePercent?: number;
+  direction: 'improved' | 'degraded' | 'unchanged' | 'neutral' | 'unknown';
+  status: 'comparable' | 'inconclusive' | 'not_comparable';
+  reason?: string;
+}
+
+export interface ComparisonSummary {
+  resolvedCount: number;
+  newCount: number;
+  persistentCount: number;
+  inconclusiveCount: number;
+  comparableMeasurementsCount: number;
+  totalFindingsEvaluated: number;
+  isReliable: boolean;
+  executionStatus: string;
+}
+
+export interface AuditComparisonResponse {
+  olderAuditId: string;
+  newerAuditId: string;
+  olderTimestamp: string;
+  newerTimestamp: string;
+  url: string;
+  prospectId?: string;
+  prospectName?: string;
+  executionStatus: 'both_completed' | 'newer_failed' | 'older_failed' | 'both_failed' | 'partial';
+  isReliable: boolean;
+  summary: ComparisonSummary;
+  resolvedFindings: FindingComparisonItem[];
+  newFindings: FindingComparisonItem[];
+  persistentFindings: FindingComparisonItem[];
+  inconclusiveFindings: FindingComparisonItem[];
+  measurements: MeasurementComparisonItem[];
+  limitations: string[];
+}
+
+export interface AuditCompareRequest {
+  older_audit_id?: string;
+  newer_audit_id?: string;
+  olderAuditId?: string;
+  newerAuditId?: string;
 }
 
