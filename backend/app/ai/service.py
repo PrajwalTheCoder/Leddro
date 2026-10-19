@@ -65,10 +65,12 @@ def _persist_to_env_file(filepath: str, updates: Dict[str, str]):
             if k not in found_keys:
                 new_lines.append(f'{k}="{v}"\n')
                 
-        with open(filepath, "w", encoding="utf-8") as f:
+        temp_filepath = f"{filepath}.tmp.{os.getpid()}"
+        with open(temp_filepath, "w", encoding="utf-8") as f:
             f.writelines(new_lines)
+        os.replace(temp_filepath, filepath)
     except Exception as e:
-        logger.warning(f"Could not persist keys to {filepath}: {e}")
+        logger.warning(f"Could not safely persist keys to {filepath}: {e}")
 
 class AIEmailDraftingService:
     """

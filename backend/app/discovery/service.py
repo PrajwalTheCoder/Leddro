@@ -192,8 +192,12 @@ class DiscoveryService:
         )
 
         db.add(prospect)
-        db.commit()
-        db.refresh(prospect)
+        try:
+            db.commit()
+            db.refresh(prospect)
+        except Exception:
+            db.rollback()
+            raise
         return prospect
 
 discovery_service = DiscoveryService()

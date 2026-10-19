@@ -13,7 +13,9 @@ from backend.app.discovery.normalizer import (
     normalize_website_url,
     classify_website_status,
     sanitize_csv_cell,
-    calculate_discovery_score
+    calculate_discovery_score,
+    normalize_business_name,
+    extract_registered_domain
 )
 from backend.app.discovery.deduplication import check_single_duplicate
 
@@ -160,6 +162,9 @@ def preview_csv_import(
     phone_col = mapping.get("phone")
     score_col = mapping.get("opportunity_score")
 
+    seen_batch_urls = set()
+    seen_batch_names = set()
+
     for idx, row in enumerate(rows, start=2):
         raw_name = row.get(name_col, "").strip() if name_col else ""
         if not raw_name:
@@ -198,7 +203,7 @@ def preview_csv_import(
         else:
             opp_score, _, _, _ = calculate_discovery_score(condition, raw_category, bool(raw_phone), bool(raw_email))
 
-        # Check duplicate against database
+        # Check duplicate against database and within current batch
         dupe_match = check_single_duplicate(
             db=db,
             name=raw_name,
@@ -210,6 +215,32 @@ def preview_csv_import(
         )
 
         is_dupe = bool(dupe_match)
+        dupe_reason = dupe_match.reason if dupe_match else None
+        dupe_existing_id = dupe_match.existing_id if dupe_match else None
+
+        # Check for intra-batch duplicates
+        candidate_domain = extract_registered_domain(canonical_website)
+        generic_hosts = {"gmail.com", "yahoo.com", "outlook.com", "facebook.com", "instagram.com", "linkedin.com", "twitter.com", "x.com"}
+        if candidate_domain in generic_hosts:
+            candidate_domain = None
+
+        norm_name = normalize_business_name(raw_name)
+        candidate_city = (raw_city or "").strip().lower()
+        norm_nc = (norm_name, candidate_city) if norm_name else None
+
+        if not is_dupe:
+            if candidate_domain and candidate_domain in seen_batch_urls:
+                is_dupe = True
+                dupe_reason = f"Duplicate within CSV batch (identical website domain: {candidate_domain})"
+            elif norm_nc and norm_nc in seen_batch_names:
+                is_dupe = True
+                dupe_reason = f"Duplicate within CSV batch (identical business name & city: {raw_name})"
+
+        if candidate_domain:
+            seen_batch_urls.add(candidate_domain)
+        if norm_nc:
+            seen_batch_names.add(norm_nc)
+
         if is_dupe:
             duplicate_count += 1
 
@@ -227,8 +258,8 @@ def preview_csv_import(
                 email=raw_email,
                 opportunity_score=opp_score,
                 is_duplicate=is_dupe,
-                duplicate_reason=dupe_match.reason if dupe_match else None,
-                existing_id=dupe_match.existing_id if dupe_match else None
+                duplicate_reason=dupe_reason,
+                existing_id=dupe_existing_id
             )
         )
 
@@ -250,10 +281,13 @@ def commit_csv_import(
 ) -> CsvImportSummaryResponse:
     """
     Saves validated CSV records into the existing SQLite prospects table.
-    Ensures safe, atomic database insertion.
+    Ensures safe, atomic database insertion and intra-batch duplicate prevention.
     """
     imported_ids: List[str] = []
     skipped_count = 0
+    seen_batch_urls = set()
+    seen_batch_names = set()
+    generic_hosts = {"gmail.com", "yahoo.com", "outlook.com", "facebook.com", "instagram.com", "linkedin.com", "twitter.com", "x.com"}
 
     for rec in records:
         name = rec.get("name", "").strip()
@@ -265,7 +299,24 @@ def commit_csv_import(
         state = rec.get("state") or "Maharashtra"
         country = rec.get("country") or "India"
 
-        # Check for duplicate
+        # Check intra-batch duplication
+        candidate_domain = extract_registered_domain(website_url)
+        if candidate_domain in generic_hosts:
+            candidate_domain = None
+
+        norm_name = normalize_business_name(name)
+        candidate_city = (city or "").strip().lower()
+        norm_nc = (norm_name, candidate_city) if norm_name else None
+
+        if skip_duplicates:
+            if candidate_domain and candidate_domain in seen_batch_urls:
+                skipped_count += 1
+                continue
+            if norm_nc and norm_nc in seen_batch_names:
+                skipped_count += 1
+                continue
+
+        # Check for duplicate in database
         dupe = check_single_duplicate(
             db=db,
             name=name,
@@ -279,6 +330,11 @@ def commit_csv_import(
         if dupe and skip_duplicates:
             skipped_count += 1
             continue
+
+        if candidate_domain:
+            seen_batch_urls.add(candidate_domain)
+        if norm_nc:
+            seen_batch_names.add(norm_nc)
 
         new_id = f"pros_{uuid.uuid4().hex[:8]}"
         opp_score = int(rec.get("opportunity_score") or rec.get("opportunityScore") or 70)
@@ -323,7 +379,11 @@ def commit_csv_import(
         db.add(prospect)
         imported_ids.append(new_id)
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return CsvImportSummaryResponse(
         imported_count=len(imported_ids),
