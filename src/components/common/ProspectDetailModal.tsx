@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
@@ -16,12 +16,16 @@ import {
   ChevronRight,
   ShieldCheck,
   Send,
-  History as HistoryIcon
+  History as HistoryIcon,
+  BarChart3,
+  ArrowLeftRight
 } from 'lucide-react';
 import { Button } from './Button';
 import { Badge } from './Badge';
 import { Prospect, AuditReport, EmailDraft } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { ProspectScoringModal } from './ProspectScoringModal';
+import { AuditComparisonModal } from './AuditComparisonModal';
 
 interface ProspectDetailModalProps {
   prospect: Prospect | null;
@@ -49,6 +53,9 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
     emailHistory
   } = useApp();
   const navigate = useNavigate();
+
+  const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   if (!isOpen || !prospect) return null;
 
@@ -193,8 +200,34 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#727780]">Opportunity Score:</span>
-                <span className="font-mono text-[#D8E7A2] bg-[#22271B] px-1.5 py-0.5 rounded border border-[#3E4929]">
-                  {prospect.opportunityScore}/100
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[#D8E7A2] bg-[#22271B] px-1.5 py-0.5 rounded border border-[#3E4929]">
+                    {prospect.opportunityScore}/100
+                  </span>
+                  {prospect.scoring?.priorityLabel && (
+                    <span className="font-mono text-[10px] text-[#A0A5AD] px-1.5 py-0.2 rounded bg-[#1A1C20] border border-[#2B2F36]">
+                      {prospect.scoring.priorityLabel}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setIsScoringModalOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-[#D8E7A2] hover:underline cursor-pointer bg-[#22271B] px-2 py-0.5 rounded border border-[#3E4929]"
+                  >
+                    <BarChart3 className="w-3 h-3" />
+                    <span>Explain Score</span>
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#727780]">Data Confidence:</span>
+                <span className="font-mono text-[11px] text-[#F3F4F6]">
+                  {prospect.scoring ? `${prospect.scoring.confidenceScore}/100` : 'Baseline'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#727780]">Contact Readiness:</span>
+                <span className="font-mono text-[11px] capitalize text-[#A0A5AD]">
+                  {prospect.scoring ? prospect.scoring.contactReadiness : (prospect.email ? 'unverified' : 'absent')}
                 </span>
               </div>
             </div>
@@ -210,6 +243,14 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
               {latestAudit ? (
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] text-[#80B89A]">Score: {latestAudit.overallScore}/100</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCompareModalOpen(true)}
+                    leftIcon={<ArrowLeftRight className="w-3.5 h-3.5" />}
+                  >
+                    Compare
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={handleOpenAudit}>
                     View Dossier
                   </Button>
@@ -390,6 +431,17 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
           </div>
         </div>
       </div>
+      <ProspectScoringModal
+        isOpen={isScoringModalOpen}
+        onClose={() => setIsScoringModalOpen(false)}
+        prospect={prospect}
+      />
+      <AuditComparisonModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        initialProspectId={prospect?.id}
+        initialNewerAuditId={prospect?.latestAuditId}
+      />
     </div>
   );
 };

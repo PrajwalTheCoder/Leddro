@@ -10,7 +10,8 @@ import {
   Play, 
   Sparkles,
   ChevronRight, 
-  Eye
+  Eye,
+  BarChart3
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -18,6 +19,7 @@ import { ImportModal } from '../components/common/ImportModal';
 import { NewProspectModal } from '../components/common/NewProspectModal';
 import { GenerateDraftModal } from '../components/common/GenerateDraftModal';
 import { ProspectDetailModal } from '../components/common/ProspectDetailModal';
+import { ProspectScoringModal } from '../components/common/ProspectScoringModal';
 import { Prospect, ProspectStatus } from '../types';
 
 export const Prospects: React.FC = () => {
@@ -36,12 +38,14 @@ export const Prospects: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [conditionFilter, setConditionFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isNewProspectModalOpen, setIsNewProspectModalOpen] = useState(false);
 
-  // Phase 5 Modals
+  // Phase 5 & 8.2 Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailTargetProspect, setDetailTargetProspect] = useState<Prospect | null>(null);
+  const [scoringModalProspect, setScoringModalProspect] = useState<Prospect | null>(null);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [generateTargetId, setGenerateTargetId] = useState<string | null>(null);
 
@@ -55,6 +59,15 @@ export const Prospects: React.FC = () => {
 
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (conditionFilter !== 'all' && p.websiteStatus !== conditionFilter) return false;
+
+    if (priorityFilter !== 'all') {
+      const priority = p.scoring?.priorityLabel || (p.opportunityScore >= 75 ? 'High' : p.opportunityScore >= 45 ? 'Medium' : 'Low');
+      if (priorityFilter === 'needs_audit') {
+        if (priority !== 'Needs Audit' && p.auditCount > 0) return false;
+      } else if (priority.toLowerCase() !== priorityFilter.toLowerCase()) {
+        return false;
+      }
+    }
 
     return true;
   });
@@ -141,6 +154,18 @@ export const Prospects: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="bg-[#17191C] border border-[#2B2F36] rounded px-2.5 py-1.5 text-[12px] text-[#A0A5AD] focus:border-[#4B5361] outline-none"
+            >
+              <option value="all">All Priorities</option>
+              <option value="high">High Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="low">Low Priority</option>
+              <option value="needs_audit">Needs Audit</option>
+            </select>
+
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-[#17191C] border border-[#2B2F36] rounded px-2.5 py-1.5 text-[12px] text-[#A0A5AD] focus:border-[#4B5361] outline-none"
@@ -185,7 +210,9 @@ export const Prospects: React.FC = () => {
                   <th className="py-2.5 px-3 font-medium">Category</th>
                   <th className="py-2.5 px-3 font-medium">Location</th>
                   <th className="py-2.5 px-3 font-medium">Website</th>
-                  <th className="py-2.5 px-3 font-medium">Score</th>
+                  <th className="py-2.5 px-3 font-medium">Opportunity & Priority</th>
+                  <th className="py-2.5 px-3 font-medium">Contact Readiness</th>
+                  <th className="py-2.5 px-3 font-medium">Audit Freshness</th>
                   <th className="py-2.5 px-3 font-medium">Status Selector</th>
                   <th className="py-2.5 px-3 font-medium">Last Activity</th>
                   <th className="py-2.5 px-4 text-right font-medium">Actions</th>
@@ -195,6 +222,9 @@ export const Prospects: React.FC = () => {
                 {filtered.map((p) => {
                   const isSelected = selectedProspectId === p.id;
                   const isRowAuditing = isAuditing && auditingProspectId === p.id;
+                  const priority = p.scoring?.priorityLabel || (p.opportunityScore >= 75 ? 'High' : p.opportunityScore >= 45 ? 'Medium' : 'Low');
+                  const readiness = p.scoring ? p.scoring.contactReadiness : (p.email ? 'unverified' : 'absent');
+                  const auditAge = p.scoring?.auditAgeDays;
 
                   return (
                     <tr
@@ -228,10 +258,73 @@ export const Prospects: React.FC = () => {
                         <Badge variant="website" websiteStatus={p.websiteStatus} size="sm" />
                       </td>
 
+                      {/* Opportunity Score & Priority */}
                       <td className="py-3 px-3">
-                        <span className="font-mono text-[12px] font-medium text-[#D8E7A2] bg-[#22271B] px-1.5 py-0.5 rounded border border-[#3E4929]">
-                          {p.opportunityScore}/100
+                        <div className="flex flex-col gap-1 items-start">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[12px] font-medium text-[#D8E7A2] bg-[#22271B] px-1.5 py-0.5 rounded border border-[#3E4929]">
+                              {p.opportunityScore}/100
+                            </span>
+                            <span
+                              className={`font-mono text-[10px] px-1.5 py-0.2 rounded border uppercase ${
+                                priority === 'High'
+                                  ? 'bg-[#22271B] text-[#D8E7A2] border-[#3E4929]'
+                                  : priority === 'Medium'
+                                  ? 'bg-[#232015] text-[#D9B76A] border-[#453D1C]'
+                                  : priority === 'Needs Audit'
+                                  ? 'bg-[#1D1B2A] text-[#B8A3E0] border-[#393259]'
+                                  : 'bg-[#1C1F24] text-[#A0A5AD] border-[#2E3239]'
+                              }`}
+                            >
+                              {priority}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-[#727780]">
+                              {p.scoring ? `${p.scoring.confidenceScore}% conf` : 'Baseline'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setScoringModalProspect(p);
+                              }}
+                              className="text-[10px] text-[#D8E7A2] hover:underline cursor-pointer flex items-center gap-0.5"
+                            >
+                              <BarChart3 className="w-2.5 h-2.5" />
+                              <span>Explain</span>
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Contact Readiness */}
+                      <td className="py-3 px-3">
+                        <span
+                          className={`font-mono text-[10px] px-1.5 py-0.5 rounded border capitalize ${
+                            readiness === 'verified'
+                              ? 'bg-[#1A261E] text-[#80B89A] border-[#2D4736]'
+                              : readiness === 'unverified'
+                              ? 'bg-[#232015] text-[#D9B76A] border-[#453D1C]'
+                              : 'bg-[#2B1B1D] text-[#D78383] border-[#522525]'
+                          }`}
+                        >
+                          {readiness}
                         </span>
+                      </td>
+
+                      {/* Audit Freshness */}
+                      <td className="py-3 px-3 font-mono text-[11px]">
+                        {auditAge !== null && auditAge !== undefined ? (
+                          auditAge > 30 ? (
+                            <span className="text-[#D9B76A]">{auditAge}d ago (stale)</span>
+                          ) : (
+                            <span className="text-[#80B89A]">{auditAge}d ago</span>
+                          )
+                        ) : p.latestAuditId ? (
+                          <span className="text-[#80B89A]">Audited</span>
+                        ) : (
+                          <span className="text-[#727780] italic">No audit</span>
+                        )}
                       </td>
 
                       {/* Interactive Status Selector */}
@@ -256,6 +349,13 @@ export const Prospects: React.FC = () => {
 
                       <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            title="Inspect score breakdown"
+                            onClick={() => setScoringModalProspect(p)}
+                            className="p-1.5 rounded hover:bg-[#282C33] text-[#A0A5AD] hover:text-[#D8E7A2] transition-colors"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             title="Inspect business details"
                             onClick={() => handleRowClick(p)}
@@ -315,6 +415,13 @@ export const Prospects: React.FC = () => {
           setGenerateTargetId(id);
           setIsGenerateModalOpen(true);
         }}
+      />
+
+      {/* Explainable Scoring Breakdown Modal */}
+      <ProspectScoringModal
+        isOpen={Boolean(scoringModalProspect)}
+        onClose={() => setScoringModalProspect(null)}
+        prospect={scoringModalProspect}
       />
 
       {/* AI Draft Generation Modal */}

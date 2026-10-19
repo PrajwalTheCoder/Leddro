@@ -71,6 +71,10 @@ def list_prospects(
     status: Optional[str] = Query(None, description="Filter by prospect status"),
     db: Session = Depends(get_db)
 ):
+    from backend.app.models.audit import AuditReportModel
+    from backend.app.services.prospect_scoring import calculate_prospect_score
+    from sqlalchemy.orm import joinedload
+
     query = db.query(ProspectModel)
     
     if status and status != "all":
@@ -88,40 +92,80 @@ def list_prospects(
         )
         
     prospects = query.order_by(ProspectModel.opportunity_score.desc()).all()
-    return [db_prospect_to_schema(p) for p in prospects]
+
+    # Query latest audits in batch to avoid N+1 queries
+    latest_audit_ids = [p.latest_audit_id for p in prospects if p.latest_audit_id]
+    audits_map = {}
+    if latest_audit_ids:
+        audits = (
+            db.query(AuditReportModel)
+            .options(joinedload(AuditReportModel.findings))
+            .filter(AuditReportModel.id.in_(latest_audit_ids))
+            .all()
+        )
+        audits_map = {a.id: a for a in audits}
+
+    results = []
+    for p in prospects:
+        audit = audits_map.get(p.latest_audit_id)
+        scoring_res = calculate_prospect_score(p, audit)
+        results.append(db_prospect_to_schema(p, scoring_res))
+
+    return results
 
 @router.get("/{prospect_id}")
 def get_prospect(prospect_id: str, db: Session = Depends(get_db)):
+    from backend.app.models.audit import AuditReportModel
+    from backend.app.services.prospect_scoring import calculate_prospect_score
+    from sqlalchemy.orm import joinedload
+
     prospect = db.query(ProspectModel).filter(ProspectModel.id == prospect_id).first()
     if not prospect:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Prospect with ID '{prospect_id}' not found"
         )
-    return db_prospect_to_schema(prospect)
+
+    audit = None
+    if prospect.latest_audit_id:
+        audit = (
+            db.query(AuditReportModel)
+            .options(joinedload(AuditReportModel.findings))
+            .filter(AuditReportModel.id == prospect.latest_audit_id)
+            .first()
+        )
+
+    scoring_res = calculate_prospect_score(prospect, audit)
+    return db_prospect_to_schema(prospect, scoring_res)
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
-    # Duplicate check: check name or website URL
-    clean_name = payload.name.strip()
-    existing = db.query(ProspectModel).filter(ProspectModel.name.ilike(clean_name)).first()
-    if existing:
+    from backend.app.discovery.deduplication import check_single_duplicate
+    from backend.app.services.prospect_scoring import calculate_prospect_score
+
+    # Check duplicates using central deduplication service
+    match = check_single_duplicate(
+        db=db,
+        name=payload.name,
+        website_url=payload.websiteUrl,
+        city=payload.location.city if payload.location else None,
+        state=payload.location.state if payload.location else None,
+        country=payload.location.country if payload.location else None,
+        source_provider=payload.sourceProvider,
+        source_record_id=payload.sourceRecordId
+    )
+    if match:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Prospect with name '{clean_name}' already exists in database (ID: {existing.id})"
+            detail=f"Prospect already exists: {match.reason} (ID: {match.existing_id})"
         )
-        
-    if payload.websiteUrl:
-        clean_url = payload.websiteUrl.strip().rstrip("/")
-        existing_url = db.query(ProspectModel).filter(ProspectModel.website_url.ilike(clean_url)).first()
-        if existing_url:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Prospect with website '{clean_url}' already exists (ID: {existing_url.id})"
-            )
 
     new_id = f"pros_{uuid.uuid4().hex[:8]}"
     
+    # Calculate baseline explainable score for the new prospect
+    scoring_res = calculate_prospect_score(payload, None)
+    initial_opp_score = payload.opportunityScore if payload.opportunityScore != 70 else scoring_res["opportunity_score"]
+
     new_prospect = ProspectModel(
         id=new_id,
         name=payload.name,
@@ -131,7 +175,7 @@ def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
         country=payload.location.country if payload.location else "India",
         website_url=payload.websiteUrl,
         website_status=payload.websiteStatus or "active",
-        opportunity_score=payload.opportunityScore,
+        opportunity_score=initial_opp_score,
         score_urgency=payload.scoreBreakdown.technicalUrgency if payload.scoreBreakdown else 25,
         score_intent=payload.scoreBreakdown.commercialIntent if payload.scoreBreakdown else 25,
         score_ease=payload.scoreBreakdown.resolutionEase if payload.scoreBreakdown else 20,
@@ -147,9 +191,46 @@ def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
     )
     
     db.add(new_prospect)
-    db.commit()
-    db.refresh(new_prospect)
-    return db_prospect_to_schema(new_prospect)
+    try:
+        db.commit()
+        db.refresh(new_prospect)
+    except Exception:
+        db.rollback()
+        raise
+    return db_prospect_to_schema(new_prospect, scoring_res)
+
+@router.post("/{prospect_id}/recalculate-score")
+def recalculate_score_endpoint(prospect_id: str, db: Session = Depends(get_db)):
+    """Recalculates deterministic opportunity score and confidence against the latest audit data."""
+    from backend.app.models.audit import AuditReportModel
+    from backend.app.services.prospect_scoring import calculate_prospect_score
+    from sqlalchemy.orm import joinedload
+
+    prospect = db.query(ProspectModel).filter(ProspectModel.id == prospect_id).first()
+    if not prospect:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prospect with ID '{prospect_id}' not found"
+        )
+
+    audit = None
+    if prospect.latest_audit_id:
+        audit = (
+            db.query(AuditReportModel)
+            .options(joinedload(AuditReportModel.findings))
+            .filter(AuditReportModel.id == prospect.latest_audit_id)
+            .first()
+        )
+
+    scoring_res = calculate_prospect_score(prospect, audit)
+    prospect.opportunity_score = scoring_res["opportunity_score"]
+    try:
+        db.commit()
+        db.refresh(prospect)
+    except Exception:
+        db.rollback()
+        raise
+    return db_prospect_to_schema(prospect, scoring_res)
 
 @router.patch("/{prospect_id}")
 def update_prospect(prospect_id: str, payload: ProspectUpdate, db: Session = Depends(get_db)):
@@ -192,8 +273,12 @@ def update_prospect(prospect_id: str, payload: ProspectUpdate, db: Session = Dep
         prospect.notes = payload.notes
         
     prospect.last_activity = "Updated just now"
-    db.commit()
-    db.refresh(prospect)
+    try:
+        db.commit()
+        db.refresh(prospect)
+    except Exception:
+        db.rollback()
+        raise
     return db_prospect_to_schema(prospect)
 
 @router.delete("/{prospect_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -204,6 +289,26 @@ def delete_prospect(prospect_id: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Prospect with ID '{prospect_id}' not found"
         )
-    db.delete(prospect)
-    db.commit()
+    try:
+        from backend.app.models.audit import AuditReportModel
+        from backend.app.models.draft import EmailDraftModel
+        from backend.app.models.history import EmailHistoryModel
+
+        # 1. Null out prospect_id on associated audit reports
+        db.query(AuditReportModel).filter(AuditReportModel.prospect_id == prospect_id).update(
+            {AuditReportModel.prospect_id: None}, synchronize_session=False
+        )
+        # 2. Clean up associated email drafts
+        db.query(EmailDraftModel).filter(EmailDraftModel.prospect_id == prospect_id).delete(
+            synchronize_session=False
+        )
+        # 3. Preserve email history but clear prospect link
+        db.query(EmailHistoryModel).filter(EmailHistoryModel.prospect_id == prospect_id).update(
+            {EmailHistoryModel.prospect_id: None}, synchronize_session=False
+        )
+        db.delete(prospect)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return None
