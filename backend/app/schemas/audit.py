@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import json
 
 class FindingSchema(BaseModel):
@@ -53,6 +53,72 @@ class AuditReportResponse(BaseModel):
 class AuditRunRequest(BaseModel):
     url: str
     prospectId: Optional[str] = None
+
+class AuditCompareRequest(BaseModel):
+    older_audit_id: Optional[str] = None
+    newer_audit_id: Optional[str] = None
+    olderAuditId: Optional[str] = None
+    newerAuditId: Optional[str] = None
+
+    def get_older_id(self) -> str:
+        return (self.older_audit_id or self.olderAuditId or "").strip()
+
+    def get_newer_id(self) -> str:
+        return (self.newer_audit_id or self.newerAuditId or "").strip()
+
+class FindingComparisonItem(BaseModel):
+    state: str  # "resolved" | "new" | "persistent" | "inconclusive"
+    checkKey: str
+    title: str
+    category: str
+    severity: str
+    olderFindingId: Optional[str] = None
+    newerFindingId: Optional[str] = None
+    olderEvidence: Optional[str] = None
+    newerEvidence: Optional[str] = None
+    olderObserved: Optional[str] = None
+    newerObserved: Optional[str] = None
+    reason: str
+
+class MeasurementComparisonItem(BaseModel):
+    key: str
+    label: str
+    before: Any
+    after: Any
+    unit: Optional[str] = None
+    change: Optional[Union[int, float]] = None
+    changePercent: Optional[float] = None
+    direction: str  # "improved" | "degraded" | "unchanged" | "neutral" | "unknown"
+    status: str     # "comparable" | "inconclusive" | "not_comparable"
+    reason: Optional[str] = None
+
+class ComparisonSummarySchema(BaseModel):
+    resolvedCount: int = 0
+    newCount: int = 0
+    persistentCount: int = 0
+    inconclusiveCount: int = 0
+    comparableMeasurementsCount: int = 0
+    totalFindingsEvaluated: int = 0
+    isReliable: bool = True
+    executionStatus: str = "both_completed"
+
+class AuditComparisonResponse(BaseModel):
+    olderAuditId: str
+    newerAuditId: str
+    olderTimestamp: str
+    newerTimestamp: str
+    url: str
+    prospectId: Optional[str] = None
+    prospectName: Optional[str] = None
+    executionStatus: str
+    isReliable: bool
+    summary: ComparisonSummarySchema
+    resolvedFindings: List[FindingComparisonItem] = Field(default_factory=list)
+    newFindings: List[FindingComparisonItem] = Field(default_factory=list)
+    persistentFindings: List[FindingComparisonItem] = Field(default_factory=list)
+    inconclusiveFindings: List[FindingComparisonItem] = Field(default_factory=list)
+    measurements: List[MeasurementComparisonItem] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
 
 def db_audit_to_schema(report_model, findings_models=None) -> Dict[str, Any]:
     findings_list = []

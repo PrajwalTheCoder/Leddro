@@ -1,41 +1,43 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FileCode2, 
-  Play, 
-  Mail, 
-  ExternalLink, 
-  ChevronDown, 
-  ChevronUp, 
-  ShieldCheck, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Server, 
-  Lock, 
-  Cpu, 
-  Download, 
+import {
+  FileCode2,
+  Play,
+  Mail,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  Server,
+  Lock,
+  Cpu,
+  Download,
   ArrowLeft,
   Building2,
   FileText,
   Clock,
   Terminal,
   Activity,
-  Sparkles
+  Sparkles,
+  ArrowLeftRight
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { GenerateDraftModal } from '../components/common/GenerateDraftModal';
+import { AuditComparisonModal } from '../components/common/AuditComparisonModal';
 
 export const Audits: React.FC = () => {
-  const { 
-    prospects, 
-    selectedProspectId, 
-    setSelectedProspectId, 
-    auditReports, 
-    runAudit, 
-    isAuditing, 
-    auditingProspectId, 
+  const {
+    prospects,
+    selectedProspectId,
+    setSelectedProspectId,
+    auditReports,
+    runAudit,
+    isAuditing,
+    auditingProspectId,
     auditProgressMessage,
     backendOnline,
     createEmailDraftForProspect,
@@ -67,11 +69,27 @@ export const Audits: React.FC = () => {
   };
 
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   const handleCreateDraft = () => {
     if (!prospect) return;
     setIsGenerateModalOpen(true);
   };
+
+  if (!prospect) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full bg-[#111214] p-8 text-center">
+        <Building2 className="w-12 h-12 text-[#4B5361] mb-3" />
+        <h2 className="text-[16px] font-semibold text-[#F3F4F6] mb-1">No Prospects Available for Audit</h2>
+        <p className="text-[13px] text-[#8C929D] max-w-md mb-4">
+          Discover new businesses via OpenStreetMap or import a CSV dataset to execute technical diagnostic website audits.
+        </p>
+        <Button variant="primary" size="md" onClick={() => navigate('/prospects')} leftIcon={<Building2 className="w-4 h-4" />}>
+          View Prospects Pipeline
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#111214]">
@@ -133,6 +151,14 @@ export const Audits: React.FC = () => {
               Draft Outreach
             </Button>
 
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setIsCompareModalOpen(true)}
+              leftIcon={<ArrowLeftRight className="w-4 h-4" />}
+            >
+              Compare Audits
+            </Button>
             <Button
               variant="primary"
               size="md"
@@ -331,15 +357,14 @@ export const Audits: React.FC = () => {
                       </span>
                       {f.checkStatus && (
                         <span
-                          className={`font-mono text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${
-                            f.checkStatus === 'PASS'
+                          className={`font-mono text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${f.checkStatus === 'PASS'
                               ? 'text-[#D8E7A2] bg-[#22271B] border-[#3E4929]'
                               : f.checkStatus === 'WARNING'
-                              ? 'text-[#E5A96A] bg-[#2D2115] border-[#4E3924]'
-                              : f.checkStatus === 'FAIL'
-                              ? 'text-[#E56A6A] bg-[#2D1616] border-[#4E2424]'
-                              : 'text-[#F87171] bg-[#331313] border-[#552020]'
-                          }`}
+                                ? 'text-[#E5A96A] bg-[#2D2115] border-[#4E3924]'
+                                : f.checkStatus === 'FAIL'
+                                  ? 'text-[#E56A6A] bg-[#2D1616] border-[#4E2424]'
+                                  : 'text-[#F87171] bg-[#331313] border-[#552020]'
+                            }`}
                         >
                           {f.checkStatus}
                         </span>
@@ -458,6 +483,13 @@ export const Audits: React.FC = () => {
         onClose={() => setIsGenerateModalOpen(false)}
         targetProspectId={prospect?.id}
         targetAuditId={auditReport?.id}
+      />
+
+      <AuditComparisonModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        initialProspectId={prospect?.id}
+        initialNewerAuditId={auditReport?.id}
       />
     </div>
   );

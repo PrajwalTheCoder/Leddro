@@ -11,10 +11,14 @@ from backend.app.models.prospect import ProspectModel
 from backend.app.schemas.audit import (
     AuditRunRequest,
     AuditReportResponse,
+    AuditCompareRequest,
+    AuditComparisonResponse,
     db_audit_to_schema
 )
 from backend.app.services.ssrf_validator import validate_target_url
 from backend.app.services.audit_engine import execute_audit
+from backend.app.services.audit_comparison import compare_audits
+from sqlalchemy.orm import joinedload
 
 router = APIRouter(prefix="/audits", tags=["Audits"])
 
@@ -88,12 +92,23 @@ async def run_audit(payload: AuditRunRequest, db: Session = Depends(get_db)):
         if prospect:
             prospect.audit_count = (prospect.audit_count or 0) + 1
             prospect.latest_audit_id = report_id
-            prospect.opportunity_score = audit_data.get("overall_score") or audit_data.get("overallScore") or prospect.opportunity_score
+
+            audit_score = audit_data.get("overall_score") or audit_data.get("overallScore")
+            if audit_score is not None:
+                prospect.opportunity_score = audit_score
+            else:
+                from backend.app.services.prospect_scoring import calculate_prospect_score
+                scoring_res = calculate_prospect_score(prospect, report_model)
+                prospect.opportunity_score = scoring_res["opportunity_score"]
             prospect.website_status = "active" if audit_data.get("status") == "completed" else "unreachable"
             prospect.last_activity = "Audited just now"
 
-    db.commit()
-    db.refresh(report_model)
+    try:
+        db.commit()
+        db.refresh(report_model)
+    except Exception:
+        db.rollback()
+        raise
 
     return db_audit_to_schema(report_model, findings_models)
 
@@ -134,3 +149,68 @@ def get_prospect_audits(prospect_id: str, db: Session = Depends(get_db)):
         findings = db.query(AuditFindingModel).filter(AuditFindingModel.audit_report_id == r.id).all()
         results.append(db_audit_to_schema(r, findings))
     return results
+
+@router.post("/compare", response_model=AuditComparisonResponse)
+def compare_two_audits(payload: AuditCompareRequest, db: Session = Depends(get_db)):
+    """
+    Deterministically compares two stored audit reports for the same website or prospect.
+    Distinguishes resolved, new, persistent, and inconclusive findings without running
+    unnecessary audits or external AI calls.
+    """
+    older_id = payload.get_older_id()
+    newer_id = payload.get_newer_id()
+
+    if not older_id or not newer_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Both older_audit_id and newer_audit_id are required for comparison."
+        )
+
+    if older_id == newer_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot compare an audit with itself. Please select two distinct audits."
+        )
+
+    # Batch query both reports with joined findings to avoid N+1 queries
+    reports = (
+        db.query(AuditReportModel)
+        .options(joinedload(AuditReportModel.findings))
+        .filter(AuditReportModel.id.in_([older_id, newer_id]))
+        .all()
+    )
+    report_map = {r.id: r for r in reports}
+
+    if older_id not in report_map:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Older audit report with ID '{older_id}' not found."
+        )
+
+    if newer_id not in report_map:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Newer audit report with ID '{newer_id}' not found."
+        )
+
+    older_report = report_map[older_id]
+    newer_report = report_map[newer_id]
+
+    # Look up prospect if associated
+    prospect = None
+    target_pid = older_report.prospect_id or newer_report.prospect_id
+    if target_pid:
+        prospect = db.query(ProspectModel).filter(ProspectModel.id == target_pid).first()
+
+    try:
+        comparison_result = compare_audits(
+            older_audit=older_report,
+            newer_audit=newer_report,
+            prospect=prospect
+        )
+        return comparison_result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
