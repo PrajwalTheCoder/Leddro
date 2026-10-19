@@ -77,6 +77,13 @@
     background-size: 32px 32px;
   }
 
+  /* MiroFish dotted matrix background */
+  .mirofish-dots {
+    background-color: #0c0f17;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+
   /* Glowing gauge ring styles */
   .gauge-circle {
     stroke-dasharray: 238;
