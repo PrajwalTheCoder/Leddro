@@ -196,7 +196,29 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#727780]">Phone:</span>
-                <span className="font-mono text-[#F3F4F6]">{prospect.phone || 'Not listed'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[#F3F4F6]">{prospect.phone || 'Not listed'}</span>
+                  {prospect.phone && (
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={`tel:${prospect.phone.replace(/[^0-9+]/g, '')}`}
+                        className="px-1.5 py-0.5 rounded bg-[#1D2530] text-[#91B7D8] hover:bg-[#253242] text-[10px] font-mono border border-[#2B3A4F] transition-colors"
+                        title="Call business phone"
+                      >
+                        Call
+                      </a>
+                      <a
+                        href={`https://wa.me/${prospect.phone.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-1.5 py-0.5 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#1F3329] text-[10px] font-mono border border-[#253D30] transition-colors"
+                        title="Chat on WhatsApp"
+                      >
+                        WhatsApp
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#727780]">Opportunity Score:</span>

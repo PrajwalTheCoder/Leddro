@@ -16,7 +16,11 @@ import {
   Check,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  Search,
+  Globe,
+  Phone,
+  Building2
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { AIProviderStatus, AISettings } from '../types';
@@ -93,6 +97,138 @@ export const Integrations: React.FC = () => {
       addToast(errMsg, 'error');
     } finally {
       setIsTestingSMTP(false);
+    }
+  };
+
+  // Contact Enrichment Providers (Hunter.io & Google Places)
+  const [enrichmentStatus, setEnrichmentStatus] = useState<any>(null);
+  const [hunterKey, setHunterKey] = useState('');
+  const [showHunterKey, setShowHunterKey] = useState(false);
+  const [isSavingHunter, setIsSavingHunter] = useState(false);
+  const [isTestingHunter, setIsTestingHunter] = useState(false);
+  const [hunterTestResult, setHunterTestResult] = useState<{ success: boolean; message: string; available_searches?: number; plan?: string } | null>(null);
+
+  const [placesKey, setPlacesKey] = useState('');
+  const [showPlacesKey, setShowPlacesKey] = useState(false);
+  const [isSavingPlaces, setIsSavingPlaces] = useState(false);
+  const [isTestingPlaces, setIsTestingPlaces] = useState(false);
+  const [placesTestResult, setPlacesTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const fetchEnrichmentStatus = async () => {
+    try {
+      const res = await fetch('/api/enrichment/status');
+      if (res.ok) {
+        const data = await res.json();
+        setEnrichmentStatus(data);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    fetchEnrichmentStatus();
+  }, []);
+
+  const handleSaveHunterKey = async () => {
+    if (!hunterKey.trim()) return;
+    setIsSavingHunter(true);
+    try {
+      const res = await fetch('/api/enrichment/save-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hunter_api_key: hunterKey.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast('Hunter.io API key saved securely to local .env', 'success');
+        setHunterKey('');
+        setEnrichmentStatus(data.status);
+      } else {
+        addToast(data.detail || 'Failed to save Hunter key', 'error');
+      }
+    } catch (err: any) {
+      addToast(err.message, 'error');
+    } finally {
+      setIsSavingHunter(false);
+    }
+  };
+
+  const handleTestHunter = async () => {
+    setIsTestingHunter(true);
+    setHunterTestResult(null);
+    try {
+      const payload: { api_key?: string } = {};
+      if (hunterKey.trim()) payload.api_key = hunterKey.trim();
+      const res = await fetch('/api/enrichment/test-hunter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setHunterTestResult(data);
+      if (data.success) {
+        addToast(`Hunter.io authenticated: ${data.available_searches || 25} searches remaining`, 'success');
+        await fetchEnrichmentStatus();
+      } else {
+        addToast(data.message || 'Hunter.io connection failed', 'error');
+      }
+    } catch (err: any) {
+      setHunterTestResult({ success: false, message: err.message });
+      addToast(err.message, 'error');
+    } finally {
+      setIsTestingHunter(false);
+    }
+  };
+
+  const handleSavePlacesKey = async () => {
+    if (!placesKey.trim()) return;
+    setIsSavingPlaces(true);
+    try {
+      const res = await fetch('/api/enrichment/save-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ google_places_api_key: placesKey.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast('Google Places API key saved securely to local .env', 'success');
+        setPlacesKey('');
+        setEnrichmentStatus(data.status);
+      } else {
+        addToast(data.detail || 'Failed to save Places key', 'error');
+      }
+    } catch (err: any) {
+      addToast(err.message, 'error');
+    } finally {
+      setIsSavingPlaces(false);
+    }
+  };
+
+  const handleTestPlaces = async () => {
+    setIsTestingPlaces(true);
+    setPlacesTestResult(null);
+    try {
+      const payload: { api_key?: string } = {};
+      if (placesKey.trim()) payload.api_key = placesKey.trim();
+      const res = await fetch('/api/enrichment/test-google-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setPlacesTestResult(data);
+      if (data.success) {
+        addToast(data.message, 'success');
+        await fetchEnrichmentStatus();
+      } else {
+        addToast(data.message || 'Google Places connection failed', 'error');
+      }
+    } catch (err: any) {
+      setPlacesTestResult({ success: false, message: err.message });
+      addToast(err.message, 'error');
+    } finally {
+      setIsTestingPlaces(false);
     }
   };
 
@@ -1144,8 +1280,355 @@ export const Integrations: React.FC = () => {
           </div>
         </div>
 
+        {/* Section 4: Contact Intelligence & B2B Email Discovery Gateways */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <Search className="w-4 h-4 text-[#D8E7A2]" />
+              <h2 className="text-[15px] font-semibold text-[#F3F4F6]">
+                Contact Intelligence &amp; B2B Email Discovery Gateways
+              </h2>
+              <span className="font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border bg-[#1B2217] text-[#D8E7A2] border-[#364923]">
+                Zero Fake Emails
+              </span>
+            </div>
+            <span className="text-[11px] text-[#727780]">
+              Autonomous scrapers, DNS MX deliverability verification &amp; B2B directory lookups
+            </span>
+          </div>
 
-        {/* Section 4: Discovery Providers */}
+          <div className="grid grid-cols-1 gap-4">
+            {/* Provider 1: Built-in Deterministic Website Contact Scraper */}
+            <div className="rounded border border-[#3E4929] bg-[#17191C] p-5 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#24272D] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#18261F] border border-[#253D30] text-[#80B89A] flex items-center justify-center shrink-0">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                        Built-in Deterministic Website Contact Crawler
+                      </h3>
+                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                        <Check className="w-3 h-3" /> 100% Free &amp; Built-in
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#727780] mt-0.5">
+                      Autonomous crawler that extracts genuine <code className="font-mono text-[#D8E7A2]">mailto:</code> addresses and phone numbers from homepages, <code className="font-mono text-[#A0A5AD]">/contact</code>, and <code className="font-mono text-[#A0A5AD]">/about</code> pages.
+                    </p>
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] text-[#80B89A] bg-[#18261F] px-2.5 py-0.5 rounded border border-[#253D30] self-start sm:self-auto shrink-0">
+                  Active (No API Key Needed)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                <div className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1">
+                  <strong className="text-[#F3F4F6] flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#80B89A]" />
+                    Live DNS MX Deliverability Verification
+                  </strong>
+                  <p className="text-[#727780] leading-relaxed">
+                    Filters out image files, asset URLs, and unroutable demo domains. Automatically executes DNS MX record queries to confirm the target business domain has active mail exchange servers.
+                  </p>
+                </div>
+                <div className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1">
+                  <strong className="text-[#F3F4F6] flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-[#D8E7A2]" />
+                    Direct Phone &amp; WhatsApp Discovery
+                  </strong>
+                  <p className="text-[#727780] leading-relaxed">
+                    Identifies published telephone numbers and formats them for 1-click Call and WhatsApp outreach directly from your prospect drawer and email drafts.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Provider 2: Hunter.io B2B Email Finder */}
+            <div className={`rounded border p-5 flex flex-col gap-4 ${
+              enrichmentStatus?.hunter?.is_configured
+                ? 'bg-[#17191C] border-[#3E4929]'
+                : 'bg-[#141618] border-[#2B2F36]'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#24272D] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
+                    enrichmentStatus?.hunter?.is_configured
+                      ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                      : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
+                  }`}>
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                        Hunter.io Professional B2B Email Finder
+                      </h3>
+                      {enrichmentStatus?.hunter?.is_configured && (
+                        <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Configured
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-[#727780] mt-0.5">
+                      Searches verified corporate domain email patterns with confidence scores, executive full names, and positions. Free tier includes 25 searches/month.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isTestingHunter}
+                    onClick={handleTestHunter}
+                    leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                  >
+                    Test API Connection
+                  </Button>
+                </div>
+              </div>
+
+              {/* API Key Input Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#111214] p-3 rounded border border-[#24272D]">
+                <div className="flex items-center gap-2 text-[12px]">
+                  <Key className="w-4 h-4 text-[#D8E7A2]" />
+                  <span className="text-[#A0A5AD] font-medium">API Key:</span>
+                  {enrichmentStatus?.hunter?.masked_key ? (
+                    <span className="font-mono text-[#F3F4F6] bg-[#1A1C20] px-2 py-0.5 rounded border border-[#30343A] text-[11px]">
+                      {enrichmentStatus.hunter.masked_key}
+                    </span>
+                  ) : (
+                    <span className="text-[#727780] italic text-[11px]">Not configured</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-1 sm:max-w-md">
+                  <div className="relative flex-1">
+                    <input
+                      type={showHunterKey ? 'text' : 'password'}
+                      value={hunterKey}
+                      onChange={(e) => setHunterKey(e.target.value)}
+                      placeholder="Insert Hunter.io API key..."
+                      className="w-full bg-[#17191C] border border-[#2B2F36] rounded px-3 py-1.5 text-[12px] font-mono text-[#F3F4F6] focus:outline-none focus:border-[#D8E7A2] pr-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowHunterKey(!showHunterKey)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#727780] hover:text-[#F3F4F6]"
+                    >
+                      {showHunterKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isSavingHunter}
+                    onClick={handleSaveHunterKey}
+                    leftIcon={<Save className="w-3.5 h-3.5" />}
+                    disabled={!hunterKey.trim()}
+                  >
+                    Save Key
+                  </Button>
+                </div>
+              </div>
+
+              {/* Hunter Test Result Banner */}
+              {hunterTestResult && (
+                <div className={`p-2.5 rounded border text-[11px] font-mono flex items-center justify-between ${
+                  hunterTestResult.success
+                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                    : 'bg-[#2A1818] border-[#4A2626] text-[#D78383]'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {hunterTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                    <span>{hunterTestResult.message}</span>
+                  </div>
+                  {hunterTestResult.available_searches !== undefined && (
+                    <span className="font-semibold">{hunterTestResult.available_searches} monthly searches remaining</span>
+                  )}
+                </div>
+              )}
+
+              {/* Developer Step-by-Step Setup Guide */}
+              <div className="rounded bg-[#111214] border border-[#24272D] p-3.5 flex flex-col gap-2.5 text-[12px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-[#D8E7A2]">
+                    How to Get Your Free Hunter.io API Key (25 Free Searches / Month)
+                  </span>
+                  <a
+                    href="https://hunter.io/users/sign_up"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[#91B7D8] hover:underline flex items-center gap-1 font-mono"
+                  >
+                    <span>Sign up at hunter.io</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-[#A0A5AD]">
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">1. Free Sign-Up</strong>
+                    Register at <a href="https://hunter.io/users/sign_up" target="_blank" rel="noopener noreferrer" className="text-[#91B7D8] underline">hunter.io</a> using any business or personal email. No credit card required.
+                  </div>
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">2. Copy API Key</strong>
+                    In your Hunter dashboard, click <strong className="text-[#F3F4F6]">API</strong> in the top menu and copy your private key.
+                  </div>
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">3. Paste &amp; Save</strong>
+                    Paste the key above and click "Save Key", or add <code className="text-[#D8E7A2]">HUNTER_API_KEY="..."</code> to your local <code className="text-[#F3F4F6]">.env</code> file.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Provider 3: Google Places API (New) */}
+            <div className={`rounded border p-5 flex flex-col gap-4 ${
+              enrichmentStatus?.google_places?.is_configured
+                ? 'bg-[#17191C] border-[#3E4929]'
+                : 'bg-[#141618] border-[#2B2F36]'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#24272D] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
+                    enrichmentStatus?.google_places?.is_configured
+                      ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                      : 'bg-[#1D2024] border-[#30343A] text-[#727780]'
+                  }`}>
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                        Google Places API Gateway (Places API New)
+                      </h3>
+                      {enrichmentStatus?.google_places?.is_configured && (
+                        <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Configured
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-[#727780] mt-0.5">
+                      Queries Google Maps Business Profiles to discover verified local phone numbers, official websites, operating hours, and customer reviews.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isTestingPlaces}
+                    onClick={handleTestPlaces}
+                    leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                  >
+                    Test Connection
+                  </Button>
+                </div>
+              </div>
+
+              {/* API Key Input Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#111214] p-3 rounded border border-[#24272D]">
+                <div className="flex items-center gap-2 text-[12px]">
+                  <Key className="w-4 h-4 text-[#D8E7A2]" />
+                  <span className="text-[#A0A5AD] font-medium">API Key:</span>
+                  {enrichmentStatus?.google_places?.masked_key ? (
+                    <span className="font-mono text-[#F3F4F6] bg-[#1A1C20] px-2 py-0.5 rounded border border-[#30343A] text-[11px]">
+                      {enrichmentStatus.google_places.masked_key}
+                    </span>
+                  ) : (
+                    <span className="text-[#727780] italic text-[11px]">Not configured</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-1 sm:max-w-md">
+                  <div className="relative flex-1">
+                    <input
+                      type={showPlacesKey ? 'text' : 'password'}
+                      value={placesKey}
+                      onChange={(e) => setPlacesKey(e.target.value)}
+                      placeholder="Insert Google Places API key (AIza...)"
+                      className="w-full bg-[#17191C] border border-[#2B2F36] rounded px-3 py-1.5 text-[12px] font-mono text-[#F3F4F6] focus:outline-none focus:border-[#D8E7A2] pr-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPlacesKey(!showPlacesKey)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#727780] hover:text-[#F3F4F6]"
+                    >
+                      {showPlacesKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isSavingPlaces}
+                    onClick={handleSavePlacesKey}
+                    leftIcon={<Save className="w-3.5 h-3.5" />}
+                    disabled={!placesKey.trim()}
+                  >
+                    Save Key
+                  </Button>
+                </div>
+              </div>
+
+              {/* Places Test Result Banner */}
+              {placesTestResult && (
+                <div className={`p-2.5 rounded border text-[11px] font-mono flex items-center justify-between ${
+                  placesTestResult.success
+                    ? 'bg-[#18261F] border-[#253D30] text-[#80B89A]'
+                    : 'bg-[#2A1818] border-[#4A2626] text-[#D78383]'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {placesTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                    <span>{placesTestResult.message}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Developer Step-by-Step Setup Guide */}
+              <div className="rounded bg-[#111214] border border-[#24272D] p-3.5 flex flex-col gap-2.5 text-[12px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-[#D8E7A2]">
+                    How to Get Your Google Places API Key ($200 Free Monthly Credit)
+                  </span>
+                  <a
+                    href="https://console.cloud.google.com/apis/library/places.googleapis.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[#91B7D8] hover:underline flex items-center gap-1 font-mono"
+                  >
+                    <span>Google Cloud Console</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-[11px] text-[#A0A5AD]">
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">1. Open Cloud Console</strong>
+                    Visit <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-[#91B7D8] underline">console.cloud.google.com</a> and create or select your project.
+                  </div>
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">2. Enable Places API</strong>
+                    Go to <strong className="text-[#F3F4F6]">APIs &amp; Services &gt; Library</strong>, search for <strong className="text-[#D8E7A2]">Places API (New)</strong> and click Enable.
+                  </div>
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">3. Create Credentials</strong>
+                    Go to <strong className="text-[#F3F4F6]">Credentials &gt; Create Credentials &gt; API Key</strong>. Google grants $200 free monthly credit covering thousands of searches.
+                  </div>
+                  <div className="p-2 rounded bg-[#17191C] border border-[#262A30]">
+                    <strong className="text-[#F3F4F6] block mb-0.5">4. Save Locally</strong>
+                    Paste the key above and click Save Key, or write <code className="text-[#D8E7A2]">GOOGLE_PLACES_API_KEY="..."</code> to your <code className="text-[#F3F4F6]">.env</code>.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Section 5: Geographic Discovery Providers */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-[#D8B16C]" />

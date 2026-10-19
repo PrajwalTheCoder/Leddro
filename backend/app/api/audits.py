@@ -103,6 +103,13 @@ async def run_audit(payload: AuditRunRequest, db: Session = Depends(get_db)):
             prospect.website_status = "active" if audit_data.get("status") == "completed" else "unreachable"
             prospect.last_activity = "Audited just now"
 
+            # Auto-enrich prospect with verified contacts discovered on website
+            discovered_contacts = audit_data.get("discovered_contacts", {})
+            if not prospect.email and discovered_contacts.get("emails"):
+                prospect.email = discovered_contacts["emails"][0]
+            if not prospect.phone and discovered_contacts.get("phones"):
+                prospect.phone = discovered_contacts["phones"][0]
+
     try:
         db.commit()
         db.refresh(report_model)

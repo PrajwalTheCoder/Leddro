@@ -372,7 +372,7 @@ def test_prospect_with_no_website_and_no_email(client, db_session):
             assert res.status_code == 201
             data = res.json()
             assert data["prospectId"] == no_web_prospect.id
-            assert "contact@apexlocaltraders.com" in data["recipientEmail"]
+            assert data["recipientEmail"] == ""  # Solution A: never fabricate fake emails
             assert data["findingsReferenced"] == []
 
 def test_prompt_injection_containment(client, db_session):

@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     OSM_NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"
     OSM_USER_AGENT: str = "LeddroBusinessDiscovery/1.0 (+https://github.com/leddro/leddro; contact@leddro.local)"
     GOOGLE_PLACES_API_KEY: str = ""
+    HUNTER_API_KEY: str = ""
     DISCOVERY_MAX_RESULTS: int = 100
     DISCOVERY_DEFAULT_TIMEOUT: float = 25.0
     DISCOVERY_RATE_LIMIT_COOLDOWN: float = 1.0

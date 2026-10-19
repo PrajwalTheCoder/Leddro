@@ -483,14 +483,8 @@ class AIEmailDraftingService:
 
         overall_needs_review = structured.needs_manual_review or manual_review_flag
 
-        # 9. Format Recipient email & name
-        recipient_email = prospect.email
-        if not recipient_email and prospect.website_url:
-            clean_domain = prospect.website_url.replace("https://", "").replace("http://", "").split("/")[0]
-            recipient_email = f"contact@{clean_domain}"
-        if not recipient_email:
-            recipient_email = f"contact@{prospect.name.lower().replace(' ', '')}.com"
-
+        # 9. Format Recipient email & name (Strict integrity: never fabricate fake addresses)
+        recipient_email = (prospect.email or "").strip()
         recipient_name = f"{prospect.name} Team"
 
         # 10. Persist Draft to SQLite

@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 from backend.app.core.config import settings
 from backend.app.services.ssrf_validator import validate_target_url
+from backend.app.services.email_scraper import extract_contacts_from_html, verify_email_mx
 
 class AuditEngine:
     """
@@ -70,9 +71,32 @@ class AuditEngine:
         # 5. HTML Content Inspection (if body retrieved)
         html_findings = []
         html_content = http_data.get("body", "")
+        discovered_contacts = {"emails": [], "phones": []}
         if html_content:
             html_findings = self._inspect_html(html_content, http_data.get("final_url", normalized_url))
             findings.extend(html_findings)
+
+            # 5.1 Extract Public Contact Info (Emails and Phone numbers)
+            raw_contacts = extract_contacts_from_html(html_content, http_data.get("final_url", normalized_url))
+            verified_emails = [em for em in raw_contacts.get("emails", []) if verify_email_mx(em)]
+            discovered_contacts = {
+                "emails": verified_emails,
+                "phones": raw_contacts.get("phones", [])
+            }
+            if verified_emails:
+                findings.append({
+                    "id": f"f-contact-email-{int(time.time()*1000)}",
+                    "title": f"Public business email verified: {verified_emails[0]}",
+                    "severity": "info",
+                    "check_status": "PASS",
+                    "observed": f"Discovered verified public business email '{verified_emails[0]}' with active MX routing.",
+                    "evidence": f"Found on: {http_data.get('final_url', normalized_url)}\nStatus: MX Records Active\nAll candidates: {', '.join(verified_emails[:3])}",
+                    "why_it_matters": "Authentic public email enables high-deliverability technical correspondence without guessing.",
+                    "recommended_action": "Target verified business email for technical audit briefing.",
+                    "confidence": 1.0,
+                    "category": "reachability",
+                    "checked_url": http_data.get("final_url", normalized_url)
+                })
 
         # 6. Calculate Opportunity Score (Higher technical deficits = higher outreach opportunity score)
         high_count = sum(1 for f in findings if f["severity"] == "high")
@@ -106,7 +130,8 @@ class AuditEngine:
                 "pageSizeKb": round(len(html_content.encode("utf-8")) / 1024, 1),
                 "mobileViewportPresent": http_data.get("viewport_present", False)
             },
-            "headers": http_data.get("headers", {})
+            "headers": http_data.get("headers", {}),
+            "discovered_contacts": discovered_contacts
         }
 
     def _inspect_dns(self, domain: str) -> Dict[str, Any]:

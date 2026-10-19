@@ -17,7 +17,11 @@ import {
   RefreshCw,
   Plus,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Phone,
+  MessageSquare,
+  Globe,
+  Search
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -126,6 +130,81 @@ export const Drafts: React.FC = () => {
       addToast('Draft marked as Approved. You can now authorize sending via Gmail.', 'success');
     } else {
       addToast('Draft reverted to Draft status.', 'info');
+    }
+  };
+
+  // Contact Enrichment & Real Phone Handlers
+  const [isExtractingContacts, setIsExtractingContacts] = useState(false);
+  const [enrichmentSource, setEnrichmentSource] = useState<string | null>(null);
+
+  const realPhone = associatedProspect?.phone?.trim() || null;
+  const telLink = realPhone ? `tel:${realPhone.replace(/[^0-9+]/g, '')}` : null;
+  const waDigits = realPhone ? realPhone.replace(/[^0-9]/g, '') : null;
+  const waLink = waDigits ? `https://wa.me/${waDigits}` : null;
+  const suggestedDomain = associatedProspect?.websiteUrl
+    ? associatedProspect.websiteUrl.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase()
+    : null;
+  const waPitchLink = waDigits
+    ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi ${associatedProspect?.name || 'there'},\n\n${subject}\n\n${body}`)}`
+    : waLink;
+
+  const handleExtractFromWebsite = async () => {
+    if (!associatedProspect?.websiteUrl) {
+      addToast('No website URL listed for this prospect.', 'error');
+      return;
+    }
+    setIsExtractingContacts(true);
+    try {
+      const res = await fetch('/api/enrichment/scrape-website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: associatedProspect.websiteUrl,
+          prospect_id: associatedProspect.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Website scraping failed');
+
+      if (data.primary_email) {
+        setRecipient(data.primary_email);
+        setEnrichmentSource('website_scraper');
+        addToast(`Found authentic verified email: ${data.primary_email}`, 'success');
+        await refreshDrafts();
+      } else {
+        addToast(`Crawled ${associatedProspect.websiteUrl} but found no email with active MX records.`, 'info');
+      }
+    } catch (err: any) {
+      addToast(`Website scraper error: ${err.message}`, 'error');
+    } finally {
+      setIsExtractingContacts(false);
+    }
+  };
+
+  const handleFindViaHunter = async () => {
+    if (!associatedProspect?.id) return;
+    setIsExtractingContacts(true);
+    try {
+      const res = await fetch('/api/enrichment/find-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospect_id: associatedProspect.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Contact lookup failed');
+
+      if (data.success && data.email) {
+        setRecipient(data.email);
+        setEnrichmentSource(data.source);
+        addToast(`Found verified email via ${data.source}: ${data.email}`, 'success');
+        await refreshDrafts();
+      } else {
+        addToast(data.message || 'No verified email found.', 'info');
+      }
+    } catch (err: any) {
+      addToast(`Enrichment error: ${err.message}`, 'error');
+    } finally {
+      setIsExtractingContacts(false);
     }
   };
 
@@ -464,15 +543,127 @@ export const Drafts: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
               {/* Recipient */}
-              <div className="flex items-center gap-3 border-b border-[#24272D] pb-3">
-                <label className="w-20 text-[12px] font-medium text-[#727780]">Recipient:</label>
-                <input
-                  type="email"
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="contact@business.in"
-                  className="flex-1 bg-transparent text-[13px] font-mono text-[#F3F4F6] outline-none"
-                />
+              <div className="flex flex-col gap-2 border-b border-[#24272D] pb-3">
+                <div className="flex items-center gap-3">
+                  <label className="w-20 text-[12px] font-medium text-[#727780]">Recipient:</label>
+                  <input
+                    type="email"
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    placeholder="Enter verified business email (e.g. info@domain.com)"
+                    className="flex-1 bg-transparent text-[13px] font-mono text-[#F3F4F6] outline-none placeholder:text-[#4A505C]"
+                  />
+                  {recipient.trim() ? (
+                    <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3 h-3" /> Ready
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[10px] bg-[#2A2417] text-[#D8B16C] border border-[#4A3D22] px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                      <AlertTriangle className="w-3 h-3" /> Unverified / Missing
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick suggestions if domain is available and recipient is empty */}
+                {suggestedDomain && !recipient.trim() && (
+                  <div className="flex items-center gap-2 text-[11px] text-[#727780] pl-23 flex-wrap">
+                    <span>Quick fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => setRecipient(`info@${suggestedDomain}`)}
+                      className="font-mono text-[10px] text-[#91B7D8] hover:text-[#F3F4F6] bg-[#171E28] hover:bg-[#202936] border border-[#2B3A4F] px-2 py-0.5 rounded transition-colors"
+                      title={`Fill with info@${suggestedDomain}`}
+                    >
+                      + info@{suggestedDomain}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRecipient(`contact@${suggestedDomain}`)}
+                      className="font-mono text-[10px] text-[#91B7D8] hover:text-[#F3F4F6] bg-[#171E28] hover:bg-[#202936] border border-[#2B3A4F] px-2 py-0.5 rounded transition-colors"
+                      title={`Fill with contact@${suggestedDomain}`}
+                    >
+                      + contact@{suggestedDomain}
+                    </button>
+                  </div>
+                )}
+
+                {/* Solution A: Compact Integrity Callout & Real Phone Actions when recipient is empty */}
+                {!recipient.trim() && (
+                  <div className="mt-1 p-3 rounded-lg bg-[#211B10] border border-[#4A3816] flex flex-col md:flex-row md:items-center justify-between gap-3 text-[12px]">
+                    <div className="flex items-start md:items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 md:mt-0 text-[#D8B16C]" />
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <strong className="text-[#F5CF87] font-medium text-[12px]">
+                            No verified email on file for {associatedProspect?.name || 'this prospect'}
+                          </strong>
+                          {realPhone && (
+                            <span className="text-[11px] text-[#A0A5AD] font-mono">
+                              · Phone: <strong className="text-[#F3F4F6]">{realPhone}</strong>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#C2A36B]">
+                          Reach out directly via phone or WhatsApp, enter email above, or run automated crawlers:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      {realPhone && (
+                        <>
+                          {telLink && (
+                            <a
+                              href={telLink}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#1D2530] text-[#91B7D8] hover:bg-[#253242] border border-[#2B3A4F] text-[11px] font-mono transition-colors"
+                              title="Call business phone"
+                            >
+                              <Phone className="w-3 h-3" />
+                              <span>Call</span>
+                            </a>
+                          )}
+                          {waPitchLink && (
+                            <a
+                              href={waPitchLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#1F3329] border border-[#253D30] text-[11px] font-mono transition-colors"
+                              title="Open WhatsApp chat with prefilled audit letter"
+                            >
+                              <MessageSquare className="w-3 h-3" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+                        </>
+                      )}
+
+                      {associatedProspect?.websiteUrl && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          isLoading={isExtractingContacts}
+                          onClick={handleExtractFromWebsite}
+                          leftIcon={<Globe className="w-3.5 h-3.5 text-[#91B7D8]" />}
+                          title={`Crawl ${associatedProspect.websiteUrl} for published emails`}
+                        >
+                          Scrape
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        isLoading={isExtractingContacts}
+                        onClick={handleFindViaHunter}
+                        leftIcon={<Search className="w-3.5 h-3.5 text-[#D8E7A2]" />}
+                        title="Search corporate email directory via Hunter.io"
+                      >
+                        Hunter.io
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Subject */}
@@ -507,7 +698,7 @@ export const Drafts: React.FC = () => {
 
               {/* Email Body */}
               {isPreviewMode ? (
-                <div className="flex-1 p-4 rounded bg-[#111214] border border-[#24272D] text-[13px] text-[#D6D9E0] whitespace-pre-wrap font-sans leading-relaxed min-h-[300px]">
+                <div className="w-full min-h-[340px] p-4 rounded-lg bg-[#111214] border border-[#24272D] text-[13px] text-[#D6D9E0] whitespace-pre-wrap font-sans leading-relaxed overflow-y-auto">
                   {body}
                 </div>
               ) : (
@@ -515,7 +706,8 @@ export const Drafts: React.FC = () => {
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={15}
-                  className="flex-1 w-full bg-[#111214] border border-[#24272D] rounded p-4 text-[13px] text-[#F3F4F6] font-sans leading-relaxed resize-none focus:border-[#3E4550] outline-none"
+                  className="w-full min-h-[340px] bg-[#111214] border border-[#24272D] rounded-lg p-4 text-[13px] text-[#F3F4F6] font-sans leading-relaxed focus:border-[#3E4550] outline-none overflow-y-auto resize-y"
+                  placeholder="Compose outreach message..."
                 />
               )}
 
@@ -561,8 +753,44 @@ export const Drafts: React.FC = () => {
                 <div className="text-[12px] text-[#727780]">
                   {associatedProspect.category} · {associatedProspect.location.city}
                 </div>
-                <div className="text-[11px] font-mono text-[#91B7D8]">
-                  {associatedProspect.websiteUrl || 'No domain listed'}
+                <div className="text-[11px] font-mono text-[#91B7D8] flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-[#727780]" />
+                  <span>{associatedProspect.websiteUrl || 'No domain listed'}</span>
+                </div>
+
+                {/* Direct Verified Phone Actions */}
+                <div className="pt-2 border-t border-[#24272D] flex flex-col gap-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#727780] flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-[#A0A5AD]" />
+                      <span>Phone:</span>
+                    </span>
+                    {associatedProspect.phone ? (
+                      <span className="font-mono text-[#F3F4F6] font-medium">{associatedProspect.phone}</span>
+                    ) : (
+                      <span className="text-[#727780] italic">Not on file</span>
+                    )}
+                  </div>
+                  {associatedProspect.phone && (
+                    <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                      <a
+                        href={`tel:${associatedProspect.phone.replace(/[^0-9+]/g, '')}`}
+                        className="px-2 py-0.5 rounded bg-[#1D2530] text-[#91B7D8] hover:bg-[#253242] border border-[#2B3A4F] text-[10px] font-mono transition-colors"
+                        title="Call business phone"
+                      >
+                        Call
+                      </a>
+                      <a
+                        href={`https://wa.me/${associatedProspect.phone.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-0.5 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#1F3329] border border-[#253D30] text-[10px] font-mono transition-colors"
+                        title="Chat on WhatsApp"
+                      >
+                        WhatsApp
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

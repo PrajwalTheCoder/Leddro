@@ -100,49 +100,80 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load prospects from localStorage or mock
+  // Load prospects from localStorage or empty (filter out old sample seeds)
   const [prospects, setProspects] = useState<Prospect[]>(() => {
     const saved = localStorage.getItem('leddro_prospects');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((p: any) => !p.id?.startsWith('pr-') && !p.websiteUrl?.includes('apexprecisiontech.com'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return INITIAL_PROSPECTS;
+    return [];
   });
 
-  const [selectedProspectId, setSelectedProspectId] = useState<string | null>('pr-1');
+  const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
   
   const [auditReports, setAuditReports] = useState<Record<string, AuditReport>>(() => {
     const saved = localStorage.getItem('leddro_audits');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          const clean: Record<string, AuditReport> = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            if (!k.startsWith('audit-') && !(v as any).prospectId?.startsWith('pr-')) {
+              clean[k] = v as AuditReport;
+            }
+          }
+          return clean;
+        }
+      } catch (e) { /* ignore */ }
     }
-    return MOCK_AUDIT_REPORTS;
+    return {};
   });
 
   const [emailDrafts, setEmailDrafts] = useState<EmailDraft[]>(() => {
     const saved = localStorage.getItem('leddro_drafts');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((d: any) => !d.id?.startsWith('draft-') && !d.prospectId?.startsWith('pr-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return INITIAL_EMAIL_DRAFTS;
+    return [];
   });
 
-  const [activeDraftId, setActiveDraftId] = useState<string | null>('draft-1');
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
 
   const [emailHistory, setEmailHistory] = useState<EmailHistoryItem[]>(() => {
     const saved = localStorage.getItem('leddro_history');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((h: any) => !h.prospectId?.startsWith('pr-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return INITIAL_EMAIL_HISTORY;
+    return [];
   });
 
   const [activities, setActivities] = useState<ActivityItem[]>(() => {
     const saved = localStorage.getItem('leddro_activities');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((a: any) => !a.prospectId?.startsWith('pr-'));
+        }
+      } catch (e) { /* ignore */ }
     }
-    return INITIAL_ACTIVITIES;
+    return [];
   });
 
   const [integrations, setIntegrations] = useState<IntegrationConfig>(() => {
@@ -290,8 +321,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetch('/api/prospects')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
-            if (data && Array.isArray(data) && data.length > 0) {
-              setProspects(data);
+            if (data && Array.isArray(data)) {
+              const realProspects = data.filter((p: any) => !p.id?.startsWith('pr-') && !p.websiteUrl?.includes('apexprecisiontech.com'));
+              setProspects(realProspects);
+              setSelectedProspectId((prev) => {
+                if (prev && realProspects.some((p: any) => p.id === prev)) return prev;
+                return realProspects.length > 0 ? realProspects[0].id : null;
+              });
             }
           })
           .catch(() => {});
@@ -300,14 +336,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetch('/api/audits')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
-            if (data && Array.isArray(data) && data.length > 0) {
-              setAuditReports((prev) => {
-                const merged = { ...prev };
-                for (const r of data) {
-                  merged[r.id] = r;
+            if (data && Array.isArray(data)) {
+              const map: Record<string, AuditReport> = {};
+              for (const r of data) {
+                if (!r.id?.startsWith('audit-') && !r.prospectId?.startsWith('pr-')) {
+                  map[r.id] = r;
                 }
-                return merged;
-              });
+              }
+              setAuditReports(map);
             }
           })
           .catch(() => {});
@@ -316,8 +352,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetch('/api/drafts')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
-            if (data && Array.isArray(data) && data.length > 0) {
-              setEmailDrafts(data);
+            if (data && Array.isArray(data)) {
+              const realDrafts = data.filter((d: any) => !d.id?.startsWith('draft-') && !d.prospectId?.startsWith('pr-'));
+              setEmailDrafts(realDrafts);
+              setActiveDraftId((prev) => {
+                if (prev && realDrafts.some((d: any) => d.id === prev)) return prev;
+                return realDrafts.length > 0 ? realDrafts[0].id : null;
+              });
             }
           })
           .catch(() => {});
