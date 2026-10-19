@@ -52,6 +52,9 @@ jobs:
       - name: Run TypeScript typecheck
         run: npx tsc --noEmit
 
+      - name: Run frontend linter
+        run: npm run lint
+
       - name: Build frontend production bundle
         run: npm run build
 

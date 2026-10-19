@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-10-19 - Phase 8: Prospect Intelligence, Audit Comparison & Release Hardening
+
+### Added
+- **Explainable Prospect Opportunity Scoring (Phase 8.2)**: Deterministic, pure calculation engine (`prospect_scoring.py`) separating opportunity score [0-100], data confidence score [0-100], contact readiness, and audit recency decay. Interactive explanation modal (`ProspectScoringModal.tsx`) with transparent factor breakdowns and traceable evidence.
+- **Website Audit Comparison & Change Detection (Phase 8.3 & 8.3.1)**: Deterministic comparison engine (`audit_comparison.py`) classifying website findings into `RESOLVED`, `NEW`, `PERSISTENT`, or `INCONCLUSIVE` states without external AI dependencies. Interactive comparison workspace (`AuditComparisonModal.tsx`) with telemetry delta metrics and cross-domain protection.
+- **Direct Gmail SMTP & App Password Gateway (Phase 8.5)**: Instant email dispatch with zero Google Cloud Console configuration using standard TLS and 16-character Google App Passwords. Includes backend connection testing and status reporting.
+- **Uncertain Delivery State & Retry Protection**: Network timeouts during dispatch now durably mark send attempts as `uncertain` instead of failed, blocking duplicate retries and safeguarding client relationships.
+- **Database Reliability & Cascade Safeguards (Phase 8.4)**: Enforced SQLite `PRAGMA foreign_keys=ON` on all connections. Clean prospect deletion logic nulls associated audit report references (preserving audit history) and disassociates email history while cascading draft deletion.
+- **CSV Intra-Batch Deduplication**: Extended CSV preview and commit pipelines to reject duplicates within the same batch while preserving multi-location records across generic hosts.
+- **Unified Dev Launcher (`run_dev.py`)**: One-command development runner (`npm run dev:all`) that checks port conflicts, auto-detects virtual environments, multiplexes color-coded logs, and ensures graceful termination of both FastAPI and Vite.
+
+### Security & Hardening
+- **Header Injection Defense at API Boundary**: Unified recipient, subject, and body validation at the top of the dispatch handler to strictly reject CRLF (`\r`, `\n`) and null bytes prior to account or draft evaluation.
+- **Atomic File Persistence**: Replaced direct `.env` updates with temporary file writing and atomic `os.replace` to prevent corrupted environment configuration.
+- **Clean-Install Independence**: Verified that the entire backend test suite (190 tests) and production build succeed in a fresh environment without pre-configured secrets or third-party accounts.
+
+---
+
 ## [1.0.0] - 2026-10-18 - Phase 7: Production Readiness & Open-Source Release
 
 ### Added

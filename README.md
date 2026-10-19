@@ -20,6 +20,7 @@ Unlike conventional mass-scraping or generic email blast tools, Leddro anchors e
 - [What Is Leddro?](#what-is-leddro)
 - [Why Leddro?](#why-leddro)
 - [Features](#features)
+- [Website Audit Comparison & Change Detection](#website-audit-comparison--change-detection)
 - [Screenshots & Interface Tour](#screenshots--interface-tour)
 - [System Requirements](#system-requirements)
 - [Installation: Quick Start](#installation-quick-start)
@@ -87,7 +88,38 @@ Traditional B2B outreach tools rely on generic scraped email lists, automated co
 - **OpenStreetMap Integration**: Query real local businesses using Overpass API and Nominatim geocoding with zero API keys required.
 - **CSV Batch Import**: Import existing CSV prospect datasets with automatic column mapping, duplicate detection, and formula injection defenses.
 - **Manual Additions**: Add targeted individual prospects with instant domain normalization.
-- **Opportunity Scoring**: Automatically prioritize prospects based on technical urgency, commercial intent, and resolution ease.
+- **Deterministic Deduplication**: Cross-references provider source record IDs, registered website domains (ignoring protocol/www), and normalized business names + locality to avoid duplicate prospecting records.
+- **Explainable Scoring Engine (v1.0)**: Transparent, deterministic 0–100 opportunity score and separate 0–100 data confidence score backed by verified audit findings and metadata completeness.
+
+### 📊 Prospect Intelligence & Explainable Scoring (v1.0)
+
+Leddro provides an explainable, deterministic heuristic to prioritize prospects based on verified technical need. Every score is directly traceable to observed website issues and discovery metadata.
+
+> [!NOTE]
+> **What the Opportunity Score Means**: A transparent 0–100 heuristic ranking prospects based on observable technical deficiencies (such as DNS errors, server failures, missing HTTPS, or security headers). Higher scores indicate stronger technical room for improvement.
+>
+> **What It Does NOT Mean**: It does **NOT** predict whether a business will buy, convert, or reply. It is not an opaque machine learning probability score.
+
+#### Four Decoupled Dimensions
+1. **Opportunity Score (0–100)**: Heuristic of technical need / room for improvement based on observed website evidence.
+2. **Data Confidence (0–100)**: Measure of how complete, fresh, and reliable the diagnostic evidence is.
+3. **Audit Severity**: Exact count of high, medium, low, and informational findings from real audit probes.
+4. **Contact Readiness**: Verification state of communication channels (`verified`, `unverified`, `absent`, `unknown`).
+
+#### Scoring Factors and Weights (Sum: 100 Points)
+
+| Factor | Max Pts | Contribution Rules |
+| :--- | :--- | :--- |
+| **1. Website Accessibility** | 25 pts | • DNS resolution failure (NXDOMAIN / missing A records): +25 pts<br>• Confirmed HTTP server error (4xx/5xx): +20 pts<br>• No website registered: +15 pts (potential opportunity for web presence creation)<br>• Confirmed reachable (HTTP 200/3xx): +0 pts<br>• Audit diagnostic error / network timeout: +0 pts (marked inconclusive; lowers confidence) |
+| **2. Technical Findings & Severity** | 55 pts | • High-severity findings: +15 pts each (capped at 35 pts)<br>• Medium-severity findings: +5 pts each (capped at 20 pts)<br>• Low-severity findings: +1 pt each (capped at 5 pts)<br>• Informational notices: +0 pts<br>• Duplicate findings sharing the same category and title are deduplicated automatically |
+| **3. HTTPS & Transport Security** | 20 pts | • Invalid, expired, or untrusted certificate: +20 pts<br>• HTTP-only website with no HTTPS: +15 pts<br>• Valid TLS certificate (v1.2/v1.3): +0 pts<br>• Unchecked or diagnostic connection failure: +0 pts (marked unconfirmed) |
+| **4. Contact Readiness & Completeness** | 0 pts | • Direct contact and business profile status are tracked separately and **never inflate the Opportunity Score**.<br>• Unverified contact or incomplete profile details penalize Data Confidence (-8 to -15 pts) and populate explicit limitations. |
+
+#### Evidence Quality, Recency & Diagnostic Failures
+- **Diagnostic Failures**: An audit that fails due to a network timeout or runner connection error is **never** penalized as a website defect. The factor is marked `check_failed` (nature: `failed_diagnostic`) and data confidence is reduced.
+- **Audit Recency Decay**: Audits older than 30 days decay confidence (-15 pts), and audits older than 90 days decay confidence further (-30 pts). Stale audits do **not** artificially inflate opportunity score.
+- **Contact Verification**: Contact addresses in the database are labeled `unverified` unless explicitly verified. Leddro does not perform unsolicited SMTP handshakes or test sends to verify contacts.
+- **Traceability**: Every displayed evidence item links directly to an authentic stored audit finding ID and recorded HTTP/DNS evidence.
 
 ### 🛡️ Website Auditing & Telemetry
 - **DNS Zone Inspection**: Query A, AAAA, MX, and NS records with millisecond resolution timing.
@@ -95,6 +127,46 @@ Traditional B2B outreach tools rely on generic scraped email lists, automated co
 - **HTTP Reachability & TTFB**: Measure raw socket connect latency, Time To First Byte (TTFB), status codes (200, 301, 404, 503), and server headers.
 - **HTML DOM Diagnostics**: Detect responsive mobile viewport declarations, `<title>` tags, meta descriptions, and OpenGraph snippet cards.
 - **SSRF Network Security**: Outbound audit crawlers strictly block loopback (`127.0.0.1`), private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud metadata IP endpoints (`169.254.169.254`).
+
+### 🔄 Website Audit Comparison & Change Detection (Phase 8.3)
+
+Leddro provides a deterministic, evidence-based before/after comparison service allowing operators to evaluate changes between two audits of the same website.
+
+> [!IMPORTANT]
+> **Resolution Rule**: A missing finding in a newer audit does **NOT** automatically mean an issue was fixed. Leddro requires explicit positive proof of a passing check to classify any issue as resolved.
+
+#### 1. The Four Finding Classifications
+
+| Classification | Meaning | Rule & Evidence Requirement |
+| :--- | :--- | :--- |
+| **RESOLVED** | Issue confirmed fixed | A finding was confirmed in the older audit, and the newer audit provides positive evidence that the relevant check completed successfully and passed. |
+| **NEW** | Newly detected issue | An issue was not present in the older audit, and the newer audit confirms a new defect with evidence. The older check must have run successfully or baseline evidence must be complete. |
+| **PERSISTENT** | Issue confirmed in both | The same underlying defect is confirmed in both audits with ongoing evidence. |
+| **INCONCLUSIVE** | Evidence insufficient | Evidence cannot establish whether an issue was fixed, appeared, or persisted. Occurs if the newer audit failed, timed out, skipped the check, or omitted the finding without pass evidence. |
+
+#### 2. Technical Telemetry Comparison
+
+Leddro compares raw observations only when both sides contain valid, comparable values:
+- **HTTP Response Latency (TTFB)**: Measures latency delta (ms) and percentage change without division-by-zero errors.
+- **Document Processing Time**: Evaluates DOM ready/crawl latency changes.
+- **HTML Document Payload Size**: Tracks document weight differences in KB.
+- **Mobile Responsive Viewport**: Compares before/after presence of mobile viewport declarations.
+- **DNS Resolution Time**: Evaluates DNS query latency deltas.
+- **TLS Certificate Validity & Expiration**: Distinguishes valid, invalid, expired, and renewed certificates.
+- **TLS Protocol Version**: Evaluates protocol version upgrades/downgrades categorically (TLSv1.3 > TLSv1.2 > TLSv1.1) rather than treating versions as continuous numbers.
+- **HTTP Response Status**: Evaluates HTTP status transitions semantically (e.g. 500 -> 200 is an improvement, not a negative arithmetic difference of -300).
+
+#### 3. Reliability and Execution Status
+- **Both Completed**: Full comparison with high confidence across all completed checks.
+- **Partial / Newer Failed**: Disappeared findings are retained as inconclusive rather than falsely declared resolved.
+- **Cross-Website Guard**: Comparisons are strictly enforced against identical prospect records or canonical website domain identities (`extract_registered_domain`). Accidental comparisons across different websites are rejected.
+
+#### 4. How to Compare Audits in the UI
+1. Open the **Audits** workspace from the sidebar or click **Compare** in any Prospect Detail modal.
+2. Select an **Older Audit (Before)** and **Newer Audit (After)** for the selected prospect.
+3. Review the high-level summary cards (Resolved, New, Persistent, Inconclusive).
+4. Inspect the **Technical Telemetry** table for directional deltas.
+5. Review each classified finding with older and newer evidence snippets and deterministic decision rationale.
 
 ### 🤖 Evidence-Aware AI Drafting
 - **Multi-Provider Architecture**: Use Google Gemini (free tier via Google AI Studio), OpenAI, Anthropic Claude, or local Ollama with zero code changes.
@@ -237,13 +309,45 @@ npm install
 
 ## Running the Application
 
-Leddro consists of two processes running concurrently: the **FastAPI backend** on port `8000` and the **Vite dev server** on port `5173`.
+### Method 1: One-Command Development Launcher (Recommended)
 
-### Terminal 1: Start Backend API
+Run both the FastAPI backend and Vite frontend together in a single terminal with automated port checks and multiplexed logs:
+
+```bash
+npm run dev:all
+# or directly with Python:
+python run_dev.py
+```
+
+*Expected output:*
+```
+=== Leddro Development Workspace Launcher ===
+
+[launcher] Starting FastAPI Backend on http://127.0.0.1:8000...
+[launcher] Starting Vite Frontend on http://localhost:5173...
+
+[OK] Both services launched successfully!
+  * Frontend:  http://localhost:5173
+  * API Docs:  http://127.0.0.1:8000/docs
+  * Health:    http://127.0.0.1:8000/api/health
+
+Press CTRL+C at any time to cleanly stop both services.
+
+[backend]  INFO: Uvicorn running on http://127.0.0.1:8000
+[frontend] VITE v8.3.4  ready in 450 ms
+```
+
+---
+
+### Method 2: Run in Separate Terminals (Troubleshooting Fallback)
+
+If you prefer separate processes or are debugging a specific service:
+
+#### Terminal 1: Start Backend API
 
 Activate your virtual environment and launch Uvicorn:
 
-#### Windows PowerShell:
+##### Windows PowerShell:
 ```powershell
 .\.venv\Scripts\Activate.ps1
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
@@ -356,11 +460,32 @@ Leddro supports 4 interchangeable AI providers. You only need to configure **one
 
 ---
 
-## Google OAuth & Gmail Setup (Optional)
+## Email Integration & Sending (Optional)
 
-> **Advanced & Optional**: You can use discovery, auditing, and AI drafting without configuring Google OAuth. Only configure Gmail if you intend to send real individual consultation emails directly from the app.
+> **Optional**: You can use discovery, auditing, and AI drafting without setting up email dispatch. Configure an email option only if you intend to send real individual consultation emails directly from the app.
 
-### 11-Step Setup Guide
+### Option A: Google App Password / SMTP (Instant & Recommended)
+
+This is the fastest, completely free way to send emails with **zero Google Cloud Console configuration**:
+
+1. Go to your Google Account security settings: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+2. Type an App name (e.g., `Leddro`) and click **Create**.
+3. Google generates a 16-character password (e.g., `abcd efgh ijkl mnop`).
+4. Add to your `.env` file:
+   ```env
+   SMTP_HOST="smtp.gmail.com"
+   SMTP_PORT=587
+   SMTP_USER="your_email@gmail.com"
+   SMTP_PASSWORD="your_16_char_app_password"
+   SMTP_USE_TLS=True
+   ```
+5. Restart your backend (`npm run dev:all`). You can now send emails directly!
+
+---
+
+### Option B: Google Cloud OAuth 2.0 (Advanced)
+
+If you prefer OAuth 2.0 token authorization through Google Cloud:
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com).
 2. Create a new project (e.g., `leddro-local-outreach`).
@@ -417,20 +542,23 @@ By default, Leddro creates and maintains an SQLite database file at `leddro.db` 
 ### Atomic Backup & Recovery
 Leddro includes a native Python backup engine in [backend/app/core/backup.py](backend/app/core/backup.py) utilizing the atomic SQLite online backup API (`sqlite3_backup`). This ensures zero corrupted bytes even while background writes occur.
 
-#### Create a Backup:
-```powershell
-# Windows PowerShell:
-.\.venv\Scripts\python.exe -c "from backend.app.core.backup import backup_sqlite_database; print('Backup saved:', backup_sqlite_database())"
-
-# macOS / Linux:
-python3 -c "from backend.app.core.backup import backup_sqlite_database; print('Backup saved:', backup_sqlite_database())"
+#### One-Command Backup:
+```bash
+npm run backup
+# or via Python:
+python -m backend.app.core.backup --backup
 ```
-Backups are saved to the `backups/` directory with UTC timestamps (e.g., `backups/leddro_backup_20261018_120000.db`).
+Backups are validated using `PRAGMA integrity_check` and saved to `backups/` with UTC timestamps (e.g., `backups/leddro_backup_20261018_171431.db`).
+
+#### Verify a Backup:
+```bash
+python -m backend.app.core.backup --verify backups/your_backup_file.db
+```
 
 #### Restore from Backup:
-```powershell
-# Validates PRAGMA integrity_check and takes a safety snapshot before overwriting
-.\.venv\Scripts\python.exe -c "from pathlib import Path; from backend.app.core.backup import restore_sqlite_database; restore_sqlite_database(Path('backups/your_backup_file.db'))"
+```bash
+# Validates PRAGMA integrity_check and automatically takes a safety snapshot before overwriting
+python -m backend.app.core.backup --restore backups/your_backup_file.db
 ```
 
 ### Optional Neon Serverless PostgreSQL
@@ -496,8 +624,14 @@ npm install
 Leddro maintains a comprehensive automated test suite:
 
 ```bash
-# Run complete backend pytest suite (88 automated tests)
-pytest backend/tests/ -v
+# Run complete backend pytest suite (190 automated tests)
+.\.venv\Scripts\python.exe -m pytest backend/tests/ -v
+
+# Run audit comparison & change detection test suite specifically (21 tests)
+.\.venv\Scripts\python.exe -m pytest backend/tests/test_audit_comparison.py -v
+
+# Run prospect intelligence & scoring test suite specifically (23 tests)
+.\.venv\Scripts\python.exe -m pytest backend/tests/test_prospect_scoring.py -v
 
 # Run frontend TypeScript typecheck
 npx tsc --noEmit
@@ -510,10 +644,11 @@ npm run lint
 ```
 
 ### Test Coverage Highlights
+- `test_prospect_scoring.py`: Determinism, score bounds [0, 100], no-audit handling, diagnostic failure handling, HTTPS status distinctions, finding severity weighting, duplicate findings deduplication, audit recency decay, contact readiness verification, evidence traceability, and query performance (N+1 elimination).
 - `test_ai_drafting.py`: Fact-checking validation, prompt-injection defense, and fallback routing.
 - `test_audit_engine.py`: HTTP status codes, malformed HTML, and response timeouts.
 - `test_ssrf_validator.py`: Private IP blocking, cloud metadata blocks, and DNS rebinding prevention.
-- `test_google_oauth_and_email.py`: Token encryption, PKCE verification, and duplicate-send prevention.
+- `test_google_oauth_and_email.py`: Token encryption, PKCE verification, header injection protection, uncertain delivery states, and duplicate-send prevention.
 - `test_backup_and_recovery.py`: SQLite online backup, corruption recovery, and restoration.
 
 ---

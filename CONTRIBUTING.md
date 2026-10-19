@@ -43,17 +43,23 @@ Please treat everyone with respect and empathy. We are committed to providing a 
    ```bash
    cp .env.example .env
    ```
-   *Edit `.env` to configure your database (`sqlite:///./leddro.db` or Neon PostgreSQL URL) and optional AI providers.*
+   *Edit `.env` to configure your database (`sqlite:///./leddro.db` or PostgreSQL URL) and optional AI providers.*
 
 5. **Run the Application**:
-   - Backend:
+   - Single command (Backend + Frontend together):
      ```bash
-     uvicorn backend.app.main:app --port 8000 --reload
+     npm run dev:all
+     # Or: python run_dev.py
      ```
-   - Frontend:
-     ```bash
-     npm run dev
-     ```
+   - Or separate terminals:
+     - Backend:
+       ```bash
+       uvicorn backend.app.main:app --port 8000 --reload
+       ```
+     - Frontend:
+       ```bash
+       npm run dev
+       ```
 
 ---
 
@@ -65,12 +71,15 @@ Before submitting any Pull Request, ensure that all automated tests pass:
    ```bash
    pytest
    ```
-2. **Frontend Type Check & Build**:
+2. **Frontend Linter**:
    ```bash
-   npx tsc --noEmit
+   npm run lint
+   ```
+3. **Frontend Type Check & Build**:
+   ```bash
    npm run build
    ```
-3. **Secret Verification**:
+4. **Secret Verification**:
    Ensure no API keys, OAuth client secrets, or credentials are added to tracked files.
 
 ---
@@ -83,7 +92,7 @@ Before submitting any Pull Request, ensure that all automated tests pass:
   - Never log raw secrets, access tokens, or sensitive user payload data.
   - Maintain SSRF protections for all outbound HTTP requests.
 - **Frontend**:
-  - React 18, TypeScript, TailwindCSS.
+  - React 19, TypeScript, TailwindCSS.
   - Retain the established design aesthetic: dark charcoal surfaces, restrained lime accents, compact typography.
   - Avoid intrusive animations or unnecessary third-party heavy dependencies.
 
