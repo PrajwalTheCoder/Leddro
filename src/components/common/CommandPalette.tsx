@@ -219,8 +219,8 @@ export const CommandPalette: React.FC = () => {
             <span><kbd className="px-1.5 py-0.5 rounded bg-[#1D2024] border border-[#30343A] text-[#A0A5AD]">esc</kbd> close</span>
           </div>
           <div className="flex items-center gap-2">
-            <img src={logoImg} alt="Leddro Mark" className="w-3.5 h-3.5 object-contain" />
-            <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+            <img src={logoImg} alt="Leddro Mark" className="w-4 h-4 object-contain" />
+            <img src={nameLogoImg} alt="Leddro" className="h-4.5 w-auto object-contain" />
             <span className="font-mono text-[#D8E7A2]/80 text-[10px]">Query v2.4</span>
           </div>
         </div>

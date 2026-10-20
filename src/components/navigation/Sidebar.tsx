@@ -69,8 +69,8 @@ export const Sidebar: React.FC = () => {
               <img src={logoImg} alt="Leddro Intelligence" className="w-full h-full object-contain rounded-lg" />
             </div>
             {/* Tooltip */}
-            <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-2.5 py-1.5 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
-              <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+            <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
+              <img src={nameLogoImg} alt="Leddro" className="h-4.5 w-auto object-contain" />
               <span className="text-[11px] text-[#A0A5AD]">Intelligence (Home)</span>
             </div>
           </NavLink>

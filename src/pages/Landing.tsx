@@ -155,13 +155,13 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0A0D13]/80 border-b border-[#1E2330]">
         <div className="w-full max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#111214] border border-[#2B303C] flex items-center justify-center p-1.5 shadow-[0_0_15px_rgba(210,248,36,0.15)] group-hover:border-[#D2F824] transition-all">
+          <Link to="/" className="flex items-center gap-3.5 group">
+            <div className="w-11 h-11 rounded-xl bg-[#111214] border border-[#2B303C] flex items-center justify-center p-1.5 shadow-[0_0_15px_rgba(210,248,36,0.15)] group-hover:border-[#D2F824] transition-all">
               <img src={logoImg} alt="Leddro Mark" className="w-full h-full object-contain" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <img src={nameLogoImg} alt="Leddro" className="h-6 w-auto object-contain" />
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-2.5">
+                <img src={nameLogoImg} alt="Leddro" className="h-8 sm:h-9 w-auto object-contain" />
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C202B] text-[#D2F824] border border-[#2B303C]">
                   v1.0 MIT
                 </span>
@@ -211,9 +211,9 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       {/* HERO SECTION */}
       <section className="relative z-10 pt-20 pb-24 px-6 text-center w-full max-w-5xl mx-auto">
         {/* Open Source Pill Badge */}
-        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#141822] border border-[#262B38] shadow-inner mb-8 animate-fade-in">
-          <img src={logoImg} alt="Leddro Mark" className="w-4 h-4 object-contain" />
-          <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+        <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-[#141822] border border-[#262B38] shadow-inner mb-8 animate-fade-in">
+          <img src={logoImg} alt="Leddro Mark" className="w-5.5 h-5.5 object-contain" />
+          <img src={nameLogoImg} alt="Leddro" className="h-5 sm:h-5.5 w-auto object-contain" />
           <span className="text-xs text-[#8B949E]">|</span>
           <span className="text-xs font-mono text-[#D2F824] font-medium">
             100% Free &amp; Open-Source (MIT)
@@ -295,11 +295,13 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
           <span className="text-xs font-mono tracking-widest text-[#D2F824] uppercase font-bold">
             DEMO VIDEOS & WALKTHROUGH
           </span>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white mt-2">
-            Watch Leddro in Action
+          <h2 className="text-3xl sm:text-5xl font-extrabold text-white mt-3 flex items-center justify-center gap-3 sm:gap-4.5 flex-wrap">
+            <span>Watch</span>
+            <img src={nameLogoImg} alt="Leddro" className="h-9 sm:h-12 md:h-14 w-auto object-contain inline-block drop-shadow-[0_0_25px_rgba(210,248,36,0.25)]" />
+            <span>in Action</span>
           </h2>
           <p className="text-sm text-[#8B949E] max-w-2xl mx-auto mt-3">
-            See how Leddro extracts technical website defects, maps relationship graphs, and compiles evidence-based cold emails with zero hallucinations.
+            See how <img src={nameLogoImg} alt="Leddro" className="h-4 sm:h-4.5 w-auto object-contain inline-block align-middle mx-1.5 -mt-0.5" /> extracts technical website defects, maps relationship graphs, and compiles evidence-based cold emails with zero hallucinations.
           </p>
         </div>
 
