@@ -59,6 +59,7 @@ const BackendStatusBanner: React.FC = () => {
 
 function AppContent() {
   const location = useLocation();
+  const { backendOnline } = useApp();
   const isLanding = location.pathname === '/' || location.pathname === '/landing' || location.pathname === '';
 
   if (isLanding) {
@@ -90,7 +91,7 @@ function AppContent() {
             <Route path="/prospects" element={<Prospects />} />
             <Route path="/audits" element={<Audits />} />
             <Route path="/drafts" element={<Drafts />} />
-            <Route path="/integrations" element={<Integrations />} />
+            <Route path="/integrations" element={backendOnline ? <Integrations /> : <Navigate to="/app" replace />} />
             <Route path="/history" element={<History />} />
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>

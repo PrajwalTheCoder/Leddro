@@ -24,8 +24,11 @@ interface NavItem {
   badge?: number;
 }
 
+import { useApp } from '../../context/AppContext';
+
 export const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { backendOnline } = useApp();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -40,8 +43,10 @@ export const Sidebar: React.FC = () => {
 
   const bottomNavItems: NavItem[] = [
     { id: 'landing', label: 'Showcase & Demo Video', path: '/landing', icon: Sparkles },
-    { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Puzzle },
-    { id: 'settings', label: 'Settings', path: '/integrations', icon: Settings },
+    ...(backendOnline ? [
+      { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Puzzle },
+      { id: 'settings', label: 'Settings', path: '/integrations', icon: Settings },
+    ] : [])
   ];
 
   return (

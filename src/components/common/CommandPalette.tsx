@@ -25,7 +25,8 @@ export const CommandPalette: React.FC = () => {
     setSelectedProspectId,
     selectedProspect,
     runAudit,
-    createEmailDraftForProspect
+    createEmailDraftForProspect,
+    backendOnline
   } = useApp();
   
   const [query, setQuery] = useState('');
@@ -51,13 +52,15 @@ export const CommandPalette: React.FC = () => {
   ).slice(0, 5);
 
   const navigationActions = [
-    { id: 'nav-overview', label: 'Go to Overview Dashboard', icon: <Layers className="w-4 h-4 text-[#A0A5AD]" />, path: '/' },
+    { id: 'nav-overview', label: 'Go to Overview Dashboard', icon: <Layers className="w-4 h-4 text-[#A0A5AD]" />, path: '/app' },
     { id: 'nav-discover', label: 'Discover New Prospects', icon: <Compass className="w-4 h-4 text-[#A0A5AD]" />, path: '/discover' },
     { id: 'nav-prospects', label: 'Manage All Prospects', icon: <Building2 className="w-4 h-4 text-[#A0A5AD]" />, path: '/prospects' },
     { id: 'nav-audits', label: 'Website Audit Reports', icon: <FileText className="w-4 h-4 text-[#A0A5AD]" />, path: '/audits' },
     { id: 'nav-drafts', label: 'Email Draft Editor', icon: <Mail className="w-4 h-4 text-[#A0A5AD]" />, path: '/drafts' },
     { id: 'nav-history', label: 'Email Submission History', icon: <History className="w-4 h-4 text-[#A0A5AD]" />, path: '/history' },
-    { id: 'nav-integrations', label: 'Integrations & Gmail OAuth', icon: <Settings className="w-4 h-4 text-[#A0A5AD]" />, path: '/integrations' },
+    ...(backendOnline ? [
+      { id: 'nav-integrations', label: 'Integrations & Gmail OAuth', icon: <Settings className="w-4 h-4 text-[#A0A5AD]" />, path: '/integrations' }
+    ] : []),
   ].filter((a) => a.label.toLowerCase().includes(query.toLowerCase()));
 
   const allItems = [

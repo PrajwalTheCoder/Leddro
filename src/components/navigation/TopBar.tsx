@@ -68,12 +68,12 @@ export const TopBar: React.FC = () => {
         </div>
 
         <div
-          onClick={() => navigate('/integrations')}
-          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] hover:border-[#3E444F] text-[12px] text-[#A0A5AD] cursor-pointer transition-colors"
-          title="Click to view AI & OAuth integration settings"
+          onClick={backendOnline ? () => navigate('/integrations') : undefined}
+          className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] ${backendOnline ? 'hover:border-[#3E444F] cursor-pointer' : ''} text-[12px] text-[#A0A5AD] transition-colors`}
+          title={backendOnline ? "Click to view AI & OAuth integration settings" : "Interactive Demo Sandbox"}
         >
           <Sparkles className={`w-3.5 h-3.5 ${aiStatus?.isConfigured ? 'text-[#D8E7A2]' : 'text-[#727780]'}`} />
-          <span>AI: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? (aiStatus?.isConfigured ? aiStatus.activeName : 'No Key (Manual)') : 'Offline'}</strong></span>
+          <span>AI: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? (aiStatus?.isConfigured ? aiStatus.activeName : 'No Key (Manual)') : 'Demo Sandbox'}</strong></span>
         </div>
 
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
@@ -206,15 +206,17 @@ export const TopBar: React.FC = () => {
                     : 'No Google account connected'}
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setShowUserMenu(false);
-                  navigate('/integrations');
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded text-[#A0A5AD] hover:text-[#F3F4F6] hover:bg-[#1E2126] transition-colors"
-              >
-                Integrations &amp; OAuth
-              </button>
+              {backendOnline && (
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/integrations');
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded text-[#A0A5AD] hover:text-[#F3F4F6] hover:bg-[#1E2126] transition-colors"
+                >
+                  Integrations &amp; OAuth
+                </button>
+              )}
               <div className="px-2.5 py-1 text-[11px] text-[#727780] flex items-center justify-between border-t border-[#24272D] mt-1 pt-1">
                 <span>Outbound Gateway</span>
                 <span className="font-mono text-[11px] text-[#80B89A] flex items-center gap-1">
