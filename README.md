@@ -98,7 +98,7 @@ Leddro provides an evidence-based alternative:
 
 ---
 
-## 📸 Video Walkthrough & Screenshots Tour
+## 📸 Screenshots & Interface Tour
 
 [![Leddro Full Walkthrough Demo](https://img.youtube.com/vi/5XIetvU-NII/maxresdefault.jpg)](https://youtu.be/5XIetvU-NII)
 
