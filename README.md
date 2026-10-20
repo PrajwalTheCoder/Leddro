@@ -46,6 +46,7 @@ Instead of relying on generic mass-scraped email blasts and hallucinated AI flat
   - [3. Prospect Intelligence & Explainable Scoring](#3-prospect-intelligence-explainable-scoring)
   - [4. Website Audit Comparison & Change Detection](#4-website-audit-comparison-change-detection)
   - [5. Contact Intelligence & Email Discovery](#5-contact-intelligence-email-discovery)
+    - [Zero-Website Multi-Channel Footprint Discovery](#zero-website-multi-channel-footprint-discovery)
   - [6. Evidence-Aware AI Outreach Drafting](#6-evidence-aware-ai-outreach-drafting)
   - [7. Safe Email Dispatch](#7-safe-email-dispatch)
 - [⚙️ Configuration Reference (.env)](#configuration-reference-env)
@@ -419,6 +420,31 @@ Leddro includes a deterministic before/after comparison engine allowing operator
 - **Hunter.io B2B Email Finder**: Search verified professional emails, executive names, positions, and confidence scores (25 free monthly searches).
 - **Quick-Fill Email Pills**: 1-click `+ info@{domain}` and `+ contact@{domain}` pills in the draft editor when the operator knows the address.
 
+#### Zero-Website Multi-Channel Footprint Discovery
+
+Many local establishments (cafes, restaurants, boutique retail, service professionals) never register a custom `.com` domain—instead treating social profiles and local directories as their digital storefronts. Leddro incorporates a dedicated 5-pillar discovery engine to track down verified emails, WhatsApp lines, and verified presence across the deep web:
+
+```
+[Business Without Website]
+             │
+             ├──► [Pillar 1: Social Storefronts] ────► Facebook Page "About" & Instagram Bios
+             ├──► [Pillar 2: Search Dorking] ────────► Google / Regional Bing with TLS Anti-Bot Camouflage
+             ├──► [Pillar 3: WhatsApp Business] ─────► 10-Digit Mobile Dorking & 1-Click wa.me Chat
+             ├──► [Pillar 4: Local Directories] ─────► Justdial, Zomato, Swiggy, IndiaMART Schema.org
+             └──► [Pillar 5: Public Filings] ────────► FSSAI 14-Digit Food Licenses & 15-Char GSTIN Records
+                         │
+                         ▼
+             [Aggregator Blacklist Filter] ──► [DNS MX Deliverability Probe] ──► [Auto-Sync to Database]
+```
+
+1. **Facebook Pages & Instagram Bios**: Queries search indexes to discover the business's official social storefronts and extracts public contact emails from the bio/about metadata without login walls.
+2. **Search Engine Dorking with Anti-Bot Camouflage**: Queries DuckDuckGo and regional Bing (`cc=IN&setlang=en-IN`) using targeted commercial inquiry dorks (`"table bookings"`, `"catering inquiries"`, `email OR "@gmail.com"`). Utilizes TLS/JA3 client impersonation via `primp` to bypass automated bot challenges.
+3. **WhatsApp Business Profile Metadata**: Dorks registered mobile numbers for published email addresses and automatically formats active `https://wa.me/<E164>` direct chat links for friction-free outreach.
+4. **Local Business Directories**: Scrapes structured Schema.org JSON-LD metadata from Justdial, Zomato, Swiggy, and IndiaMART partner profiles to extract verified phone numbers and location coordinates.
+5. **Government & Regulatory Registrations**: Identifies statutory government food licenses (FSSAI 14-digit license numbers) and tax IDs (15-character GSTIN numbers) embedded in public inspection filings.
+- **Aggregator Exclusion Filtering**: Explicitly purges third-party aggregator platform emails (e.g., `pulled.coffee`, `slurrp`, `zomato`, `swiggy`, `justdial`, `magicpin`) so that developer or corporate helpdesk emails are never mistakenly saved.
+- **Operator Workflow**: Trigger one-click **Deep Search** directly from the Prospects table or inspect the full **Multi-Channel Social & Deep Web Intelligence** dossier inside the Prospect Detail Modal.
+
 ---
 
 ### 6. Evidence-Aware AI Outreach Drafting
@@ -604,11 +630,14 @@ npm run dev:all
 
 ## 🧪 Testing and Development
 
-Leddro maintains a comprehensive automated test suite with **200 passing tests** across backend services, CLI tools, and security layers:
+Leddro maintains a comprehensive automated test suite with **206 passing tests** across backend services, CLI tools, and security layers:
 
 ```bash
-# Run complete backend pytest suite (200 automated tests)
+# Run complete backend pytest suite (206 automated tests)
 python -m pytest backend/tests/ -v
+
+# Run zero-website deep search & multi-channel discovery test suite
+python -m pytest backend/tests/test_deep_search_enrichment.py -v
 
 # Run interactive CLI test suite
 python -m pytest backend/tests/test_cli.py -v
@@ -650,6 +679,7 @@ npm run lint
 ```
 
 ### Test Suite Highlights
+- `test_deep_search_enrichment.py`: 5-pillar zero-website discovery, DNS MX deliverability validation, aggregator domain filtering, FSSAI/GSTIN regex extractors, and mock multi-engine responses.
 - `test_cli.py`: Terminal report generation, ANSI color styling, uncolored mode, `--json` serialization, score badge heuristics, and version flags.
 - `test_prospect_scoring.py`: Determinism, score bounds [0, 100], no-audit handling, diagnostic failure handling, HTTPS status distinctions, finding severity weighting, duplicate findings deduplication, audit recency decay, contact readiness verification, evidence traceability, and query performance (N+1 elimination).
 - `test_audit_comparison.py`: Four-way finding classification (RESOLVED, NEW, PERSISTENT, INCONCLUSIVE), positive-evidence rule enforcement, telemetry deltas, and cross-domain protection.
@@ -673,6 +703,7 @@ flowchart TD
     API <--> DB[("SQLite Database (leddro.db)")]
     API <--> Audits
     API <--> Contacts["Contact Crawler & DNS MX Verifier"]
+    API <--> DeepSearch["Zero-Website Deep Search (Social, Dorking, WhatsApp, FSSAI)"]
     API <--> Discovery["OpenStreetMap & Google Places"]
     API <--> Hunter["Hunter.io B2B Email Finder"]
     API <--> AI["AI Engines (Gemini, OpenAI, Claude, Ollama)"]
@@ -695,11 +726,11 @@ Leddro/
 │   │   │   └── providers/  # Modular discovery providers (OSM, Places, CSV)
 │   │   ├── models/         # SQLAlchemy database models
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── services/       # Audit engine, comparison, contact scraper, SSRF & Gmail client
+│   │   ├── services/       # Audit engine, comparison, contact scraper, deep search, SSRF & Gmail client
 │   │   ├── cli.py          # Terminal CLI audit and diagnostic tool
 │   │   └── main.py         # FastAPI application entry point
 │   ├── requirements.txt    # Python dependencies
-│   └── tests/              # 200 automated pytest test cases
+│   └── tests/              # 206 automated pytest test cases
 ├── docs/
 │   ├── screenshots/        # Verified application screenshots
 │   └── sample_import.csv   # Annotated sample CSV import dataset
@@ -731,6 +762,7 @@ Leddro/
 - [x] **Phase 8.1-8.2**: Explainable heuristic scoring (Opportunity & Data Confidence) with full evidence traceability.
 - [x] **Phase 8.3**: Website audit comparison & change detection engine with directional telemetry deltas.
 - [x] **Contact Intelligence & Verification**: Autonomous website contact scraper, DNS MX mail verification, Hunter.io integration, Google Places API, Zero Fake Emails policy, and direct Phone/WhatsApp actions.
+- [x] **Multi-Channel Zero-Website Discovery**: 5-pillar footprint scanner (Facebook, Instagram, Search Dorking, WhatsApp Business, Justdial/Zomato/Swiggy, FSSAI/GSTIN) with DNS MX deliverability verification.
 - [x] **Terminal CLI Audit Engine**: Interactive command line interface (`python -m backend.app.cli audit`) with colored telemetry and `--json` support.
 - [x] **CI Documentation & Asset Linter**: Automated anchor and relative asset validation in CI (`python scripts/check_readme.py`).
 - [x] **Annotated CSV Import Dataset**: Standardized sample spreadsheet at [docs/sample_import.csv](docs/sample_import.csv).
