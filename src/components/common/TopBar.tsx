@@ -60,7 +60,7 @@ export const TopBar: React.FC = () => {
             {/* Left: Brand & Compact Status Indicators */}
             <div className="flex items-center gap-2 overflow-x-hidden shrink min-w-0 py-1">
                 <Link to="/" className="flex items-center group hover:opacity-90 transition-opacity shrink-0 mr-1.5" title="Leddro Home">
-                    <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-6.5 w-auto object-contain" />
+                    <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-7 w-auto object-contain" />
                 </Link>
                 <div className="h-4 w-[1px] bg-[#22252A] hidden sm:block shrink-0" />
                 <div
