@@ -16,6 +16,9 @@ import { Integrations } from './pages/Integrations';
 import { History } from './pages/History';
 import { useApp } from './context/AppContext';
 
+import { Landing } from './pages/Landing';
+import { useLocation, Link } from 'react-router-dom';
+
 const BackendStatusBanner: React.FC = () => {
   const { backendOnline, checkBackendHealth } = useApp();
   const [isRetrying, setIsRetrying] = React.useState(false);
@@ -29,69 +32,82 @@ const BackendStatusBanner: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#2A1818] border-b border-[#4A2626] px-4 py-2 flex items-center justify-between text-xs text-[#D78383] shrink-0 z-10 transition-all">
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#D78383] animate-pulse shrink-0" />
+    <div className="bg-[#121622] border-b border-[#232938] px-4 py-2 flex items-center justify-between text-xs text-[#9BA1B0] shrink-0 z-10 transition-all select-none">
+      <div className="flex items-center gap-2.5">
+        <span className="w-2 h-2 rounded-full bg-[#D2F824] animate-pulse shrink-0 shadow-[0_0_8px_rgba(210,248,36,0.5)]" />
         <span>
-          <strong className="text-white font-medium">FastAPI Engine Offline:</strong> Web UI cannot reach <code className="bg-[#1C1010] px-1.5 py-0.5 rounded text-[#F3F4F6] font-mono text-[11px]">http://127.0.0.1:8000/api/health</code>. Live website audits, AI drafting, and database persistence require the backend engine.
+          <strong className="text-white font-medium">⚡ Interactive Demo Sandbox:</strong> Exploring live Leddro UI with simulated prospects, tactical radar, and diagnostic audit telemetry.
         </span>
       </div>
       <div className="flex items-center gap-3 shrink-0">
+        <Link
+          to="/landing"
+          className="text-[#D2F824] hover:underline font-mono text-[11px] font-semibold flex items-center gap-1"
+        >
+          <span>Product Showcase & Video</span>
+          <span>→</span>
+        </Link>
         <button
           onClick={handleRetry}
           disabled={isRetrying}
-          className="px-2.5 py-1 rounded bg-[#3D2020] hover:bg-[#4D2828] text-white font-medium text-[11px] transition-colors cursor-pointer disabled:opacity-50"
+          className="px-2.5 py-1 rounded bg-[#1C212D] hover:bg-[#252B3A] text-white font-mono text-[11px] transition-colors cursor-pointer disabled:opacity-50 border border-[#2B3242]"
         >
-          {isRetrying ? 'Checking...' : 'Retry Connection'}
+          {isRetrying ? 'Checking Engine...' : 'Check Local Backend'}
         </button>
-        <a
-          href="https://github.com/PrajwalTheCoder/Leddro#running-the-application"
-          target="_blank"
-          rel="noreferrer"
-          className="underline text-[#F3F4F6] hover:text-white text-[11px]"
-        >
-          Setup Guide
-        </a>
       </div>
     </div>
   );
 };
 
+function AppContent() {
+  const location = useLocation();
+  const isLanding = location.pathname === '/landing';
+
+  if (isLanding) {
+    return <Landing />;
+  }
+
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-[#111214] text-[#F3F4F6] font-sans antialiased">
+      {/* Left Navigation Rail (~72px) */}
+      <Sidebar />
+
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        {/* Top Bar */}
+        <TopBar />
+
+        {/* Offline Engine Warning / Demo Sandbox Banner */}
+        <BackendStatusBanner />
+
+        {/* Viewport Router */}
+        <main className="flex-1 overflow-hidden relative">
+          <Routes>
+            <Route path="/" element={<Overview />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route path="/prospects" element={<Prospects />} />
+            <Route path="/audits" element={<Audits />} />
+            <Route path="/drafts" element={<Drafts />} />
+            <Route path="/integrations" element={<Integrations />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+
+      {/* Global Overlays */}
+      <CommandPalette />
+      <ToastContainer />
+    </div>
+  );
+}
+
 export function App() {
   return (
     <AppProvider>
       <Router>
-        <div className="flex h-screen w-screen overflow-hidden bg-[#111214] text-[#F3F4F6] font-sans antialiased">
-          {/* Left Navigation Rail (~72px) */}
-          <Sidebar />
-
-          {/* Main Workspace Area */}
-          <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-            {/* Top Bar */}
-            <TopBar />
-
-            {/* Offline Engine Warning Banner */}
-            <BackendStatusBanner />
-
-            {/* Viewport Router */}
-            <main className="flex-1 overflow-hidden relative">
-              <Routes>
-                <Route path="/" element={<Overview />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/prospects" element={<Prospects />} />
-                <Route path="/audits" element={<Audits />} />
-                <Route path="/drafts" element={<Drafts />} />
-                <Route path="/integrations" element={<Integrations />} />
-                <Route path="/history" element={<History />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-          </div>
-
-          {/* Global Overlays */}
-          <CommandPalette />
-          <ToastContainer />
-        </div>
+        <AppContent />
       </Router>
     </AppProvider>
   );

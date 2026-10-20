@@ -394,7 +394,7 @@ export interface IntegrationConfig {
     sendQuotaRemaining?: number;
   };
   aiProvider: {
-    provider: 'anthropic' | 'openai' | 'local_ollama';
+    provider: 'anthropic' | 'openai' | 'local_ollama' | 'gemini';
     isConfigured: boolean;
     model: string;
     status: 'ready' | 'missing_key' | 'offline';

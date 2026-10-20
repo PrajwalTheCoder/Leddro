@@ -100,39 +100,35 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load prospects from localStorage or empty (filter out old sample seeds)
+  // Load prospects from localStorage or fall back to rich demo dataset
   const [prospects, setProspects] = useState<Prospect[]>(() => {
     const saved = localStorage.getItem('leddro_prospects');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((p: any) => !p.id?.startsWith('pr-') && !p.websiteUrl?.includes('apexprecisiontech.com'));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       } catch (e) { /* ignore */ }
     }
-    return [];
+    return INITIAL_PROSPECTS;
   });
 
-  const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
+  const [selectedProspectId, setSelectedProspectId] = useState<string | null>(() => {
+    return INITIAL_PROSPECTS.length > 0 ? INITIAL_PROSPECTS[0].id : null;
+  });
   
   const [auditReports, setAuditReports] = useState<Record<string, AuditReport>>(() => {
     const saved = localStorage.getItem('leddro_audits');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          const clean: Record<string, AuditReport> = {};
-          for (const [k, v] of Object.entries(parsed)) {
-            if (!k.startsWith('audit-') && !(v as any).prospectId?.startsWith('pr-')) {
-              clean[k] = v as AuditReport;
-            }
-          }
-          return clean;
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
         }
       } catch (e) { /* ignore */ }
     }
-    return {};
+    return MOCK_AUDIT_REPORTS;
   });
 
   const [emailDrafts, setEmailDrafts] = useState<EmailDraft[]>(() => {
@@ -140,27 +136,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((d: any) => !d.id?.startsWith('draft-') && !d.prospectId?.startsWith('pr-'));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       } catch (e) { /* ignore */ }
     }
-    return [];
+    return INITIAL_EMAIL_DRAFTS;
   });
 
-  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(() => {
+    return INITIAL_EMAIL_DRAFTS.length > 0 ? INITIAL_EMAIL_DRAFTS[0].id : null;
+  });
 
   const [emailHistory, setEmailHistory] = useState<EmailHistoryItem[]>(() => {
     const saved = localStorage.getItem('leddro_history');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((h: any) => !h.prospectId?.startsWith('pr-'));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       } catch (e) { /* ignore */ }
     }
-    return [];
+    return INITIAL_EMAIL_HISTORY;
   });
 
   const [activities, setActivities] = useState<ActivityItem[]>(() => {
@@ -168,12 +166,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((a: any) => !a.prospectId?.startsWith('pr-'));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       } catch (e) { /* ignore */ }
     }
-    return [];
+    return INITIAL_ACTIVITIES;
   });
 
   const [integrations, setIntegrations] = useState<IntegrationConfig>(() => {
@@ -588,6 +586,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addToast(`Audit completed for ${target.name} (${report.findings.length} findings recorded)`, 'success');
       return report;
     } catch (err: any) {
+      // If backend is unreachable (e.g. running on static demo host like GitHub Pages or Vercel),
+      // seamlessly execute interactive simulated audit in Demo Sandbox!
+      if (!backendOnline || err.message?.includes('Failed to fetch') || err.name === 'TypeError') {
+        setAuditProgressMessage('Executing simulated diagnostic (DNS zone, TLS socket, HTTP crawl)...');
+        await new Promise((r) => setTimeout(r, 600));
+
+        const existingReport = target.latestAuditId ? auditReports[target.latestAuditId] : null;
+        const newScore = Math.floor(Math.random() * 25) + 65;
+        const simulatedReport: AuditReport = existingReport || {
+          id: 'demo-audit-' + Date.now(),
+          prospectId: target.id,
+          url: target.websiteUrl,
+          timestamp: new Date().toISOString(),
+          status: 'completed',
+          overallScore: newScore,
+          findings: [
+            {
+              id: 'f-demo-tls-' + Date.now(),
+              prospectId: target.id,
+              title: 'TLS 1.2 Cipher Suite Remediation Recommended',
+              severity: 'medium',
+              observed: 'Legacy CBC cipher suites enabled alongside modern GCM.',
+              evidence: 'TLS Handshake Probe: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA active.',
+              whyItMatters: 'Legacy ciphers increase vulnerability to padding oracle exploits.',
+              recommendedAction: 'Restrict server cipher list to modern AEAD ciphers (AES-GCM / CHACHA20).',
+              confidence: 0.95,
+              category: 'security'
+            },
+            {
+              id: 'f-demo-dmarc-' + Date.now(),
+              prospectId: target.id,
+              title: 'DMARC Quarantine Policy Missing in DNS Zone',
+              severity: 'high',
+              observed: 'No _dmarc TXT record detected for domain.',
+              evidence: 'DNS query _dmarc NXDOMAIN.',
+              whyItMatters: 'Leaves domain open to spoofed email fraud and hurts deliverability.',
+              recommendedAction: 'Publish v=DMARC1; p=quarantine policy record.',
+              confidence: 0.98,
+              category: 'security'
+            }
+          ],
+          rawDns: {
+            aRecord: '104.21.48.112',
+            mxRecord: 'mail.' + (target.websiteUrl?.replace('https://', '').replace('http://', '').split('/')[0] || 'domain.com'),
+            responseMs: 48,
+            nameservers: ['ns1.cloudflare.com', 'ns2.cloudflare.com']
+          },
+          rawSsl: {
+            valid: true,
+            issuer: 'Cloudflare Inc ECC CA-3',
+            expiresDays: 62,
+            tlsVersion: 'TLS 1.3',
+            cipher: 'TLS_AES_256_GCM_SHA384'
+          },
+          performance: {
+            ttfbMs: 340,
+            domReadyMs: 1250,
+            pageSizeKb: 1840,
+            mobileViewportPresent: true
+          },
+          headers: {
+            'server': 'cloudflare',
+            'content-type': 'text/html; charset=UTF-8'
+          }
+        };
+
+        setAuditReports((prev) => ({ ...prev, [simulatedReport.id]: simulatedReport }));
+        setProspects((prev) =>
+          prev.map((p) =>
+            p.id === target.id
+              ? {
+                  ...p,
+                  auditCount: (p.auditCount || 0) + 1,
+                  latestAuditId: simulatedReport.id,
+                  opportunityScore: simulatedReport.overallScore,
+                  websiteStatus: 'active',
+                  status: p.status === 'new' || p.status === 'needs_audit' ? 'needs_review' : p.status,
+                  lastActivity: 'Audited in Demo Sandbox'
+                }
+              : p
+          )
+        );
+
+        const newActivity: ActivityItem = {
+          id: 'act-' + Date.now(),
+          type: 'audit',
+          title: `Demo diagnostic audit completed for ${target.name}`,
+          description: `Simulated scan for ${target.websiteUrl}. Discovered ${simulatedReport.findings.length} findings (Score: ${simulatedReport.overallScore}/100).`,
+          timestamp: 'Just now',
+          prospectId: target.id
+        };
+        setActivities((prev) => [newActivity, ...prev]);
+
+        addToast(`Demo Audit completed for ${target.name} (${simulatedReport.findings.length} findings recorded)`, 'success');
+        return simulatedReport;
+      }
+
       if (err.message && !err.message.includes('Audit Failed')) {
         addToast(`Backend error: ${err.message}`, 'error');
       }

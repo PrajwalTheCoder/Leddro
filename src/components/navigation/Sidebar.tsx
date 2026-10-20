@@ -11,6 +11,7 @@ import {
   Settings, 
   HelpCircle,
   ExternalLink,
+  Sparkles,
   X
 } from 'lucide-react';
 
@@ -37,6 +38,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const bottomNavItems: NavItem[] = [
+    { id: 'landing', label: 'Showcase & Demo Video', path: '/landing', icon: Sparkles },
     { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Puzzle },
     { id: 'settings', label: 'Settings', path: '/integrations', icon: Settings },
   ];
