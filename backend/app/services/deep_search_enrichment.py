@@ -9,7 +9,13 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 import dns.resolver
-from ddgs import DDGS
+try:
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        from ddgs import DDGS
+except ImportError:
+    DDGS = None
 
 from backend.app.services.email_scraper import (
     is_valid_email_candidate,
@@ -58,6 +64,9 @@ def decode_bing_url(url: str) -> str:
 
 def _search_ddgs(query: str, max_results: int = 5) -> List[Dict[str, str]]:
     """Fetches organic search results using DDGS."""
+    if DDGS is None:
+        logger.debug("DDGS module not available, falling back to regional search")
+        return []
     try:
         dd = DDGS()
         raw = list(dd.text(query, max_results=max_results))
