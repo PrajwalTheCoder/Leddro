@@ -97,9 +97,9 @@ All screenshots below represent the live Leddro application interface:
 Comprehensive mission dashboard featuring real-time health gauges, interactive prospect radar, telemetry stream, and quick-audit controls.
 ![Command Center Overview](docs/screenshots/overview-command-center.png)
 
-### 2. MiroFish Relationship Graph & Force Simulation
+### 2. Relationship Graph & Force Simulation
 Interactive D3 force-directed topological network visualization mapping live links between target prospects, DNS servers, AI engines, email gateways, and diagnostic audit findings with physics-driven dragging and real-time edge telemetry.
-![MiroFish Relationship Graph](docs/screenshots/mirofish-knowledge-graph.png)
+![Relationship Graph & Force Simulation](docs/screenshots/relationship-graph.png)
 
 ### 3. Prospect Management & Pipeline
 Organized registry of target businesses with real-time opportunity scores, website conditions, and direct audit/draft triggers.

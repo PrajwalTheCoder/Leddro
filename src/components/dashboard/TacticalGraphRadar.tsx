@@ -600,7 +600,7 @@ export const TacticalGraphRadar: React.FC<TacticalGraphRadarProps> = ({
               }`}
             >
               <Network className="w-3.5 h-3.5" />
-              <span>MiroFish Graph</span>
+              <span>Relationship Graph</span>
             </button>
           </div>
 

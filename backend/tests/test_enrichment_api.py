@@ -41,6 +41,29 @@ def test_extract_contacts_from_html():
     assert "banner@2x.png" not in contacts["emails"]
     assert any("9876543210" in p or "98765" in p for p in contacts["phones"])
 
+def test_cloudflare_email_obfuscation_decoding():
+    from backend.app.services.email_scraper import decode_cloudflare_email
+    raw_email = "info@mumbaibusiness.com"
+    key = 0x1a
+    encoded = f"{key:02x}" + "".join(f"{ord(c) ^ key:02x}" for c in raw_email)
+    
+    # 1. Direct function test
+    assert decode_cloudflare_email(encoded) == raw_email
+    assert decode_cloudflare_email("invalid") is None
+    assert decode_cloudflare_email("") is None
+
+    # 2. Test extraction from both data-cfemail and /cdn-cgi/l/email-protection#
+    sample_cf_html = f"""
+    <html>
+      <body>
+        <p>Protected contact: <span class="__cf_email__" data-cfemail="{encoded}">[email&#160;protected]</span></p>
+        <p>Support: <a href="/cdn-cgi/l/email-protection#{encoded}">Email Support</a></p>
+      </body>
+    </html>
+    """
+    contacts = extract_contacts_from_html(sample_cf_html, "https://mumbaibusiness.com")
+    assert raw_email in contacts["emails"]
+
 def test_enrichment_status_endpoint(client):
     res = client.get("/api/enrichment/status")
     assert res.status_code == 200

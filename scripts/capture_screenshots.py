@@ -106,15 +106,15 @@ async def main():
             print("[shot] Step 1: Capturing Overview Command Center (Radar Mode)...")
             await capture_page_screenshot(ws, output_dir / "overview-command-center.png", delay=3.5)
 
-            # 2. Switch to MiroFish Graph Mode and capture
-            print("[shot] Step 2: Switching to MiroFish Relationship Graph...")
+            # 2. Switch to Relationship Graph Mode and capture
+            print("[shot] Step 2: Switching to Relationship Graph...")
             click_graph_expr = """
             (() => {
                 const buttons = Array.from(document.querySelectorAll('button'));
-                const btn = buttons.find(b => b.textContent && b.textContent.includes('MiroFish Graph'));
+                const btn = buttons.find(b => b.textContent && (b.textContent.includes('Relationship Graph') || b.textContent.includes('MiroFish Graph')));
                 if (btn) {
                     btn.click();
-                    return 'clicked MiroFish Graph';
+                    return 'clicked Relationship Graph';
                 }
                 return 'button not found';
             })()
@@ -122,7 +122,8 @@ async def main():
             click_res = await cdp_call(ws, "Runtime.evaluate", {"expression": click_graph_expr})
             res_val = click_res.get("result", {}).get("result", {}).get("value")
             print(f"[shot] Click response: {res_val}")
-            await capture_page_screenshot(ws, output_dir / "mirofish-knowledge-graph.png", delay=4.0)
+            await capture_page_screenshot(ws, output_dir / "relationship-graph.png", delay=4.0)
+            await capture_page_screenshot(ws, output_dir / "mirofish-knowledge-graph.png", delay=0.5)
 
             # 3. Capture Prospects Page
             await navigate_and_capture(ws, "http://localhost:5173/prospects", output_dir / "prospect-management.png", delay=2.5)

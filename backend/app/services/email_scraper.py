@@ -67,6 +67,23 @@ def verify_email_mx(email: str) -> bool:
         except Exception:
             return False
 
+def decode_cloudflare_email(cf_hex: str) -> Optional[str]:
+    """
+    Decodes Cloudflare's client-side XOR email obfuscation (data-cfemail or /cdn-cgi/l/email-protection#...).
+    Performs deterministic XOR decoding identically to the browser's JavaScript engine.
+    """
+    try:
+        cf_hex = cf_hex.strip()
+        if len(cf_hex) < 4 or len(cf_hex) % 2 != 0:
+            return None
+        key = int(cf_hex[:2], 16)
+        return "".join(
+            chr(int(cf_hex[i:i+2], 16) ^ key)
+            for i in range(2, len(cf_hex), 2)
+        )
+    except Exception:
+        return None
+
 def extract_contacts_from_html(html: str, base_url: str) -> Dict[str, List[str]]:
     """Extracts raw candidate emails and phone numbers from HTML DOM."""
     soup = BeautifulSoup(html, "html.parser")
@@ -85,13 +102,29 @@ def extract_contacts_from_html(html: str, base_url: str) -> Dict[str, List[str]]
             if len(raw_phone) >= 7:
                 phones.add(raw_phone)
 
-    # 2. Check regex across full HTML text
+    # 2. Check Cloudflare data-cfemail attributes (<span data-cfemail="..."> or <a data-cfemail="...">)
+    for el in soup.find_all(attrs={"data-cfemail": True}):
+        val = el.get("data-cfemail", "")
+        decoded = decode_cloudflare_email(val)
+        if decoded and is_valid_email_candidate(decoded):
+            emails.add(decoded.lower())
+
+    # 3. Check Cloudflare email protection links (href="/cdn-cgi/l/email-protection#<hex>")
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if "/cdn-cgi/l/email-protection#" in href:
+            cf_hash = href.split("/cdn-cgi/l/email-protection#")[-1].split("?")[0].strip()
+            decoded = decode_cloudflare_email(cf_hash)
+            if decoded and is_valid_email_candidate(decoded):
+                emails.add(decoded.lower())
+
+    # 4. Check regex across full HTML text
     text_content = soup.get_text(separator=" ")
     for match in EMAIL_REGEX.findall(text_content):
         if is_valid_email_candidate(match):
             emails.add(match.lower())
 
-    # 3. Check regex across raw HTML attributes (data-email, placeholders, footer tags)
+    # 5. Check regex across raw HTML attributes (data-email, placeholders, footer tags)
     for match in EMAIL_REGEX.findall(html):
         if is_valid_email_candidate(match):
             emails.add(match.lower())
