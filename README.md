@@ -5,9 +5,11 @@
   <br /><br />
   <p><strong>Discover prospects. Audit websites. Understand opportunities. Prepare evidence-based outreach.</strong></p>
   <p>🌐 <strong>Live Interactive Showcase &amp; Demo Sandbox:</strong> <a href="https://prajwalthecoder.github.io/Leddro/">https://prajwalthecoder.github.io/Leddro/</a></p>
+  <p>📺 <strong>YouTube Full Walkthrough Video:</strong> <a href="https://youtu.be/5XIetvU-NII">https://youtu.be/5XIetvU-NII</a></p>
 </div>
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Interactive%20Sandbox-D2F824?style=flat&logo=googlechrome&logoColor=black)](https://prajwalthecoder.github.io/Leddro/)
+[![YouTube Walkthrough](https://img.shields.io/badge/YouTube-Video%20Demo-FF0000?style=flat&logo=youtube&logoColor=white)](https://youtu.be/5XIetvU-NII)
 [![MIT License](https://img.shields.io/github/license/PrajwalTheCoder/Leddro?style=flat&color=10b981)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -96,7 +98,11 @@ Leddro provides an evidence-based alternative:
 
 ---
 
-## 📸 Screenshots & Interface Tour
+## 📸 Video Walkthrough & Screenshots Tour
+
+[![Leddro Full Walkthrough Demo](https://img.youtube.com/vi/5XIetvU-NII/maxresdefault.jpg)](https://youtu.be/5XIetvU-NII)
+
+> 📺 **[Watch the full Leddro video walkthrough and live architecture demo on YouTube](https://youtu.be/5XIetvU-NII)**
 
 All screenshots below represent the live Leddro application interface:
 
