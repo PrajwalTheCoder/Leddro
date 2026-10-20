@@ -108,23 +108,30 @@ Comprehensive mission dashboard featuring real-time health gauges, interactive p
 Interactive D3 force-directed topological network visualization mapping live links between target prospects, DNS servers, AI engines, email gateways, and diagnostic audit findings with physics-driven dragging and real-time edge telemetry.
 ![Relationship Graph & Force Simulation](docs/screenshots/relationship-graph.png)
 
-### 3. Prospect Management & Pipeline
+### 3. Autonomous Business Discovery Engine & Registry Provenance
+Query live geographic registries (OpenStreetMap Overpass API) and web indices by commercial category, city, and radius to pinpoint local businesses with real-time website condition detection and zero-website footprint tracking.
+![Autonomous Business Discovery](docs/screenshots/autonomous-discovery.png)
+
+*Deep inspection modal displaying authenticated OpenStreetMap entity IDs, precise geocoordinates, contact verification, and one-click pipeline ingestion:*
+![Autonomous Discovery Inspection Modal](docs/screenshots/autonomous-discovery-detail.png)
+
+### 4. Prospect Management & Pipeline
 Organized registry of target businesses with real-time opportunity scores, website conditions, and direct audit/draft triggers.
 ![Prospect Management](docs/screenshots/prospect-management.png)
 
-### 4. AI Evidence-Based Draft Generation Modal
+### 5. AI Evidence-Based Draft Generation Modal
 In-modal AI engine selector with automatic provider routing, free-tier Gemini integration, and privacy disclosure.
 ![AI Draft Generation Modal](docs/screenshots/ai-draft-generation-modal.png)
 
-### 5. Website Audit & Technical Findings
+### 6. Website Audit & Technical Findings
 Detailed diagnostic report presenting DNS zone records, TLS handshake ciphers, and classified severity findings.
 ![Technical Audits](docs/screenshots/technical-audits.png)
 
-### 6. Email Draft Studio & Evidence Inspector
+### 7. Email Draft Studio & Evidence Inspector
 Split-view editor featuring alternative subject lines, claim evidence citations, and one-click review controls.
 ![AI Draft Studio](docs/screenshots/ai-draft-studio.png)
 
-### 7. Integrations & Credential Settings
+### 8. Integrations & Credential Settings
 Manage AI engine keys, select default models, test connectivity latencies, and monitor Google OAuth authorization status.
 ![Integrations Settings](docs/screenshots/integrations-settings.png)
 

@@ -156,6 +156,66 @@ async def main():
             # 7. Capture Integrations Settings Page
             await navigate_and_capture(ws, "http://localhost:5173/integrations", output_dir / "integrations-settings.png", delay=2.5)
 
+            # 8. Capture Autonomous Business Discovery Engine
+            print("[shot] Step 8: Capturing Autonomous Business Discovery Engine...")
+            await cdp_call(ws, "Page.navigate", {"url": "http://localhost:5173/discover"})
+            await asyncio.sleep(2.0)
+            click_find_expr = """
+            (() => {
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const btn = buttons.find(b => b.textContent && (
+                    b.textContent.includes('Find businesses') ||
+                    b.textContent.includes('Find Opportunities') ||
+                    b.textContent.includes('Find')
+                ));
+                if (btn) {
+                    btn.click();
+                    return 'clicked find businesses';
+                }
+                return 'button not found';
+            })()
+            """
+            find_res = await cdp_call(ws, "Runtime.evaluate", {"expression": click_find_expr})
+            print(f"[shot] Find businesses response: {find_res.get('result', {}).get('result', {}).get('value')}")
+
+            # Wait for search results rows to render
+            for _ in range(25):
+                check_res = await cdp_call(ws, "Runtime.evaluate", {"expression": "document.querySelectorAll('tbody tr').length"})
+                count = check_res.get("result", {}).get("result", {}).get("value", 0)
+                if count and count > 1:
+                    print(f"[shot] Found {count} discovery result rows on page!")
+                    break
+                await asyncio.sleep(0.3)
+
+            await capture_page_screenshot(ws, output_dir / "autonomous-discovery.png", delay=2.5)
+
+            # Step 8b: Open inspect detail modal
+            print("[shot] Step 8b: Capturing Discovery Inspect Detail Modal...")
+            inspect_expr = """
+            (() => {
+                const btn = document.querySelector('button[title*="Inspect"]');
+                if (btn) {
+                    btn.click();
+                    return 'opened inspect modal';
+                }
+                return 'inspect button not found';
+            })()
+            """
+            inspect_res = await cdp_call(ws, "Runtime.evaluate", {"expression": inspect_expr})
+            insp_val = inspect_res.get('result', {}).get('result', {}).get('value')
+            print(f"[shot] Inspect response: {insp_val}")
+            if insp_val == 'opened inspect modal':
+                await capture_page_screenshot(ws, output_dir / "autonomous-discovery-detail.png", delay=1.5)
+                # Close modal
+                close_expr = """
+                (() => {
+                    const closeBtn = document.querySelector('button[title="Close modal"]') ||
+                                     document.querySelector('div[role="dialog"] button');
+                    if (closeBtn) closeBtn.click();
+                })()
+                """
+                await cdp_call(ws, "Runtime.evaluate", {"expression": close_expr})
+
         print("[shot] All screenshots captured successfully!")
 
     finally:

@@ -56,73 +56,73 @@ export const TopBar: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-4 sm:px-5 shrink-0 z-20">
+    <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-4 sm:px-5 shrink-0 z-20 overflow-hidden">
       {/* Left: Brand & Compact Status Indicators */}
-      <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center gap-2 overflow-x-hidden shrink min-w-0 py-1">
         <Link to="/" className="flex items-center group hover:opacity-90 transition-opacity shrink-0 mr-1.5" title="Leddro Home">
           <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-6.5 w-auto object-contain" />
         </Link>
         <div className="h-4 w-[1px] bg-[#22252A] hidden sm:block shrink-0" />
         <div
           onClick={!backendOnline ? () => checkBackendHealth() : undefined}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] ${!backendOnline ? 'cursor-pointer hover:border-[#E5A96A]' : ''}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7 ${!backendOnline ? 'cursor-pointer hover:border-[#E5A96A]' : ''}`}
           title={backendOnline ? "FastAPI Backend is healthy" : "Click to retry backend connection"}
         >
-          <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-[#D8E7A2]' : 'bg-[#E5A96A] animate-pulse'}`} />
-          <span>Engine: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? 'FastAPI Active' : 'Offline (Retry)'}</strong></span>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${backendOnline ? 'bg-[#D8E7A2]' : 'bg-[#E5A96A] animate-pulse'}`} />
+          <span>Engine: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? 'FastAPI' : 'Offline'}</strong></span>
         </div>
 
         <div
           onClick={backendOnline ? () => navigate('/integrations') : undefined}
-          className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] ${backendOnline ? 'hover:border-[#3E444F] cursor-pointer' : ''} text-[12px] text-[#A0A5AD] transition-colors`}
-          title={backendOnline ? "Click to view AI & OAuth integration settings" : "Interactive Demo Sandbox"}
+          className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] ${backendOnline ? 'hover:border-[#3E444F] cursor-pointer' : ''} text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7 transition-colors`}
+          title={backendOnline ? (aiStatus?.activeName ? `${aiStatus.activeName} - Click to configure` : "AI Settings") : "Interactive Demo Sandbox"}
         >
-          <Sparkles className={`w-3.5 h-3.5 ${aiStatus?.isConfigured ? 'text-[#D8E7A2]' : 'text-[#727780]'}`} />
-          <span>AI: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? (aiStatus?.isConfigured ? aiStatus.activeName : 'No Key (Manual)') : 'Demo Sandbox'}</strong></span>
+          <Sparkles className={`w-3.5 h-3.5 shrink-0 ${aiStatus?.isConfigured ? 'text-[#D8E7A2]' : 'text-[#727780]'}`} />
+          <span>AI: <strong className="text-[#F3F4F6] font-medium">{backendOnline ? (aiStatus?.isConfigured ? (aiStatus.activeName?.includes('Gemini') ? 'Gemini' : (aiStatus.activeName?.includes('OpenAI') ? 'OpenAI' : aiStatus.activeName?.split(' ')[0] || 'Active')) : 'Manual') : 'Sandbox'}</strong></span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <Database className="w-3.5 h-3.5 text-[#80B89A]" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7">
+          <Database className="w-3.5 h-3.5 text-[#80B89A] shrink-0" />
           <span>Active: <strong className="text-[#F3F4F6] font-medium">{totalCount}</strong></span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#91B7D8]" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#91B7D8] shrink-0" />
           <span>Audited: <strong className="text-[#F3F4F6] font-medium">{auditedCount}</strong></span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <span className="w-2 h-2 rounded-full bg-[#D8B16C]" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7">
+          <span className="w-2 h-2 rounded-full bg-[#D8B16C] shrink-0" />
           <span>Review: <strong className="text-[#F3F4F6] font-medium">{needsReviewCount}</strong></span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <Mail className="w-3.5 h-3.5 text-[#D8E7A2]" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7">
+          <Mail className="w-3.5 h-3.5 text-[#D8E7A2] shrink-0" />
           <span>Drafts: <strong className="text-[#F3F4F6] font-medium">{draftsCount}</strong></span>
         </div>
 
-        <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
-          <Clock className="w-3.5 h-3.5 text-[#727780]" />
+        <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0 h-7">
+          <Clock className="w-3.5 h-3.5 text-[#727780] shrink-0" />
           <span>Submitted: <strong className="text-[#F3F4F6] font-medium">{submittedCount}</strong></span>
         </div>
       </div>
 
       {/* Right Controls: Search, Notification Bell, User Badge */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         {/* Global Search pill with shortcut */}
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="flex items-center gap-3 px-3 py-1.5 rounded bg-[#17191C] border border-[#2B2F36] hover:border-[#3E444F] text-[12px] text-[#727780] hover:text-[#A0A5AD] transition-all w-52 sm:w-64"
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded bg-[#17191C] border border-[#2B2F36] hover:border-[#3E444F] text-[12px] text-[#727780] hover:text-[#A0A5AD] transition-all w-36 md:w-44 lg:w-48 shrink-0"
         >
           <Search className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate text-left flex-1">Search prospects, URLs...</span>
+          <span className="truncate text-left flex-1">Search...</span>
           <kbd className="hidden sm:inline-block font-mono text-[10px] bg-[#22252B] text-[#A0A5AD] px-1.5 py-0.5 rounded border border-[#30343A]">
             ⌘K
           </kbd>
         </button>
 
         {/* Date Filter Selector Pill like screenshot */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD]">
+        <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] whitespace-nowrap shrink-0">
           <span>Last 7 days</span>
           <ChevronDown className="w-3.5 h-3.5 text-[#727780]" />
         </div>
