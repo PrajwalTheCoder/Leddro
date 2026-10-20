@@ -14,7 +14,6 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import logoImg from '../../assets/logo.png';
 import nameLogoImg from '../../assets/leddro-name-logo.png';
 
 export const TopBar: React.FC = () => {
@@ -57,16 +56,11 @@ export const TopBar: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-6 shrink-0 z-20">
+    <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-4 sm:px-5 shrink-0 z-20">
       {/* Left: Brand & Compact Status Indicators */}
       <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
-        <Link to="/" className="flex items-center gap-2.5 group hover:opacity-95 transition-all shrink-0 mr-2" title="Leddro Home">
-          <img 
-            src={logoImg} 
-            alt="Leddro Mark" 
-            className="h-9 w-9 sm:h-9.5 sm:w-9.5 object-contain drop-shadow-[0_0_12px_rgba(210,248,36,0.35)] group-hover:scale-105 transition-transform" 
-          />
-          <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-7 w-auto object-contain" />
+        <Link to="/" className="flex items-center group hover:opacity-90 transition-opacity shrink-0 mr-1.5" title="Leddro Home">
+          <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-6.5 w-auto object-contain" />
         </Link>
         <div className="h-4 w-[1px] bg-[#22252A] hidden sm:block shrink-0" />
         <div
