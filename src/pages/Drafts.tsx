@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -139,13 +139,21 @@ export const Drafts: React.FC = () => {
 
   const realPhone = associatedProspect?.phone?.trim() || null;
   const telLink = realPhone ? `tel:${realPhone.replace(/[^0-9+]/g, '')}` : null;
-  const waDigits = realPhone ? realPhone.replace(/[^0-9]/g, '') : null;
+  const waDigits = useMemo(() => {
+    if (!realPhone) return null;
+    let digits = realPhone.replace(/[^0-9]/g, '');
+    if (digits.length === 10 && (associatedProspect?.location?.country?.toLowerCase().includes('india') || /^[6-9]/.test(digits))) {
+      digits = '91' + digits;
+    }
+    return digits;
+  }, [realPhone, associatedProspect?.location?.country]);
+
   const waLink = waDigits ? `https://wa.me/${waDigits}` : null;
   const suggestedDomain = associatedProspect?.websiteUrl
     ? associatedProspect.websiteUrl.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase()
     : null;
   const waPitchLink = waDigits
-    ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi ${associatedProspect?.name || 'there'},\n\n${subject}\n\n${body}`)}`
+    ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`*${subject}*\n\n${body}`)}`
     : waLink;
 
   const handleExtractFromWebsite = async () => {
@@ -421,6 +429,18 @@ export const Drafts: React.FC = () => {
                   >
                     Send Email
                   </Button>
+                )}
+                {realPhone && waPitchLink && (
+                  <a
+                    href={waPitchLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#20362A] border border-[#253D30] text-[12px] font-medium transition-all hover:scale-[1.02] shadow-sm cursor-pointer"
+                    title={`Open WhatsApp chat with ${realPhone} and pre-filled technical letter`}
+                  >
+                    <MessageSquare className="w-4 h-4 text-[#80B89A]" />
+                    <span>WhatsApp Pitch</span>
+                  </a>
                 )}
               </>
             )}
@@ -781,11 +801,11 @@ export const Drafts: React.FC = () => {
                         Call
                       </a>
                       <a
-                        href={`https://wa.me/${associatedProspect.phone.replace(/[^0-9]/g, '')}`}
+                        href={waPitchLink || `https://wa.me/${waDigits || ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2 py-0.5 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#1F3329] border border-[#253D30] text-[10px] font-mono transition-colors"
-                        title="Chat on WhatsApp"
+                        title="Chat on WhatsApp with prefilled audit letter"
                       >
                         WhatsApp
                       </a>
