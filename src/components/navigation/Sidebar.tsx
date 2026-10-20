@@ -32,8 +32,14 @@ export const Sidebar: React.FC = () => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
+  const isHostedDemo = typeof window !== 'undefined' && (
+    window.location.hostname.includes('github.io') ||
+    window.location.hostname.includes('vercel.app') ||
+    window.location.hostname.includes('pages.dev')
+  );
+
   const mainNavItems: NavItem[] = [
-    { id: 'overview', label: 'Overview', path: '/app', icon: Layers },
+    { id: 'overview', label: 'Overview', path: '/', icon: Layers },
     { id: 'discover', label: 'Discover', path: '/discover', icon: Compass },
     { id: 'prospects', label: 'Prospects', path: '/prospects', icon: Building2 },
     { id: 'audits', label: 'Audits', path: '/audits', icon: FileCode2 },
@@ -42,8 +48,8 @@ export const Sidebar: React.FC = () => {
   ];
 
   const bottomNavItems: NavItem[] = [
-    { id: 'landing', label: 'Showcase & Demo Video', path: '/landing', icon: Sparkles },
-    ...(backendOnline ? [
+    ...(isHostedDemo ? [{ id: 'landing', label: 'Showcase & Demo Video', path: '/landing', icon: Sparkles }] : []),
+    ...(!isHostedDemo || backendOnline ? [
       { id: 'integrations', label: 'Integrations', path: '/integrations', icon: Puzzle },
       { id: 'settings', label: 'Settings', path: '/integrations', icon: Settings },
     ] : [])
@@ -71,8 +77,8 @@ export const Sidebar: React.FC = () => {
           <nav className="flex flex-col items-center gap-2">
             {mainNavItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.path === '/app' 
-                ? (location.pathname === '/app' || location.pathname === '/')
+              const isActive = (item.path === '/' || item.path === '/app')
+                ? (location.pathname === '/' || location.pathname === '/app')
                 : location.pathname.startsWith(item.path);
 
               return (
