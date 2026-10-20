@@ -13,7 +13,9 @@ import {
   ExternalLink,
   Clock
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import logoImg from '../../assets/logo.png';
+import nameLogoImg from '../../assets/leddro-name-logo.png';
 
 export const TopBar: React.FC = () => {
   const {
@@ -56,8 +58,15 @@ export const TopBar: React.FC = () => {
 
   return (
     <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-6 shrink-0 z-20">
-      {/* Left: Compact Status Indicators (Like Haulix Top Chips) */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+      {/* Left: Brand & Compact Status Indicators */}
+      <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+        <Link to="/" className="flex items-center gap-2 group hover:opacity-90 transition-opacity shrink-0 mr-1.5" title="Leddro Home">
+          <div className="w-7 h-7 rounded-lg bg-[#141618] border border-[#2B2F36] flex items-center justify-center p-0.5 group-hover:border-[#D8E7A2]/60 shadow-[0_0_8px_rgba(216,231,162,0.15)] transition-colors">
+            <img src={logoImg} alt="Leddro Mark" className="w-full h-full object-contain" />
+          </div>
+          <img src={nameLogoImg} alt="Leddro" className="h-4 w-auto object-contain hidden md:block" />
+        </Link>
+        <div className="h-4 w-[1px] bg-[#22252A] hidden sm:block shrink-0" />
         <div
           onClick={!backendOnline ? () => checkBackendHealth() : undefined}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#17191C] border border-[#2B2F36] text-[12px] text-[#A0A5AD] ${!backendOnline ? 'cursor-pointer hover:border-[#E5A96A]' : ''}`}

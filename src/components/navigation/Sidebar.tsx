@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import logoImg from '../../assets/logo.png';
+import nameLogoImg from '../../assets/leddro-name-logo.png';
 
 interface NavItem {
   id: string;
@@ -68,8 +69,9 @@ export const Sidebar: React.FC = () => {
               <img src={logoImg} alt="Leddro Intelligence" className="w-full h-full object-contain rounded-lg" />
             </div>
             {/* Tooltip */}
-            <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center px-2.5 py-1 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
-              Leddro Intelligence (Home)
+            <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-2.5 py-1.5 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
+              <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+              <span className="text-[11px] text-[#A0A5AD]">Intelligence (Home)</span>
             </div>
           </NavLink>
 
@@ -174,8 +176,9 @@ export const Sidebar: React.FC = () => {
           <div className="w-full max-w-lg rounded border border-[#30343A] bg-[#17191C] shadow-2xl p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-[#262A30] pb-3">
               <div className="flex items-center gap-2.5">
-                <img src="/logo.png" alt="Leddro" className="w-5 h-5 rounded object-contain" />
-                <h3 className="text-[14px] font-medium text-[#F3F4F6]">Leddro Keyboard Shortcuts &amp; Principles</h3>
+                <img src={logoImg} alt="Leddro Mark" className="w-6 h-6 rounded-md object-contain p-0.5 bg-[#111214] border border-[#2B2F36]" />
+                <img src={nameLogoImg} alt="Leddro" className="h-4.5 w-auto object-contain" />
+                <span className="text-[13px] font-medium text-[#A0A5AD]">• Shortcuts &amp; Principles</span>
               </div>
               <button onClick={() => setShowHelpModal(false)} className="text-[#727780] hover:text-[#F3F4F6]">
                 <X className="w-4 h-4" />

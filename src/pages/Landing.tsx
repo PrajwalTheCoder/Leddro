@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import nameLogoImg from '../assets/leddro-name-logo.png';
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -156,13 +157,11 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-xl bg-[#111214] border border-[#2B303C] flex items-center justify-center p-1.5 shadow-[0_0_15px_rgba(210,248,36,0.15)] group-hover:border-[#D2F824] transition-all">
-              <img src={logoImg} alt="Leddro" className="w-full h-full object-contain" />
+              <img src={logoImg} alt="Leddro Mark" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight text-white group-hover:text-[#D2F824] transition-colors">
-                  Leddro
-                </span>
+                <img src={nameLogoImg} alt="Leddro" className="h-6 w-auto object-contain" />
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C202B] text-[#D2F824] border border-[#2B303C]">
                   v1.0 MIT
                 </span>
@@ -212,10 +211,12 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       {/* HERO SECTION */}
       <section className="relative z-10 pt-20 pb-24 px-6 text-center w-full max-w-5xl mx-auto">
         {/* Open Source Pill Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#141822] border border-[#262B38] shadow-inner mb-8 animate-fade-in">
-          <span className="w-2 h-2 rounded-full bg-[#D2F824] animate-ping" />
+        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#141822] border border-[#262B38] shadow-inner mb-8 animate-fade-in">
+          <img src={logoImg} alt="Leddro Mark" className="w-4 h-4 object-contain" />
+          <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+          <span className="text-xs text-[#8B949E]">|</span>
           <span className="text-xs font-mono text-[#D2F824] font-medium">
-            100% Free & Open-Source (MIT)
+            100% Free &amp; Open-Source (MIT)
           </span>
           <span className="text-xs text-[#8B949E]">|</span>
           <span className="text-xs text-[#9BA1B0] font-mono">
@@ -528,8 +529,10 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       {/* FOOTER */}
       <footer className="relative z-10 border-t border-[#1C202B] py-10 px-6 text-center text-xs text-[#8B949E] font-mono">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white">Leddro Intelligence</span>
+          <div className="flex items-center gap-2.5">
+            <img src={logoImg} alt="Leddro Logo" className="w-5 h-5 object-contain" />
+            <img src={nameLogoImg} alt="Leddro" className="h-4 w-auto object-contain" />
+            <span className="text-white font-medium">• Intelligence</span>
             <span>•</span>
             <span>MIT Open Source License</span>
           </div>

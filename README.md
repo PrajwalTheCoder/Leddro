@@ -1,8 +1,11 @@
-# Leddro
-
-> **Discover prospects. Audit websites. Understand opportunities. Prepare evidence-based outreach.**
-> 
-> 🌐 **Live Interactive Showcase & Demo Sandbox:** [https://prajwalthecoder.github.io/Leddro](https://prajwalthecoder.github.io/Leddro/)
+<div align="center">
+  <img src="public/logo.png" alt="Leddro Logo Mark" width="88" />
+  <br />
+  <img src="public/leddro-name-logo.png" alt="Leddro" width="280" />
+  <br /><br />
+  <p><strong>Discover prospects. Audit websites. Understand opportunities. Prepare evidence-based outreach.</strong></p>
+  <p>🌐 <strong>Live Interactive Showcase &amp; Demo Sandbox:</strong> <a href="https://prajwalthecoder.github.io/Leddro/">https://prajwalthecoder.github.io/Leddro/</a></p>
+</div>
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Interactive%20Sandbox-D2F824?style=flat&logo=googlechrome&logoColor=black)](https://prajwalthecoder.github.io/Leddro/)
 [![MIT License](https://img.shields.io/github/license/PrajwalTheCoder/Leddro?style=flat&color=10b981)](LICENSE)

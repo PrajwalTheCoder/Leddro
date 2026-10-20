@@ -16,6 +16,8 @@ import { Integrations } from './pages/Integrations';
 import { History } from './pages/History';
 import { Landing } from './pages/Landing';
 import { useApp } from './context/AppContext';
+import logoImg from './assets/logo.png';
+import nameLogoImg from './assets/leddro-name-logo.png';
 
 const BackendStatusBanner: React.FC = () => {
   const { backendOnline, checkBackendHealth } = useApp();
@@ -32,9 +34,10 @@ const BackendStatusBanner: React.FC = () => {
   return (
     <div className="bg-[#121622] border-b border-[#232938] px-4 py-2 flex items-center justify-between text-xs text-[#9BA1B0] shrink-0 z-10 transition-all select-none">
       <div className="flex items-center gap-2.5">
-        <span className="w-2 h-2 rounded-full bg-[#D2F824] animate-pulse shrink-0 shadow-[0_0_8px_rgba(210,248,36,0.5)]" />
+        <img src={logoImg} alt="Leddro Mark" className="w-4 h-4 object-contain shrink-0" />
+        <img src={nameLogoImg} alt="Leddro" className="h-3 w-auto object-contain shrink-0" />
         <span>
-          <strong className="text-white font-medium">⚡ Interactive Demo Sandbox:</strong> Exploring live Leddro UI with simulated prospects, tactical radar, and diagnostic audit telemetry.
+          <strong className="text-white font-medium">⚡ Interactive Demo Sandbox:</strong> Exploring live UI with simulated prospects, tactical radar, and diagnostic audit telemetry.
         </span>
       </div>
       <div className="flex items-center gap-3 shrink-0">

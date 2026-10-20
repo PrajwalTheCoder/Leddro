@@ -16,6 +16,8 @@ import {
   X
 } from 'lucide-react';
 import { Badge } from './Badge';
+import logoImg from '../../assets/logo.png';
+import nameLogoImg from '../../assets/leddro-name-logo.png';
 
 export const CommandPalette: React.FC = () => {
   const { 
@@ -216,7 +218,11 @@ export const CommandPalette: React.FC = () => {
             <span><kbd className="px-1.5 py-0.5 rounded bg-[#1D2024] border border-[#30343A] text-[#A0A5AD]">↵</kbd> select</span>
             <span><kbd className="px-1.5 py-0.5 rounded bg-[#1D2024] border border-[#30343A] text-[#A0A5AD]">esc</kbd> close</span>
           </div>
-          <span className="font-mono text-[#D8E7A2]/80">Leddro Query v2.4</span>
+          <div className="flex items-center gap-2">
+            <img src={logoImg} alt="Leddro Mark" className="w-3.5 h-3.5 object-contain" />
+            <img src={nameLogoImg} alt="Leddro" className="h-3.5 w-auto object-contain" />
+            <span className="font-mono text-[#D8E7A2]/80 text-[10px]">Query v2.4</span>
+          </div>
         </div>
       </div>
     </div>
