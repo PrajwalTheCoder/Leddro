@@ -17,46 +17,6 @@ import { History } from './pages/History';
 import { Landing } from './pages/Landing';
 import { useApp } from './context/AppContext';
 
-const BackendStatusBanner: React.FC = () => {
-  const { backendOnline, checkBackendHealth } = useApp();
-  const [isRetrying, setIsRetrying] = React.useState(false);
-
-  if (backendOnline !== false) return null;
-
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    await checkBackendHealth();
-    setIsRetrying(false);
-  };
-
-  return (
-    <div className="bg-[#13161F] border-b border-[#222736] px-4 py-1.5 flex items-center justify-between text-[12px] text-[#A0A5AD] shrink-0 z-10 select-none">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="w-2 h-2 rounded-full bg-[#E5A96A] animate-pulse shrink-0" />
-        <span className="truncate">
-          <strong className="text-[#F3F4F6] font-medium">⚡ Demo Sandbox Mode:</strong> Exploring live UI with simulated prospects, tactical radar, and diagnostic audit telemetry.
-        </span>
-      </div>
-      <div className="flex items-center gap-3 shrink-0 ml-4">
-        <Link
-          to="/"
-          className="text-[#D8E7A2] hover:underline font-medium text-[11px] flex items-center gap-1"
-        >
-          <span>Product Showcase & Video</span>
-          <span>→</span>
-        </Link>
-        <button
-          onClick={handleRetry}
-          disabled={isRetrying}
-          className="px-2 py-0.5 rounded bg-[#1C212D] hover:bg-[#252B3A] text-[#F3F4F6] font-medium text-[11px] transition-colors cursor-pointer disabled:opacity-50 border border-[#2B3242]"
-        >
-          {isRetrying ? 'Checking...' : 'Check Local Backend'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 function AppContent() {
   const location = useLocation();
   const { backendOnline } = useApp();
@@ -89,9 +49,6 @@ function AppContent() {
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         {/* Top Bar */}
         <TopBar />
-
-        {/* Offline Engine Warning / Demo Sandbox Banner */}
-        <BackendStatusBanner />
 
         {/* Viewport Router */}
         <main className="flex-1 overflow-hidden relative">
