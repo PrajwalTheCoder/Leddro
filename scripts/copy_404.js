@@ -2,30 +2,33 @@ import fs from 'fs';
 import path from 'path';
 
 const distDir = path.resolve('dist');
-const indexPath = path.join(distDir, 'index.html');
 const notFoundPath = path.join(distDir, '404.html');
 
-if (fs.existsSync(indexPath)) {
-  let html = fs.readFileSync(indexPath, 'utf-8');
-  
-  // SPA redirect snippet for GitHub Pages subfolder
-  const redirectScript = `
-    <script>
-      (function() {
-        var path = window.location.pathname;
-        var segments = path.split('/').filter(Boolean);
-        if (segments.length > 0 && segments[0].toLowerCase() === 'leddro') {
-          var repo = '/' + segments[0];
-          var route = path.slice(repo.length);
-          if (route && route !== '/' && !route.startsWith('/#')) {
-            window.location.replace(repo + '/#' + route);
-          }
-        }
-      })();
+const html404 = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Leddro — Redirecting...</title>
+    <script type="text/javascript">
+      // Single Page Apps for GitHub Pages
+      // MIT License - https://github.com/rafgraph/spa-github-pages
+      // pathSegmentsToKeep is 1 for project pages (e.g. username.github.io/Leddro/)
+      var pathSegmentsToKeep = 1;
+      var l = window.location;
+      var repo = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/');
+      var route = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~');
+      var search = l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '';
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        repo + '/?/' + route + search + l.hash
+      );
     </script>
-  `;
+  </head>
+  <body style="background:#0A0D13;color:#8B949E;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <p>Navigating to Leddro...</p>
+  </body>
+</html>
+`;
 
-  html = html.replace('</head>', `${redirectScript}</head>`);
-  fs.writeFileSync(notFoundPath, html, 'utf-8');
-  console.log('[build] Generated dist/404.html with GitHub Pages SPA redirect fallback');
-}
+fs.writeFileSync(notFoundPath, html404, 'utf-8');
+console.log('[build] Generated dist/404.html with clean URL SPA redirect fallback (no hash)');

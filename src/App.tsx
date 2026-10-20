@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { Sidebar } from './components/navigation/Sidebar';
 import { TopBar } from './components/navigation/TopBar';
@@ -33,9 +33,9 @@ const BackendStatusBanner: React.FC = () => {
 
   return (
     <div className="bg-[#121622] border-b border-[#232938] px-4 py-2 flex items-center justify-between text-xs text-[#9BA1B0] shrink-0 z-10 transition-all select-none">
-      <div className="flex items-center gap-2.5">
-        <img src={logoImg} alt="Leddro Mark" className="w-4 h-4 object-contain shrink-0" />
-        <img src={nameLogoImg} alt="Leddro" className="h-3 w-auto object-contain shrink-0" />
+      <div className="flex items-center gap-3">
+        <img src={logoImg} alt="Leddro Mark" className="w-6 h-6 object-contain shrink-0 drop-shadow-[0_0_8px_rgba(210,248,36,0.3)]" />
+        <img src={nameLogoImg} alt="Leddro" className="h-4.5 w-auto object-contain shrink-0" />
         <span>
           <strong className="text-white font-medium">⚡ Interactive Demo Sandbox:</strong> Exploring live UI with simulated prospects, tactical radar, and diagnostic audit telemetry.
         </span>
@@ -120,10 +120,20 @@ function AppContent() {
   );
 }
 
+const getBasename = (): string => {
+  if (typeof window !== 'undefined') {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    if (segments.length > 0 && segments[0].toLowerCase() === 'leddro') {
+      return '/Leddro';
+    }
+  }
+  return import.meta.env.BASE_URL || '/';
+};
+
 export function App() {
   return (
     <AppProvider>
-      <Router>
+      <Router basename={getBasename()}>
         <AppContent />
       </Router>
     </AppProvider>

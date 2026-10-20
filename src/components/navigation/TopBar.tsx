@@ -60,11 +60,13 @@ export const TopBar: React.FC = () => {
     <header className="h-14 border-b border-[#22252A] bg-[#111214] flex items-center justify-between px-6 shrink-0 z-20">
       {/* Left: Brand & Compact Status Indicators */}
       <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
-        <Link to="/" className="flex items-center gap-2.5 group hover:opacity-90 transition-opacity shrink-0 mr-2" title="Leddro Home">
-          <div className="w-8.5 h-8.5 rounded-lg bg-[#141618] border border-[#2B2F36] flex items-center justify-center p-1 group-hover:border-[#D8E7A2]/60 shadow-[0_0_8px_rgba(216,231,162,0.15)] transition-colors">
-            <img src={logoImg} alt="Leddro Mark" className="w-full h-full object-contain" />
-          </div>
-          <img src={nameLogoImg} alt="Leddro" className="h-5.5 sm:h-6 w-auto object-contain" />
+        <Link to="/" className="flex items-center gap-2.5 group hover:opacity-95 transition-all shrink-0 mr-2" title="Leddro Home">
+          <img 
+            src={logoImg} 
+            alt="Leddro Mark" 
+            className="h-9 w-9 sm:h-9.5 sm:w-9.5 object-contain drop-shadow-[0_0_12px_rgba(210,248,36,0.35)] group-hover:scale-105 transition-transform" 
+          />
+          <img src={nameLogoImg} alt="Leddro" className="h-6 sm:h-7 w-auto object-contain" />
         </Link>
         <div className="h-4 w-[1px] bg-[#22252A] hidden sm:block shrink-0" />
         <div
