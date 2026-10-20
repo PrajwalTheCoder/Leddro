@@ -20,7 +20,9 @@ import {
   Search,
   Globe,
   Phone,
-  Building2
+  Building2,
+  Share2,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { AIProviderStatus, AISettings } from '../types';
@@ -1341,6 +1343,65 @@ export const Integrations: React.FC = () => {
                   </strong>
                   <p className="text-[#727780] leading-relaxed">
                     Identifies published telephone numbers and formats them for 1-click Call and WhatsApp outreach directly from your prospect drawer and email drafts.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Provider: Multi-Channel Deep Search Dorking (Zero-Website Pipeline) */}
+            <div className="rounded border border-[#3E4929] bg-[#17191C] p-5 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#24272D] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#22271B] border border-[#3E4929] text-[#D8E7A2] flex items-center justify-center shrink-0">
+                    <Compass className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[14px] font-medium text-[#F3F4F6]">
+                        Multi-Channel Social &amp; Deep Search Dorking (Zero-Website Pipeline)
+                      </h3>
+                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-1.5 py-0.2 rounded flex items-center gap-1">
+                        <Check className="w-3 h-3" /> 100% Free &amp; Built-in
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#727780] mt-0.5">
+                      Autonomous intelligence pipeline designed specifically for local food, retail, and commercial businesses in India that don't own a custom <code className="font-mono text-[#D8E7A2]">.com</code> domain.
+                    </p>
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] text-[#80B89A] bg-[#18261F] px-2.5 py-0.5 rounded border border-[#253D30] self-start sm:self-auto shrink-0">
+                  Active (No API Key Needed)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                <div className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1">
+                  <strong className="text-[#F3F4F6] flex items-center gap-1">
+                    <Share2 className="w-3.5 h-3.5 text-[#91B7D8]" />
+                    Facebook &amp; Instagram Storefronts
+                  </strong>
+                  <p className="text-[#727780] leading-relaxed">
+                    Scrapes the public About / Contact tab on Facebook Business Pages and Instagram professional bio metadata to extract direct Gmail and Yahoo addresses.
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1">
+                  <strong className="text-[#F3F4F6] flex items-center gap-1">
+                    <Search className="w-3.5 h-3.5 text-[#D8E7A2]" />
+                    Search Engine Dorking
+                  </strong>
+                  <p className="text-[#727780] leading-relaxed">
+                    Targets table booking notices, catering flyers, and party hall listings using Google and Bing search snippet extraction with live DNS MX deliverability checks.
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded bg-[#111214] border border-[#24272D] flex flex-col gap-1">
+                  <strong className="text-[#F3F4F6] flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#80B89A]" />
+                    WhatsApp &amp; Directory Intel
+                  </strong>
+                  <p className="text-[#727780] leading-relaxed">
+                    Queries mobile numbers alongside Gmail on Indian business directories (Justdial, Zomato, Swiggy) and verifies FSSAI license / GSTIN public disclosures.
                   </p>
                 </div>
               </div>

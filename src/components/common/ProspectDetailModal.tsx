@@ -18,7 +18,13 @@ import {
   Send,
   History as HistoryIcon,
   BarChart3,
-  ArrowLeftRight
+  ArrowLeftRight,
+  MessageSquare,
+  Globe,
+  Search,
+  Compass,
+  Loader2,
+  Share2
 } from 'lucide-react';
 import { Button } from './Button';
 import { Badge } from './Badge';
@@ -50,12 +56,17 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
     suppressions,
     addSuppression,
     removeSuppression,
-    emailHistory
+    emailHistory,
+    refreshProspects,
+    refreshDrafts,
+    addToast
   } = useApp();
   const navigate = useNavigate();
 
   const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [isDeepSearching, setIsDeepSearching] = useState(false);
+  const [deepSearchResult, setDeepSearchResult] = useState<any>(null);
 
   if (!isOpen || !prospect) return null;
 
@@ -85,6 +96,38 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
   const handleOpenAudit = () => {
     onClose();
     navigate('/audits');
+  };
+
+  const handleDeepSearch = async () => {
+    if (!prospect) return;
+    setIsDeepSearching(true);
+    try {
+      const res = await fetch('/api/enrichment/deep-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prospect_id: prospect.id,
+          business_name: prospect.name,
+          location: prospect.location.city,
+          phone: prospect.phone
+        })
+      });
+      const data = await res.json();
+      setDeepSearchResult(data);
+      await refreshProspects();
+      await refreshDrafts();
+      if (data.primary_email) {
+        addToast(`Discovered verified email: ${data.primary_email}`, 'success');
+      } else if (data.success) {
+        addToast(`Discovered online profiles for ${prospect.name}`, 'info');
+      } else {
+        addToast(`No new public contact info found for ${prospect.name}`, 'warning');
+      }
+    } catch (err: any) {
+      addToast(`Deep search failed: ${err.message}`, 'error');
+    } finally {
+      setIsDeepSearching(false);
+    }
   };
 
   return (
@@ -190,7 +233,7 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
                 <span className="text-[#727780]">Provenance:</span>
                 <span className="font-mono text-[11px] text-[#A0A5AD]">
                   {prospect.email
-                    ? (prospect.sourceProvider ? `Discovered via ${prospect.sourceProvider}` : 'User-entered / local data')
+                    ? (prospect.sourceProvider ? `Discovered via ${prospect.sourceProvider}` : 'Verified via Deep Search')
                     : 'No address recorded'}
                 </span>
               </div>
@@ -219,6 +262,22 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
                     </div>
                   )}
                 </div>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-[#22252A]">
+                <span className="text-[#727780]">Lead Intelligence:</span>
+                <button
+                  onClick={handleDeepSearch}
+                  disabled={isDeepSearching}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#D8E7A2] hover:text-[#E8F5B8] bg-[#22271B] hover:bg-[#2C3423] px-2.5 py-1 rounded border border-[#3E4929] transition-all cursor-pointer disabled:opacity-50"
+                  title="Search Facebook, Instagram, Google Dorks, Justdial, and FSSAI records"
+                >
+                  {isDeepSearching ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-[#D8E7A2]" />
+                  ) : (
+                    <Search className="w-3 h-3 text-[#D8E7A2]" />
+                  )}
+                  <span>{isDeepSearching ? 'Deep Searching...' : 'Deep Search Contacts'}</span>
+                </button>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#727780]">Opportunity Score:</span>
@@ -254,6 +313,200 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Pillar 1-5 Deep Search & Intelligence Dossier Panel */}
+          {(deepSearchResult || isDeepSearching) && (
+            <div className="rounded border border-[#3E4929] bg-[#171D18] p-4 flex flex-col gap-3 transition-all animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-[#283522] pb-2">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-[#D8E7A2]" />
+                  <span className="text-[13px] font-semibold text-[#F3F4F6]">
+                    Deep Digital Footprint &amp; Multi-Channel Intelligence
+                  </span>
+                </div>
+                {isDeepSearching && (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-[#D8E7A2] bg-[#22271B] px-2 py-0.5 rounded border border-[#364024]">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Scanning 5 Discovery Channels...
+                  </span>
+                )}
+              </div>
+
+              {isDeepSearching ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-[#A0A5AD] font-mono py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
+                    <span>Facebook Business &amp; Instagram Bios</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
+                    <span>Search Engine Dorking (Gmail / Yahoo)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
+                    <span>WhatsApp Business Metadata Lookup</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
+                    <span>Justdial, Zomato &amp; Swiggy Listings</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D8E7A2] animate-ping" />
+                    <span>FSSAI Food License &amp; GSTIN Filings</span>
+                  </div>
+                </div>
+              ) : deepSearchResult ? (
+                <div className="flex flex-col gap-3 text-[12px]">
+                  {/* Summary Callout */}
+                  <div className="p-2.5 rounded bg-[#1D251E] border border-[#2B3B28] text-[11px] flex items-center justify-between">
+                    <span className="text-[#A5C799]">
+                      {deepSearchResult.message || 'Discovery completed.'}
+                    </span>
+                    {deepSearchResult.primary_email && (
+                      <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-2 py-0.5 rounded flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> DNS MX Deliverable
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Channel Badges Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Social Profiles */}
+                    <div className="p-2.5 rounded bg-[#131713] border border-[#263321] flex flex-col gap-1.5">
+                      <span className="text-[10px] font-mono uppercase text-[#727780]">
+                        Social Storefronts (FB &amp; IG)
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {deepSearchResult.social_profiles?.facebook ? (
+                          <a
+                            href={deepSearchResult.social_profiles.facebook}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#1C2A3A] text-[#91B7D8] hover:bg-[#253A52] text-[11px] font-mono border border-[#2B3F56] transition-colors"
+                          >
+                            <span>Facebook Page</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-[#727780] italic">No Facebook</span>
+                        )}
+                        {deepSearchResult.social_profiles?.instagram ? (
+                          <a
+                            href={deepSearchResult.social_profiles.instagram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#331C2D] text-[#D891C8] hover:bg-[#47253E] text-[11px] font-mono border border-[#522B47] transition-colors"
+                          >
+                            <span>Instagram Bio</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-[#727780] italic">No Instagram</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Business */}
+                    <div className="p-2.5 rounded bg-[#131713] border border-[#263321] flex flex-col gap-1.5">
+                      <span className="text-[10px] font-mono uppercase text-[#727780]">
+                        WhatsApp Business
+                      </span>
+                      {deepSearchResult.whatsapp ? (
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-[#F3F4F6]">
+                            {deepSearchResult.whatsapp.phone_e164}
+                          </span>
+                          <a
+                            href={deepSearchResult.whatsapp.wa_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#18261F] text-[#80B89A] hover:bg-[#20362A] text-[11px] font-mono border border-[#253D30] transition-colors"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            <span>Chat on WhatsApp</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-[#727780] italic">No WhatsApp phone recorded</span>
+                      )}
+                    </div>
+
+                    {/* Indian Directories */}
+                    <div className="p-2.5 rounded bg-[#131713] border border-[#263321] flex flex-col gap-1.5">
+                      <span className="text-[10px] font-mono uppercase text-[#727780]">
+                        Local Directories (Justdial / Zomato / Swiggy)
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {deepSearchResult.social_profiles?.justdial && (
+                          <a
+                            href={deepSearchResult.social_profiles.justdial}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#2D2418] text-[#D8B16C] hover:bg-[#3D301E] text-[11px] font-mono border border-[#4A3A22] transition-colors"
+                          >
+                            <span>Justdial</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        {deepSearchResult.social_profiles?.zomato && (
+                          <a
+                            href={deepSearchResult.social_profiles.zomato}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#311C1C] text-[#D88282] hover:bg-[#452424] text-[11px] font-mono border border-[#522929] transition-colors"
+                          >
+                            <span>Zomato</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        {deepSearchResult.social_profiles?.swiggy && (
+                          <a
+                            href={deepSearchResult.social_profiles.swiggy}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#332215] text-[#D89B66] hover:bg-[#472E1B] text-[11px] font-mono border border-[#52351E] transition-colors"
+                          >
+                            <span>Swiggy</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        {!deepSearchResult.social_profiles?.justdial && !deepSearchResult.social_profiles?.zomato && !deepSearchResult.social_profiles?.swiggy && (
+                          <span className="text-[11px] text-[#727780] italic">No local directory matched</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Government / FSSAI / Discovered Web */}
+                    <div className="p-2.5 rounded bg-[#131713] border border-[#263321] flex flex-col gap-1.5">
+                      <span className="text-[10px] font-mono uppercase text-[#727780]">
+                        Government &amp; Discovered Web
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {deepSearchResult.fssai_info ? (
+                          <span className="font-mono text-[10px] bg-[#22271B] text-[#D8E7A2] border border-[#3E4929] px-2 py-0.5 rounded">
+                            {deepSearchResult.fssai_info.type}: {deepSearchResult.fssai_info.license_number || deepSearchResult.fssai_info.gstin}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-[#727780] italic">No FSSAI/GSTIN recorded</span>
+                        )}
+                        {deepSearchResult.discovered_website && (
+                          <a
+                            href={deepSearchResult.discovered_website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-[11px] text-[#D8E7A2] hover:underline flex items-center gap-1"
+                          >
+                            <span>{deepSearchResult.discovered_website.replace(/https?:\/\//, '')}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Audit Status & Findings */}
           <div className="rounded border border-[#2B2F36] bg-[#141618] p-4 flex flex-col gap-3">
@@ -427,6 +680,17 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
           </Button>
 
           <div className="flex items-center gap-2.5">
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={isDeepSearching}
+              isLoading={isDeepSearching}
+              onClick={handleDeepSearch}
+              leftIcon={<Search className="w-4 h-4 text-[#D8E7A2]" />}
+              title="Search Facebook, Instagram, Google Dorks, WhatsApp & FSSAI"
+            >
+              Deep Search Intel
+            </Button>
             {prospect.websiteUrl && (
               <Button
                 variant="secondary"

@@ -11,6 +11,7 @@ from backend.app.models.prospect import ProspectModel
 from backend.app.models.draft import EmailDraftModel
 from backend.app.services.email_scraper import scrape_website_contacts
 from backend.app.services.hunter_client import search_hunter_domain, check_hunter_api_key
+from backend.app.services.deep_search_enrichment import deep_search_prospect
 
 logger = logging.getLogger("leddro.api.enrichment")
 router = APIRouter(prefix="/enrichment", tags=["Contact Enrichment & Verification"])
@@ -21,6 +22,12 @@ class ScrapeRequest(BaseModel):
 
 class FindEmailRequest(BaseModel):
     prospect_id: str
+
+class DeepSearchRequest(BaseModel):
+    prospect_id: Optional[str] = None
+    business_name: Optional[str] = None
+    location: Optional[str] = "Mumbai"
+    phone: Optional[str] = None
 
 class TestKeyRequest(BaseModel):
     api_key: Optional[str] = None
@@ -49,6 +56,13 @@ def get_enrichment_status():
             "is_configured": True,
             "provider_id": "website_scraper",
             "description": "Autonomous contact extraction from target web pages, footer, and /contact routes with live DNS MX verification.",
+            "free": True
+        },
+        "deep_search": {
+            "name": "Multi-Channel Social & Deep Search Dorking",
+            "is_configured": True,
+            "provider_id": "deep_search",
+            "description": "Cross-platform contact intelligence targeting Facebook Pages, Instagram bios, Google/Bing search dorks, WhatsApp Business, Justdial, and FSSAI/GSTIN records for businesses without websites.",
             "free": True
         },
         "hunter": {
@@ -197,14 +211,140 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
                 "message": f"Hunter.io verified corporate email for {domain}: {found_email}"
             }
 
-    # No email could be found
+    # Step 3: Multi-Channel Social & Deep Search Dorking (Autonomous fallback for businesses without official websites)
+    logger.info(f"Running deep multi-channel search for '{prospect.name}' ({prospect.city})...")
+    deep_res = await deep_search_prospect(
+        prospect_name=prospect.name,
+        location=prospect.city or "Mumbai",
+        known_phone=prospect.phone
+    )
+
+    if deep_res.get("primary_email"):
+        found_email = deep_res["primary_email"]
+        prospect.email = found_email
+        if not prospect.phone and deep_res.get("phone"):
+            prospect.phone = deep_res["phone"]
+        if not prospect.website_url and deep_res.get("discovered_website"):
+            prospect.website_url = deep_res["discovered_website"]
+            prospect.website_status = "active"
+
+        # Update open drafts with discovered email
+        drafts = db.query(EmailDraftModel).filter(
+            EmailDraftModel.prospect_id == prospect.id,
+            EmailDraftModel.status.in_(["draft", "needs_review"])
+        ).all()
+        for d in drafts:
+            if not d.recipient_email or not d.recipient_email.strip():
+                d.recipient_email = found_email
+
+        db.commit()
+        return {
+            "success": True,
+            "source": "deep_search_enrichment",
+            "email": found_email,
+            "all_emails": deep_res.get("all_emails", []),
+            "social_profiles": deep_res.get("social_profiles", {}),
+            "whatsapp": deep_res.get("whatsapp"),
+            "fssai_info": deep_res.get("fssai_info"),
+            "directory_metadata": deep_res.get("directory_metadata", {}),
+            "sources_hit": deep_res.get("sources_hit", []),
+            "discovered_website": deep_res.get("discovered_website"),
+            "message": f"Discovered verified contact for '{prospect.name}': {deep_res.get('message')}"
+        }
+
+    # If email wasn't found but socials / WhatsApp were found, persist phone/website if discovered
+    has_intel = bool(deep_res.get("whatsapp") or any(deep_res.get("social_profiles", {}).values()) or deep_res.get("discovered_website"))
+    if has_intel:
+        if not prospect.phone and deep_res.get("phone"):
+            prospect.phone = deep_res["phone"]
+        if not prospect.website_url and deep_res.get("discovered_website"):
+            prospect.website_url = deep_res["discovered_website"]
+            prospect.website_status = "active"
+        db.commit()
+
+        return {
+            "success": True,
+            "source": "deep_search_intel",
+            "email": None,
+            "phone": prospect.phone,
+            "social_profiles": deep_res.get("social_profiles", {}),
+            "whatsapp": deep_res.get("whatsapp"),
+            "fssai_info": deep_res.get("fssai_info"),
+            "directory_metadata": deep_res.get("directory_metadata", {}),
+            "sources_hit": deep_res.get("sources_hit", []),
+            "discovered_website": deep_res.get("discovered_website"),
+            "message": f"Discovered online presence for '{prospect.name}': {deep_res.get('message')}"
+        }
+
+    # No email or social intelligence could be found
     return {
         "success": False,
         "source": "none",
         "email": None,
         "phone": prospect.phone,
-        "message": f"No verified email found for '{prospect.name}'. Use verified phone number: {prospect.phone or 'N/A'}"
+        "message": f"No verified email or public profile discovered for '{prospect.name}'. Use phone: {prospect.phone or 'N/A'}"
     }
+
+@router.post("/deep-search")
+async def execute_deep_search(payload: DeepSearchRequest, db: Session = Depends(get_db)):
+    """
+    Executes comprehensive 5-channel search across:
+    1. Facebook Pages & Instagram Bios (India's primary local business storefronts).
+    2. Search Engine Dorking (Gmail, Yahoo, bookings, catering queries).
+    3. WhatsApp Business profile metadata & phone dorking.
+    4. Local Indian directories (Justdial, Zomato, Swiggy, IndiaMART).
+    5. Government registrations (FSSAI licenses & GSTIN records).
+    """
+    biz_name = payload.business_name
+    loc = payload.location or "Mumbai"
+    phone = payload.phone
+    prospect = None
+
+    if payload.prospect_id:
+        prospect = db.query(ProspectModel).filter(ProspectModel.id == payload.prospect_id).first()
+        if prospect:
+            biz_name = prospect.name
+            loc = prospect.city or loc
+            phone = prospect.phone or phone
+
+    if not biz_name or not biz_name.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Business name is required for deep search.")
+
+    result = await deep_search_prospect(
+        prospect_name=biz_name,
+        location=loc,
+        known_phone=phone
+    )
+
+    # If attached to a prospect record, persist discoveries
+    if prospect:
+        updated = False
+        if result.get("primary_email") and not prospect.email:
+            prospect.email = result["primary_email"]
+            updated = True
+            
+            # Update pending drafts
+            drafts = db.query(EmailDraftModel).filter(
+                EmailDraftModel.prospect_id == prospect.id,
+                EmailDraftModel.status.in_(["draft", "needs_review"])
+            ).all()
+            for d in drafts:
+                if not d.recipient_email or not d.recipient_email.strip():
+                    d.recipient_email = result["primary_email"]
+
+        if result.get("phone") and not prospect.phone:
+            prospect.phone = result["phone"]
+            updated = True
+
+        if result.get("discovered_website") and not prospect.website_url:
+            prospect.website_url = result["discovered_website"]
+            prospect.website_status = "active"
+            updated = True
+
+        if updated:
+            db.commit()
+
+    return result
 
 @router.post("/test-hunter")
 async def test_hunter_connection(payload: TestKeyRequest):

@@ -31,7 +31,9 @@ export const Prospects: React.FC = () => {
     runAudit, 
     isAuditing, 
     auditingProspectId,
-    addToast
+    addToast,
+    refreshProspects,
+    refreshDrafts
   } = useApp();
 
   const navigate = useNavigate();
@@ -41,6 +43,7 @@ export const Prospects: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isNewProspectModalOpen, setIsNewProspectModalOpen] = useState(false);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
 
   // Phase 5 & 8.2 Modals
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -48,6 +51,32 @@ export const Prospects: React.FC = () => {
   const [scoringModalProspect, setScoringModalProspect] = useState<Prospect | null>(null);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [generateTargetId, setGenerateTargetId] = useState<string | null>(null);
+
+  const handleRowDeepSearch = async (e: React.MouseEvent, p: Prospect) => {
+    e.stopPropagation();
+    setEnrichingId(p.id);
+    try {
+      const res = await fetch('/api/enrichment/find-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospect_id: p.id })
+      });
+      const data = await res.json();
+      await refreshProspects();
+      await refreshDrafts();
+      if (data.email) {
+        addToast(`Verified email discovered for ${p.name}: ${data.email}`, 'success');
+      } else if (data.success) {
+        addToast(`Discovered online profiles for ${p.name}`, 'info');
+      } else {
+        addToast(data.message || `No new public contact info found for ${p.name}`, 'info');
+      }
+    } catch (err: any) {
+      addToast(`Deep search error: ${err.message}`, 'error');
+    } finally {
+      setEnrichingId(null);
+    }
+  };
 
   const filtered = prospects.filter((p) => {
     const matchesSearch = 
@@ -363,6 +392,16 @@ export const Prospects: React.FC = () => {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+                          {!p.email && (
+                            <button
+                              title="Deep search contacts (Facebook, Instagram, Dorks, WhatsApp & FSSAI)"
+                              onClick={(e) => handleRowDeepSearch(e, p)}
+                              disabled={enrichingId === p.id}
+                              className="p-1.5 rounded hover:bg-[#282C33] text-[#A0A5AD] hover:text-[#D8E7A2] transition-colors disabled:opacity-40"
+                            >
+                              <Search className={`w-3.5 h-3.5 ${enrichingId === p.id ? 'animate-spin text-[#D8E7A2]' : ''}`} />
+                            </button>
+                          )}
                           <button
                             title="Run audit crawl"
                             onClick={() => runAudit(p.id)}
