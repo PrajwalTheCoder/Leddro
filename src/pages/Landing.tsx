@@ -21,6 +21,7 @@ import {
   FileCheck2,
   AlertTriangle
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -136,11 +137,11 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
 
   const handleQuickAudit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    navigate('/app');
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0D13] text-[#F3F4F6] font-sans selection:bg-[#D2F824] selection:text-black overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#0A0D13] text-[#F3F4F6] font-sans selection:bg-[#D2F824] selection:text-black overflow-x-hidden">
       {/* GLOW BACKGROUND ACCENTS */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-[#D2F824]/10 via-[#2753FF]/5 to-transparent blur-[140px] opacity-70" />
@@ -150,12 +151,12 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       </div>
 
       {/* TOP HEADER / NAVBAR */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0A0D13]/80 border-b border-[#1E2330]">
-        <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
+      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0A0D13]/80 border-b border-[#1E2330]">
+        <div className="w-full max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-xl bg-[#111214] border border-[#2B303C] flex items-center justify-center p-1.5 shadow-[0_0_15px_rgba(210,248,36,0.15)] group-hover:border-[#D2F824] transition-all">
-              <img src="/logo.png" alt="Leddro" className="w-full h-full object-contain" />
+              <img src={logoImg} alt="Leddro" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -198,7 +199,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
               <span>Star on GitHub</span>
             </a>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#D2F824] hover:bg-[#c2e620] text-black font-semibold text-xs tracking-tight shadow-[0_0_20px_rgba(210,248,36,0.35)] transition-all hover:scale-[1.02] cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 fill-black" />
@@ -209,7 +210,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative z-10 pt-20 pb-24 px-6 text-center max-w-5xl mx-auto">
+      <section className="relative z-10 pt-20 pb-24 px-6 text-center w-full max-w-5xl mx-auto">
         {/* Open Source Pill Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#141822] border border-[#262B38] shadow-inner mb-8 animate-fade-in">
           <span className="w-2 h-2 rounded-full bg-[#D2F824] animate-ping" />
@@ -239,7 +240,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
         {/* Hero Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/app')}
             className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-[#D2F824] hover:bg-[#c2e620] text-black font-bold text-sm tracking-tight shadow-[0_0_30px_rgba(210,248,36,0.35)] transition-all hover:scale-105 cursor-pointer"
           >
             <Sparkles className="w-4 h-4 fill-black" />
@@ -373,7 +374,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
 
                   {/* Play Button Icon */}
                   <div 
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/app')}
                     className="relative z-10 w-20 h-20 rounded-full bg-[#1C2232] border border-[#D2F824]/40 flex items-center justify-center cursor-pointer shadow-[0_0_35px_rgba(210,248,36,0.25)] group-hover:scale-110 group-hover:border-[#D2F824] transition-all"
                   >
                     <Play className="w-8 h-8 fill-[#D2F824] text-[#D2F824] ml-1" />
@@ -503,7 +504,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app')}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#D2F824] hover:bg-[#c2e620] text-black font-bold text-sm tracking-tight shadow-[0_0_25px_rgba(210,248,36,0.35)] transition-all cursor-pointer hover:scale-105"
             >
               <Sparkles className="w-4 h-4 fill-black" />
@@ -533,7 +534,7 @@ export const Landing: React.FC<LandingProps> = ({ youtubeUrl = '' }) => {
             <span>MIT Open Source License</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link to="/" className="text-white hover:text-[#D2F824] transition-colors">Interactive Sandbox</Link>
+            <Link to="/app" className="text-white hover:text-[#D2F824] transition-colors">Interactive Sandbox</Link>
             <a href="https://github.com/PrajwalTheCoder/Leddro" target="_blank" rel="noreferrer" className="text-white hover:text-[#D2F824] transition-colors">GitHub Repository</a>
           </div>
         </div>

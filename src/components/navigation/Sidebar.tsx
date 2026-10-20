@@ -14,6 +14,7 @@ import {
   Sparkles,
   X
 } from 'lucide-react';
+import logoImg from '../../assets/logo.png';
 
 interface NavItem {
   id: string;
@@ -29,7 +30,7 @@ export const Sidebar: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState(false);
 
   const mainNavItems: NavItem[] = [
-    { id: 'overview', label: 'Overview', path: '/', icon: Layers },
+    { id: 'overview', label: 'Overview', path: '/app', icon: Layers },
     { id: 'discover', label: 'Discover', path: '/discover', icon: Compass },
     { id: 'prospects', label: 'Prospects', path: '/prospects', icon: Building2 },
     { id: 'audits', label: 'Audits', path: '/audits', icon: FileCode2 },
@@ -51,22 +52,22 @@ export const Sidebar: React.FC = () => {
       >
         {/* Top Product Logo Symbol */}
         <div className="flex flex-col items-center gap-6">
-          <div className="relative group">
+          <NavLink to="/" className="relative group">
             <div className="w-10 h-10 rounded-xl bg-[#111214] border border-[#30343A] flex items-center justify-center cursor-pointer transition-all hover:border-[#D8E7A2]/60 overflow-hidden p-1 shadow-[0_0_12px_rgba(216,231,162,0.2)]">
-              <img src="/logo.png" alt="Leddro Intelligence" className="w-full h-full object-contain rounded-lg" />
+              <img src={logoImg} alt="Leddro Intelligence" className="w-full h-full object-contain rounded-lg" />
             </div>
             {/* Tooltip */}
             <div className="absolute left-[78px] top-1/2 -translate-y-1/2 hidden group-hover:flex items-center px-2.5 py-1 rounded bg-[#24272C] border border-[#30343A] text-[12px] font-medium text-[#F3F4F6] whitespace-nowrap shadow-xl z-50 pointer-events-none">
-              Leddro Intelligence
+              Leddro Intelligence (Home)
             </div>
-          </div>
+          </NavLink>
 
           {/* Navigation Rail Items */}
           <nav className="flex flex-col items-center gap-2">
             {mainNavItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.path === '/' 
-                ? location.pathname === '/' 
+              const isActive = item.path === '/app' 
+                ? (location.pathname === '/app' || location.pathname === '/')
                 : location.pathname.startsWith(item.path);
 
               return (

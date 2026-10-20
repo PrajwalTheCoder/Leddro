@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { Sidebar } from './components/navigation/Sidebar';
 import { TopBar } from './components/navigation/TopBar';
@@ -14,10 +14,8 @@ import { Audits } from './pages/Audits';
 import { Drafts } from './pages/Drafts';
 import { Integrations } from './pages/Integrations';
 import { History } from './pages/History';
-import { useApp } from './context/AppContext';
-
 import { Landing } from './pages/Landing';
-import { useLocation, Link } from 'react-router-dom';
+import { useApp } from './context/AppContext';
 
 const BackendStatusBanner: React.FC = () => {
   const { backendOnline, checkBackendHealth } = useApp();
@@ -41,7 +39,7 @@ const BackendStatusBanner: React.FC = () => {
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <Link
-          to="/landing"
+          to="/"
           className="text-[#D2F824] hover:underline font-mono text-[11px] font-semibold flex items-center gap-1"
         >
           <span>Product Showcase & Video</span>
@@ -61,10 +59,14 @@ const BackendStatusBanner: React.FC = () => {
 
 function AppContent() {
   const location = useLocation();
-  const isLanding = location.pathname === '/landing';
+  const isLanding = location.pathname === '/' || location.pathname === '/landing' || location.pathname === '';
 
   if (isLanding) {
-    return <Landing />;
+    return (
+      <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0D13]">
+        <Landing />
+      </div>
+    );
   }
 
   return (
@@ -83,15 +85,14 @@ function AppContent() {
         {/* Viewport Router */}
         <main className="flex-1 overflow-hidden relative">
           <Routes>
-            <Route path="/" element={<Overview />} />
+            <Route path="/app" element={<Overview />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/prospects" element={<Prospects />} />
             <Route path="/audits" element={<Audits />} />
             <Route path="/drafts" element={<Drafts />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/history" element={<History />} />
-            <Route path="/landing" element={<Landing />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>
         </main>
       </div>
