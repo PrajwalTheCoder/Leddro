@@ -176,13 +176,15 @@ class AIEmailDraftingService:
 
         # 4. Compatible (Local Ollama / vLLM)
         comp_p = self._providers["compatible"]
+        raw_comp_models = [settings.COMPATIBLE_MODEL, "llama3", "mistral", "qwen2.5"]
+        comp_models = [m.strip() for m in dict.fromkeys(raw_comp_models) if m and m.strip()]
         info_list.append(
             AIProviderInfo(
                 provider_id="compatible",
                 name=comp_p.name,
                 is_configured=comp_p.is_configured(),
                 current_model=settings.COMPATIBLE_MODEL,
-                available_models=[settings.COMPATIBLE_MODEL, "llama3", "mistral", "qwen2.5"],
+                available_models=comp_models,
                 status_message=comp_p.get_status_message(),
                 is_active=(active_id == "compatible"),
                 is_local=True,

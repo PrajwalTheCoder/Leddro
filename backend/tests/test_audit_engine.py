@@ -333,3 +333,55 @@ async def test_oversized_response_handling(engine):
         size_findings = [f for f in findings if "exceeded" in f["title"].lower() or "limit" in f["title"].lower()]
         assert len(size_findings) > 0
         assert size_findings[0]["check_status"] == "WARNING"
+
+def test_dns_spf_and_dmarc_apex_fallback(engine):
+    """
+    Test that when a subdomain (e.g. www.brand.com) lacks direct SPF and DMARC records,
+    _inspect_dns falls back to querying the apex organizational domain (brand.com).
+    """
+    mock_resolver = MagicMock()
+
+    # Simulate: A record exists on www.brand.com
+    a_answer = MagicMock()
+    a_answer.__str__ = MagicMock(return_value="1.2.3.4")
+
+    # Simulate: TXT on www.brand.com has no SPF; TXT on brand.com has SPF
+    apex_spf = MagicMock()
+    apex_spf.strings = [b"v=spf1 include:_spf.google.com ~all"]
+
+    # Simulate: _dmarc.www.brand.com raises NXDOMAIN; _dmarc.brand.com returns DMARC
+    apex_dmarc = MagicMock()
+    apex_dmarc.strings = [b"v=DMARC1; p=reject;"]
+
+    def mock_resolve(qname, rdtype, **kwargs):
+        if rdtype == "A":
+            return [a_answer]
+        if rdtype == "TXT":
+            if qname == "www.brand.com":
+                return []
+            if qname == "brand.com":
+                return [apex_spf]
+            if qname == "_dmarc.www.brand.com":
+                raise Exception("NXDOMAIN")
+            if qname == "_dmarc.brand.com":
+                return [apex_dmarc]
+        raise Exception("NXDOMAIN")
+
+    mock_resolver.resolve.side_effect = mock_resolve
+
+    with patch("dns.resolver.Resolver", return_value=mock_resolver):
+        res = engine._inspect_dns("www.brand.com")
+        findings = res["findings"]
+        titles = [f["title"] for f in findings]
+
+        # Should NOT flag missing SPF or missing DMARC because apex domain published them
+        assert not any("Missing Sender Policy Framework" in t for t in titles)
+        assert not any("Missing DMARC" in t for t in titles)
+        assert any("DNS A/IPv4 resolution verified" in t for t in titles)
+
+def test_dummy_template_email_rejected():
+    """Verify that template placeholder emails like you@company.com are rejected."""
+    from backend.app.services.email_scraper import is_valid_email_candidate
+    assert is_valid_email_candidate("you@company.com") is False
+    assert is_valid_email_candidate("user@company.com") is False
+    assert is_valid_email_candidate("info@realbusiness.in") is True

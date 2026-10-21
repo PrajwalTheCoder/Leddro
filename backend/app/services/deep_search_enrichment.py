@@ -25,6 +25,8 @@ from backend.app.services.email_scraper import (
     PHONE_REGEX,
 )
 
+from backend.app.services.ssrf_validator import safe_http_get, validate_target_url
+
 logger = logging.getLogger("leddro.services.deep_search_enrichment")
 
 # Aggregator and platform domains to exclude from official website detection
@@ -311,30 +313,29 @@ async def deep_search_prospect(
             elif "indiamart.com" in domain and not social_profiles["indiamart"]:
                 social_profiles["indiamart"] = url
 
-    # If Justdial page found, extract structured Schema.org data
+    # If Justdial page found, extract structured Schema.org data safely
     if social_profiles["justdial"]:
         try:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             }
-            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
-                res_jd = await client.get(social_profiles["justdial"], headers=headers)
-                if res_jd.status_code == 200:
-                    soup_jd = BeautifulSoup(res_jd.text, "html.parser")
-                    import json
-                    for script in soup_jd.find_all("script", type="application/ld+json"):
-                        try:
-                            jd_data = json.loads(script.string)
-                            if jd_data.get("@type") in ["Restaurant", "LocalBusiness"]:
-                                addr = jd_data.get("address", {})
-                                if isinstance(addr, dict) and addr.get("streetAddress"):
-                                    directory_metadata["address"] = f"{addr.get('streetAddress', '')}, {addr.get('addressLocality', '')}"
-                                rating = jd_data.get("aggregateRating", {})
-                                if isinstance(rating, dict) and rating.get("ratingValue"):
-                                    directory_metadata["rating"] = f"{rating.get('ratingValue')}/5 ({rating.get('ratingCount', 0)} reviews)"
-                                break
-                        except Exception:
-                            continue
+            jd_success, res_jd, jd_err = await safe_http_get(social_profiles["justdial"], headers=headers, timeout=6.0)
+            if jd_success and res_jd and res_jd.status_code == 200:
+                soup_jd = BeautifulSoup(res_jd.text, "html.parser")
+                import json
+                for script in soup_jd.find_all("script", type="application/ld+json"):
+                    try:
+                        jd_data = json.loads(script.string)
+                        if jd_data.get("@type") in ["Restaurant", "LocalBusiness"]:
+                            addr = jd_data.get("address", {})
+                            if isinstance(addr, dict) and addr.get("streetAddress"):
+                                directory_metadata["address"] = f"{addr.get('streetAddress', '')}, {addr.get('addressLocality', '')}"
+                            rating = jd_data.get("aggregateRating", {})
+                            if isinstance(rating, dict) and rating.get("ratingValue"):
+                                directory_metadata["rating"] = f"{rating.get('ratingValue')}/5 ({rating.get('ratingCount', 0)} reviews)"
+                            break
+                    except Exception:
+                        continue
         except Exception as e:
             logger.debug(f"Justdial extraction error: {e}")
 

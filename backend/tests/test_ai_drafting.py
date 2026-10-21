@@ -546,3 +546,24 @@ def test_draft_deletion(client, db_session, sample_prospect):
     # Subsequent get returns 404
     get_res = client.get(f"/api/drafts/{draft.id}")
     assert get_res.status_code == 404
+
+def test_compatible_provider_models_deduplication(monkeypatch):
+    """
+    Finding 5 Regression Test:
+    Verify that available_models for the compatible provider does not contain duplicate
+    entries when settings.COMPATIBLE_MODEL is set to a default like 'llama3' or a custom model.
+    """
+    monkeypatch.setattr(settings, "COMPATIBLE_MODEL", "llama3")
+    providers = ai_service.list_providers()
+    comp = next((p for p in providers if p.provider_id == "compatible"), None)
+    assert comp is not None
+    assert comp.available_models.count("llama3") == 1
+    assert len(comp.available_models) == len(set(comp.available_models))
+
+    # Test with custom model name
+    monkeypatch.setattr(settings, "COMPATIBLE_MODEL", "qwen2.5-coder")
+    providers_custom = ai_service.list_providers()
+    comp_custom = next((p for p in providers_custom if p.provider_id == "compatible"), None)
+    assert comp_custom is not None
+    assert comp_custom.available_models[0] == "qwen2.5-coder"
+    assert len(comp_custom.available_models) == len(set(comp_custom.available_models))

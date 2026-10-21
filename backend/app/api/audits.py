@@ -18,7 +18,7 @@ from backend.app.schemas.audit import (
 from backend.app.services.ssrf_validator import validate_target_url
 from backend.app.services.audit_engine import execute_audit
 from backend.app.services.audit_comparison import compare_audits
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 router = APIRouter(prefix="/audits", tags=["Audits"])
 
@@ -123,39 +123,48 @@ async def run_audit(payload: AuditRunRequest, db: Session = Depends(get_db)):
 def list_audits(db: Session = Depends(get_db)):
     """
     List all executed audit reports.
+    Uses selectinload to eagerly load findings in a single batched query, eliminating N+1 queries.
     """
-    reports = db.query(AuditReportModel).order_by(AuditReportModel.created_at.desc()).all()
-    results = []
-    for r in reports:
-        findings = db.query(AuditFindingModel).filter(AuditFindingModel.audit_report_id == r.id).all()
-        results.append(db_audit_to_schema(r, findings))
-    return results
+    reports = (
+        db.query(AuditReportModel)
+        .options(selectinload(AuditReportModel.findings))
+        .order_by(AuditReportModel.created_at.desc())
+        .all()
+    )
+    return [db_audit_to_schema(r) for r in reports]
 
 @router.get("/{report_id}")
 def get_audit(report_id: str, db: Session = Depends(get_db)):
     """
     Get audit report details by report ID.
     """
-    report = db.query(AuditReportModel).filter(AuditReportModel.id == report_id).first()
+    report = (
+        db.query(AuditReportModel)
+        .options(selectinload(AuditReportModel.findings))
+        .filter(AuditReportModel.id == report_id)
+        .first()
+    )
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Audit report with ID '{report_id}' not found"
         )
-    findings = db.query(AuditFindingModel).filter(AuditFindingModel.audit_report_id == report.id).all()
-    return db_audit_to_schema(report, findings)
+    return db_audit_to_schema(report)
 
 @router.get("/prospect/{prospect_id}")
 def get_prospect_audits(prospect_id: str, db: Session = Depends(get_db)):
     """
     Get all audit reports for a specific prospect.
+    Uses selectinload to eagerly load findings in a single batched query.
     """
-    reports = db.query(AuditReportModel).filter(AuditReportModel.prospect_id == prospect_id).order_by(AuditReportModel.created_at.desc()).all()
-    results = []
-    for r in reports:
-        findings = db.query(AuditFindingModel).filter(AuditFindingModel.audit_report_id == r.id).all()
-        results.append(db_audit_to_schema(r, findings))
-    return results
+    reports = (
+        db.query(AuditReportModel)
+        .options(selectinload(AuditReportModel.findings))
+        .filter(AuditReportModel.prospect_id == prospect_id)
+        .order_by(AuditReportModel.created_at.desc())
+        .all()
+    )
+    return [db_audit_to_schema(r) for r in reports]
 
 @router.post("/compare", response_model=AuditComparisonResponse)
 def compare_two_audits(payload: AuditCompareRequest, db: Session = Depends(get_db)):
