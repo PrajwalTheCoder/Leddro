@@ -73,11 +73,15 @@ class AuditEngine:
         http_data = await self._fetch_http_safely(normalized_url)
         findings.extend(http_data.get("findings", []))
 
-        # 5. HTML Content Inspection (if body retrieved)
+        # 5. HTML Content Inspection (if body retrieved on successful HTTP status)
         html_findings = []
         html_content = http_data.get("body", "")
+        status_code = http_data.get("status_code", 0)
         discovered_contacts = {"emails": [], "phones": []}
-        if html_content:
+        
+        # Guard against inspecting error pages (e.g., 403 Forbidden, 404 Not Found, 500)
+        # as if they were the business's actual homepage content
+        if html_content and (status_code == 0 or (200 <= status_code < 400)):
             html_findings = self._inspect_html(html_content, http_data.get("final_url", normalized_url))
             findings.extend(html_findings)
 
@@ -268,14 +272,16 @@ class AuditEngine:
                 "checked_url": f"https://{domain}"
             })
 
+        target_domain = base_domain if base_domain else domain
+
         if not spf_found:
             findings.append({
                 "id": f"f-dns-spf-{int(time.time()*1000)}",
                 "title": "Missing Sender Policy Framework (SPF) DNS record",
                 "severity": "medium",
                 "check_status": "WARNING",
-                "observed": f"No SPF 'v=spf1' TXT declaration discovered in DNS zone for '{domain}'.",
-                "evidence": f"DNS Query: TXT {domain}\nSPF Tag: [NOT FOUND]\nEvaluated records: {len(a_records)} A records",
+                "observed": f"No SPF 'v=spf1' TXT declaration discovered in DNS zone for '{target_domain}'.",
+                "evidence": f"DNS Query: TXT {target_domain}\nSPF Tag: [NOT FOUND]\nEvaluated records: {len(a_records)} A records",
                 "why_it_matters": "Inbound corporate mail servers may flag legitimate company emails as untrusted or route them to spam filters.",
                 "recommended_action": "Add a TXT record with authorized outgoing mail server definitions (e.g., 'v=spf1 include:_spf.google.com ~all').",
                 "confidence": 0.95,
@@ -289,10 +295,10 @@ class AuditEngine:
                 "title": "Missing DMARC email authentication policy",
                 "severity": "low",
                 "check_status": "WARNING",
-                "observed": f"Domain does not have an active DMARC policy defined at _dmarc.{domain}.",
-                "evidence": f"DNS Query: TXT _dmarc.{domain}\nStatus: NXDOMAIN / NO_DATA",
+                "observed": f"Domain does not have an active DMARC policy defined at _dmarc.{target_domain}.",
+                "evidence": f"DNS Query: TXT _dmarc.{target_domain}\nStatus: NXDOMAIN / NO_DATA",
                 "why_it_matters": "Leaves the domain vulnerable to spoofing and unauthorized email sender impersonation.",
-                "recommended_action": "Publish a DMARC policy TXT record at _dmarc with at least 'v=DMARC1; p=none;'.",
+                "recommended_action": f"Publish a DMARC policy TXT record at _dmarc.{target_domain} with at least 'v=DMARC1; p=none;'.",
                 "confidence": 0.95,
                 "category": "security",
                 "checked_url": f"https://{domain}"
@@ -672,11 +678,11 @@ class AuditEngine:
                     "title": "Slow Time to First Byte (TTFB > 2.0s)",
                     "severity": "medium",
                     "check_status": "WARNING",
-                    "observed": f"The initial server response took {ttfb_ms} ms to begin sending bytes.",
-                    "evidence": f"TTFB: {ttfb_ms} ms (Recommended threshold: < 800 ms)",
-                    "why_it_matters": "High latency before first byte triggers high bounce rates and penalizes Google Search ranking.",
-                    "recommended_action": "Deploy edge caching or CDN (e.g. Cloudflare) and optimize backend database queries.",
-                    "confidence": 0.95,
+                    "observed": f"The initial server response took {ttfb_ms} ms to begin sending bytes during a single probe measurement.",
+                    "evidence": f"TTFB: {ttfb_ms} ms (Single probe; recommended threshold: < 800 ms. Note: Subject to momentary network variance).",
+                    "why_it_matters": "High latency before first byte triggers high bounce rates and penalizes Google Search ranking if sustained.",
+                    "recommended_action": "Corroborate latency across multiple geographic probes, then consider edge caching or CDN (e.g. Cloudflare) if TTFB remains elevated.",
+                    "confidence": 0.85,
                     "category": "performance",
                     "response_time_ms": ttfb_ms,
                     "checked_url": current_url

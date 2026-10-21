@@ -4,6 +4,8 @@ import httpx
 from backend.app.services.audit_engine import AuditEngine
 from backend.app.core.config import settings
 
+ORIGINAL_INSPECT_DNS = AuditEngine._inspect_dns
+
 @pytest.fixture
 def engine():
     return AuditEngine()
@@ -370,7 +372,7 @@ def test_dns_spf_and_dmarc_apex_fallback(engine):
     mock_resolver.resolve.side_effect = mock_resolve
 
     with patch("dns.resolver.Resolver", return_value=mock_resolver):
-        res = engine._inspect_dns("www.brand.com")
+        res = ORIGINAL_INSPECT_DNS(engine, "www.brand.com")
         findings = res["findings"]
         titles = [f["title"] for f in findings]
 
@@ -454,3 +456,76 @@ async def test_audit_engine_max_redirects_exceeded(engine):
         assert len(limit_findings) == 1
         assert limit_findings[0]["check_status"] == "FAIL"
         assert not any("HTTP status 302 OK verified" in f.get("title", "") for f in findings)
+
+@pytest.mark.asyncio
+async def test_http_error_response_no_false_positive_html_findings(engine):
+    """
+    Verify that 403 Forbidden or 500 error pages do not generate false positive
+    findings about missing HTML viewport, meta descriptions, or title tags.
+    """
+    error_html = "<html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1><p>Access Denied by WAF</p></body></html>"
+    with patch.object(
+        engine,
+        "_fetch_http_safely",
+        return_value={
+            "status_code": 403,
+            "final_url": "https://example.com",
+            "ttfb_ms": 120,
+            "headers": {"server": "cloudflare"},
+            "body": error_html,
+            "findings": [
+                {
+                    "id": "f-http-403-test",
+                    "title": "Web server returned HTTP 403 Forbidden",
+                    "severity": "high",
+                    "check_status": "FAIL",
+                    "observed": "HTTP 403 Forbidden received.",
+                    "evidence": "403 Forbidden",
+                    "why_it_matters": "Access blocked.",
+                    "recommended_action": "Check WAF configuration.",
+                    "confidence": 1.0,
+                    "category": "reachability",
+                    "http_status": 403,
+                    "response_time_ms": 120,
+                    "checked_url": "https://example.com"
+                }
+            ]
+        }
+    ):
+        result = await engine.execute_audit("https://example.com")
+        findings = result["findings"]
+        titles = [f["title"] for f in findings]
+
+        # 403 failure is preserved
+        assert any("403 Forbidden" in t for t in titles)
+        # Structural HTML metadata deficits MUST NOT be generated on error pages
+        assert not any("Missing mobile viewport meta declaration" in t for t in titles)
+        assert not any("Missing meta description" in t for t in titles)
+
+def test_dmarc_missing_reports_apex_domain(engine):
+    """
+    Verify that when both subdomain (www.sub.com) and apex domain lack DMARC,
+    the finding reports the apex domain (_dmarc.sub.com) where policies are published.
+    """
+    mock_resolver = MagicMock()
+    a_answer = MagicMock()
+    a_answer.address = "93.184.216.34"
+
+    def mock_resolve(qname, rdtype, **kwargs):
+        if rdtype == "A":
+            return [a_answer]
+        if rdtype == "TXT":
+            raise Exception("NXDOMAIN")
+        raise Exception("NXDOMAIN")
+
+    mock_resolver.resolve.side_effect = mock_resolve
+
+    with patch("dns.resolver.Resolver", return_value=mock_resolver):
+        res = ORIGINAL_INSPECT_DNS(engine, "www.example.com")
+        findings = res["findings"]
+        dmarc_finding = next((f for f in findings if "Missing DMARC" in f["title"]), None)
+        assert dmarc_finding is not None
+        # Observed and evidence should cite the apex domain _dmarc.example.com, not _dmarc.www.example.com
+        assert "_dmarc.example.com" in dmarc_finding["observed"]
+        assert "_dmarc.example.com" in dmarc_finding["evidence"]
+
