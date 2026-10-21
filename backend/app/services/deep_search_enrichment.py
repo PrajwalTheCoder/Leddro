@@ -11,9 +11,9 @@ from bs4 import BeautifulSoup
 import dns.resolver
 try:
     try:
-        from duckduckgo_search import DDGS
-    except ImportError:
         from ddgs import DDGS
+    except ImportError:
+        from duckduckgo_search import DDGS
 except ImportError:
     DDGS = None
 
