@@ -6,7 +6,7 @@ from urllib.parse import urlparse, urljoin
 import httpx
 from bs4 import BeautifulSoup
 import dns.resolver
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 
 from backend.app.core.config import settings
 from backend.app.services.ssrf_validator import (
@@ -416,6 +416,7 @@ class AuditEngine:
         ttfb_ms = 0
         final_response = None
         body_content = ""
+        visited_urls: Set[str] = set()
 
         transport = SSRFProtectedTransport()
         headers = {
@@ -426,6 +427,23 @@ class AuditEngine:
 
         async with httpx.AsyncClient(transport=transport, follow_redirects=False, timeout=settings.AUDIT_READ_TIMEOUT) as client:
             while redirect_hops <= settings.AUDIT_MAX_REDIRECTS:
+                if current_url in visited_urls:
+                    findings.append({
+                        "id": f"f-redirect-loop-{int(time.time()*1000)}",
+                        "title": "Redirect loop detected",
+                        "severity": "high",
+                        "check_status": "FAIL",
+                        "observed": f"Redirect loop detected at '{current_url}'.",
+                        "evidence": f"URL {current_url} already visited in redirect chain.",
+                        "why_it_matters": "Browsers will abort connection due to too many redirects, rendering the website unreachable.",
+                        "recommended_action": "Fix circular redirect rules on your web server or CDN configuration.",
+                        "confidence": 1.0,
+                        "category": "reachability",
+                        "checked_url": current_url
+                    })
+                    break
+                visited_urls.add(current_url)
+
                 # SSRF validation before every hop
                 is_safe, error_msg, parsed_hop, resolved_ips = validate_target_url(current_url)
                 if not is_safe:
@@ -481,6 +499,22 @@ class AuditEngine:
                         # Check for redirect status
                         if resp.is_redirect and "Location" in resp.headers:
                             redirect_hops += 1
+                            if redirect_hops > settings.AUDIT_MAX_REDIRECTS:
+                                findings.append({
+                                    "id": f"f-redirect-limit-{int(time.time()*1000)}",
+                                    "title": "Maximum redirect limit exceeded",
+                                    "severity": "medium",
+                                    "check_status": "FAIL",
+                                    "observed": f"Exceeded maximum redirect limit ({settings.AUDIT_MAX_REDIRECTS}) without reaching target document.",
+                                    "evidence": f"Initial URL: {initial_url}\nLast URL: {current_url}\nTotal Hops: {redirect_hops}",
+                                    "why_it_matters": "Excessive redirects degrade page load times and mobile conversion rates.",
+                                    "recommended_action": "Reduce intermediate redirect hops to reach the final page directly.",
+                                    "confidence": 1.0,
+                                    "category": "reachability",
+                                    "checked_url": current_url
+                                })
+                                break
+
                             target_loc = resp.headers["Location"].strip()
                             if not target_loc:
                                 break
@@ -615,7 +649,7 @@ class AuditEngine:
                     "response_time_ms": ttfb_ms,
                     "checked_url": current_url
                 })
-            elif 200 <= status < 400:
+            elif 200 <= status < 400 and not final_response.is_redirect:
                 findings.append({
                     "id": f"f-http-pass-{int(time.time()*1000)}",
                     "title": f"HTTP status {status} OK verified",

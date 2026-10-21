@@ -385,3 +385,72 @@ def test_dummy_template_email_rejected():
     assert is_valid_email_candidate("you@company.com") is False
     assert is_valid_email_candidate("user@company.com") is False
     assert is_valid_email_candidate("info@realbusiness.in") is True
+
+@pytest.mark.asyncio
+async def test_audit_engine_redirect_loop_detected(engine):
+    """
+    Test that when a target server enters a cyclical redirect loop (A -> B -> A),
+    _fetch_http_safely detects the loop and logs a FAIL finding without hanging.
+    """
+    current_url_holder = ["https://example.com/loop-a"]
+
+    class MockAsyncStream:
+        def __init__(self, target_url):
+            self.target_url = target_url
+        async def __aenter__(self):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 302
+            mock_resp.is_redirect = True
+            mock_resp.headers = {
+                "Location": "https://example.com/loop-b" if "loop-a" in self.target_url else "https://example.com/loop-a"
+            }
+            async def aiter():
+                yield b""
+            mock_resp.aiter_bytes = aiter
+            return mock_resp
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_stream(method, url, **kwargs):
+        return MockAsyncStream(url)
+
+    with patch("httpx.AsyncClient.stream", side_effect=mock_stream):
+        fetch_result = await engine._fetch_http_safely("https://example.com/loop-a")
+        findings = fetch_result["findings"]
+        loop_findings = [f for f in findings if "redirect loop detected" in f["title"].lower()]
+        assert len(loop_findings) == 1
+        assert loop_findings[0]["check_status"] == "FAIL"
+        assert not any("HTTP status 302 OK verified" in f.get("title", "") for f in findings)
+
+@pytest.mark.asyncio
+async def test_audit_engine_max_redirects_exceeded(engine):
+    """
+    Test that when a server exceeds settings.AUDIT_MAX_REDIRECTS,
+    _fetch_http_safely halts and records a FAIL finding.
+    """
+    class MockHopStream:
+        def __init__(self, url):
+            self.url = url
+        async def __aenter__(self):
+            hop_idx = int(self.url.split("-")[-1]) if "-" in self.url else 0
+            mock_resp = MagicMock()
+            mock_resp.status_code = 302
+            mock_resp.is_redirect = True
+            mock_resp.headers = {"Location": f"https://example.com/chain-{hop_idx + 1}"}
+            async def aiter():
+                yield b""
+            mock_resp.aiter_bytes = aiter
+            return mock_resp
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_stream(method, url, **kwargs):
+        return MockHopStream(url)
+
+    with patch("httpx.AsyncClient.stream", side_effect=mock_stream):
+        fetch_result = await engine._fetch_http_safely("https://example.com/chain-0")
+        findings = fetch_result["findings"]
+        limit_findings = [f for f in findings if "maximum redirect limit exceeded" in f["title"].lower()]
+        assert len(limit_findings) == 1
+        assert limit_findings[0]["check_status"] == "FAIL"
+        assert not any("HTTP status 302 OK verified" in f.get("title", "") for f in findings)
