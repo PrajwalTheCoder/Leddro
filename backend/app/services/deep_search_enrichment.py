@@ -26,13 +26,26 @@ from backend.app.services.email_scraper import (
 )
 
 from backend.app.services.ssrf_validator import safe_http_get, validate_target_url
+from backend.app.services.domain_utils import (
+    clean_domain_string,
+    get_organizational_domain,
+    is_aggregator_or_directory_domain,
+    calculate_domain_name_similarity
+)
+from backend.app.services.identity_verifier import verify_business_identity
+from backend.app.services.contact_provenance import (
+    classify_contact_provenance,
+    is_blogger_or_reviewer_email,
+    is_aggregator_support_email
+)
+from backend.app.services.social_matcher import evaluate_social_profile_match
 
 logger = logging.getLogger("leddro.services.deep_search_enrichment")
 
 # Aggregator and platform domains to exclude from official website detection
 # and avoid taking aggregator customer support / dev emails
 AGGREGATOR_DOMAINS = {
-    "zomato.com", "swiggy.com", "justdial.com", "restaurant-guru.in",
+    "zomato.com", "swiggy.com", "justdial.com", "justdail.com", "restaurant-guru.in",
     "tripadvisor.com", "tripadvisor.in", "yandex.com", "yandex.ru",
     "facebook.com", "instagram.com", "twitter.com", "x.com", "youtube.com",
     "linkedin.com", "magicpin.in", "district.in", "dineout.co.in", "eattigo.com",
@@ -129,13 +142,22 @@ def execute_multi_engine_search(query: str, max_results: int = 5) -> List[Dict[s
 
 def rank_candidate_emails(emails: Set[str], business_name: str) -> List[str]:
     """
-    Ranks verified candidate emails based on business relevance:
-    1. Exact or partial business name in email username or custom domain.
-    2. High-relevance Gmail/Yahoo emails.
-    3. Other deliverable addresses.
+    Ranks candidate emails based on business relevance:
+    1. Filters out food bloggers, reviewer directories, and aggregator support desks.
+    2. Exact or partial business name in email username or custom domain.
+    3. High-relevance deliverable addresses.
     """
     clean_biz = re.sub(r"[^a-z0-9]", "", business_name.lower())
     biz_tokens = [t for t in re.split(r"\s+", business_name.lower()) if len(t) > 2]
+
+    # Filter out known bloggers, reviewers, and aggregator desks
+    valid_candidates = [
+        em for em in emails
+        if not is_blogger_or_reviewer_email(em, business_name)
+        and not is_aggregator_support_email(em)
+    ]
+    if not valid_candidates:
+        return []
 
     def score_email(em: str) -> int:
         user, domain = em.split("@")
@@ -155,7 +177,7 @@ def rank_candidate_emails(emails: Set[str], business_name: str) -> List[str]:
             score += 5
         return score
 
-    return sorted(list(emails), key=score_email, reverse=True)
+    return sorted(valid_candidates, key=score_email, reverse=True)
 
 async def deep_search_prospect(
     prospect_name: str,
@@ -164,19 +186,20 @@ async def deep_search_prospect(
 ) -> Dict[str, Any]:
     """
     Executes deep multi-channel web discovery for a local business prospect:
-    1. Facebook Business Pages & Instagram Bios (the #1 digital storefront in India).
-    2. Search Engine Dorking (Gmail, Yahoo, table booking, catering snippets).
+    1. Facebook Business Pages & Instagram Bios with handle matching.
+    2. Search Engine Dorking with strict provenance tracking.
     3. WhatsApp Business Profile Metadata & phone-based dorking.
     4. Indian Local Business Directories (Justdial, Zomato, Swiggy, IndiaMART).
     5. Government Registrations (FSSAI Food License & GSTIN public disclosures).
-    6. Autonomous crawl of any discovered independent website.
-    7. Strict live DNS MX verification on all discovered candidates.
+    6. Autonomous crawl of any verified independent website.
+    7. Strict live DNS MX verification and blogger email filtration.
     """
     clean_name = prospect_name.strip()
     loc = (location or "Mumbai").strip()
     logger.info(f"Initiating deep 5-channel discovery for '{clean_name}' in '{loc}'")
 
     candidate_emails: Set[str] = set()
+    provenance_map: Dict[str, Dict[str, Any]] = {}
     social_profiles: Dict[str, Optional[str]] = {
         "facebook": None,
         "instagram": None,
@@ -185,6 +208,7 @@ async def deep_search_prospect(
         "swiggy": None,
         "indiamart": None
     }
+    social_matches: Dict[str, Dict[str, Any]] = {}
     discovered_website: Optional[str] = None
     discovered_phone: Optional[str] = known_phone
     whatsapp_info: Optional[Dict[str, str]] = None
@@ -218,28 +242,50 @@ async def deep_search_prospect(
 
         for em in EMAIL_REGEX.findall(text):
             if is_valid_email_candidate(em) and verify_email_mx(em):
-                candidate_emails.add(em.lower())
+                prov = classify_contact_provenance(
+                    email=em,
+                    business_name=clean_name,
+                    source_type="search_snippet",
+                    source_url=url,
+                    source_provider="search_presence"
+                )
+                if prov["status"] != "conflicting":
+                    candidate_emails.add(em.lower())
+                    provenance_map[em.lower()] = prov
 
         if "facebook.com" in domain and not social_profiles["facebook"]:
-            social_profiles["facebook"] = url
-            sources_hit.append("Facebook Page")
+            match_ev = evaluate_social_profile_match("facebook", url, clean_name, {"city": loc}, page_title=it.get("title"))
+            if match_ev["match_status"] != "incorrect_match":
+                social_profiles["facebook"] = url
+                social_matches["facebook"] = match_ev
+                sources_hit.append("Facebook Page")
         elif "instagram.com" in domain and not social_profiles["instagram"]:
-            social_profiles["instagram"] = url
-            sources_hit.append("Instagram Profile")
+            match_ev = evaluate_social_profile_match("instagram", url, clean_name, {"city": loc}, page_title=it.get("title"))
+            if match_ev["match_status"] != "incorrect_match":
+                social_profiles["instagram"] = url
+                social_matches["instagram"] = match_ev
+                sources_hit.append("Instagram Profile")
         elif "justdial.com" in domain and not social_profiles["justdial"]:
             social_profiles["justdial"] = url
+            social_matches["justdial"] = evaluate_social_profile_match("justdial", url, clean_name, {"city": loc})
             sources_hit.append("Justdial Directory")
         elif "zomato.com" in domain and not social_profiles["zomato"]:
             social_profiles["zomato"] = url
+            social_matches["zomato"] = evaluate_social_profile_match("zomato", url, clean_name, {"city": loc})
             sources_hit.append("Zomato Listing")
         elif "swiggy.com" in domain and not social_profiles["swiggy"]:
             social_profiles["swiggy"] = url
+            social_matches["swiggy"] = evaluate_social_profile_match("swiggy", url, clean_name, {"city": loc})
             sources_hit.append("Swiggy Listing")
         elif "indiamart.com" in domain and not social_profiles["indiamart"]:
             social_profiles["indiamart"] = url
-        elif not any(agg in domain for agg in AGGREGATOR_DOMAINS):
+            social_matches["indiamart"] = evaluate_social_profile_match("indiamart", url, clean_name, {"city": loc})
+        elif not is_aggregator_or_directory_domain(url):
             if not discovered_website and "." in domain and len(domain.split(".")) >= 2:
-                discovered_website = url
+                # Rigorous identity verification before promoting candidate URL to official website
+                id_ev = verify_business_identity(clean_name, {"city": loc}, url)
+                if id_ev["status"] in ("verified", "likely_match"):
+                    discovered_website = url
 
     # Targeted Social Query if Facebook or Instagram not yet resolved
     if not social_profiles["facebook"]:
@@ -248,12 +294,18 @@ async def deep_search_prospect(
         for it in fb_items:
             domain = urlparse(it["url"]).netloc.lower()
             if "facebook.com" in domain:
-                social_profiles["facebook"] = it["url"]
-                sources_hit.append("Facebook Page")
-                for em in EMAIL_REGEX.findall(f"{it['title']} {it['snippet']}"):
-                    if is_valid_email_candidate(em) and verify_email_mx(em):
-                        candidate_emails.add(em.lower())
-                break
+                match_ev = evaluate_social_profile_match("facebook", it["url"], clean_name, {"city": loc}, page_title=it.get("title"))
+                if match_ev["match_status"] != "incorrect_match":
+                    social_profiles["facebook"] = it["url"]
+                    social_matches["facebook"] = match_ev
+                    sources_hit.append("Facebook Page")
+                    for em in EMAIL_REGEX.findall(f"{it['title']} {it['snippet']}"):
+                        if is_valid_email_candidate(em) and verify_email_mx(em):
+                            prov = classify_contact_provenance(em, clean_name, "search_snippet", it["url"], "facebook_search")
+                            if prov["status"] != "conflicting":
+                                candidate_emails.add(em.lower())
+                                provenance_map[em.lower()] = prov
+                    break
 
     if not social_profiles["instagram"]:
         await asyncio.sleep(0.3)
@@ -261,16 +313,22 @@ async def deep_search_prospect(
         for it in ig_items:
             domain = urlparse(it["url"]).netloc.lower()
             if "instagram.com" in domain:
-                social_profiles["instagram"] = it["url"]
-                sources_hit.append("Instagram Profile")
-                for em in EMAIL_REGEX.findall(f"{it['title']} {it['snippet']}"):
-                    if is_valid_email_candidate(em) and verify_email_mx(em):
-                        candidate_emails.add(em.lower())
-                break
+                match_ev = evaluate_social_profile_match("instagram", it["url"], clean_name, {"city": loc}, page_title=it.get("title"))
+                if match_ev["match_status"] != "incorrect_match":
+                    social_profiles["instagram"] = it["url"]
+                    social_matches["instagram"] = match_ev
+                    sources_hit.append("Instagram Profile")
+                    for em in EMAIL_REGEX.findall(f"{it['title']} {it['snippet']}"):
+                        if is_valid_email_candidate(em) and verify_email_mx(em):
+                            prov = classify_contact_provenance(em, clean_name, "search_snippet", it["url"], "instagram_search")
+                            if prov["status"] != "conflicting":
+                                candidate_emails.add(em.lower())
+                                provenance_map[em.lower()] = prov
+                    break
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     # PILLAR 2: Targeted Email & Gmail Dorking
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     await asyncio.sleep(0.3)
     q2 = f'{clean_name} {loc} contact email OR "@gmail.com"'
     items2 = execute_multi_engine_search(q2, max_results=5)
@@ -278,12 +336,15 @@ async def deep_search_prospect(
         text = f"{it['title']} {it['snippet']}"
         for em in EMAIL_REGEX.findall(text):
             if is_valid_email_candidate(em) and verify_email_mx(em):
-                candidate_emails.add(em.lower())
-                sources_hit.append("Search Dorking")
+                prov = classify_contact_provenance(em, clean_name, "search_snippet", it["url"], "email_dorking")
+                if prov["status"] != "conflicting":
+                    candidate_emails.add(em.lower())
+                    provenance_map[em.lower()] = prov
+                    sources_hit.append("Search Dorking")
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     # PILLAR 3: WhatsApp & Phone-based Dorking
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     if clean_digits and len(clean_digits) >= 10:
         phone_10 = clean_digits[-10:]
         await asyncio.sleep(0.3)
@@ -293,12 +354,15 @@ async def deep_search_prospect(
             text = f"{it['title']} {it['snippet']}"
             for em in EMAIL_REGEX.findall(text):
                 if is_valid_email_candidate(em) and verify_email_mx(em):
-                    candidate_emails.add(em.lower())
-                    sources_hit.append("WhatsApp/Phone Dorking")
+                    prov = classify_contact_provenance(em, clean_name, "search_snippet", it["url"], "phone_dorking")
+                    if prov["status"] != "conflicting":
+                        candidate_emails.add(em.lower())
+                        provenance_map[em.lower()] = prov
+                        sources_hit.append("WhatsApp/Phone Dorking")
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     # PILLAR 4: Indian Local Directories (Justdial, Zomato, Swiggy)
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     if not social_profiles["justdial"] or not social_profiles["zomato"]:
         await asyncio.sleep(0.3)
         q4 = f'{clean_name} {loc} justdial OR zomato OR indiamart'
@@ -308,10 +372,13 @@ async def deep_search_prospect(
             domain = urlparse(url).netloc.lower().replace("www.", "")
             if "justdial.com" in domain and not social_profiles["justdial"]:
                 social_profiles["justdial"] = url
+                social_matches["justdial"] = evaluate_social_profile_match("justdial", url, clean_name, {"city": loc})
             elif "zomato.com" in domain and not social_profiles["zomato"]:
                 social_profiles["zomato"] = url
+                social_matches["zomato"] = evaluate_social_profile_match("zomato", url, clean_name, {"city": loc})
             elif "indiamart.com" in domain and not social_profiles["indiamart"]:
                 social_profiles["indiamart"] = url
+                social_matches["indiamart"] = evaluate_social_profile_match("indiamart", url, clean_name, {"city": loc})
 
     # If Justdial page found, extract structured Schema.org data safely
     if social_profiles["justdial"]:
@@ -339,9 +406,9 @@ async def deep_search_prospect(
         except Exception as e:
             logger.debug(f"Justdial extraction error: {e}")
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     # PILLAR 5: FSSAI / GSTIN Public Records Dorking
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     await asyncio.sleep(0.3)
     q5 = f'"{clean_name}" {loc} FSSAI OR GSTIN OR "License"'
     items5 = execute_multi_engine_search(q5, max_results=3)
@@ -349,8 +416,11 @@ async def deep_search_prospect(
         text = f"{it['title']} {it['snippet']}"
         for em in EMAIL_REGEX.findall(text):
             if is_valid_email_candidate(em) and verify_email_mx(em):
-                candidate_emails.add(em.lower())
-                sources_hit.append("Government Filings")
+                prov = classify_contact_provenance(em, clean_name, "search_snippet", it["url"], "gov_records")
+                if prov["status"] != "conflicting":
+                    candidate_emails.add(em.lower())
+                    provenance_map[em.lower()] = prov
+                    sources_hit.append("Government Filings")
 
         fssai_match = FSSAI_REGEX.search(text)
         gstin_match = GSTIN_REGEX.search(text)
@@ -367,17 +437,34 @@ async def deep_search_prospect(
                 "source_url": it["url"]
             }
 
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     # PILLAR 6: Autonomous Crawl of Discovered Website (if non-aggregator)
-    # -------------------------------------------------------------------------
+    # ---------------------------------------------------------
     if discovered_website and not candidate_emails:
         try:
             logger.info(f"Discovered independent website '{discovered_website}', running contact crawler...")
             site_contacts = await scrape_website_contacts(discovered_website)
             if site_contacts.get("primary_email"):
-                candidate_emails.add(site_contacts["primary_email"].lower())
+                pe = site_contacts["primary_email"].lower()
+                candidate_emails.add(pe)
+                provenance_map[pe] = classify_contact_provenance(
+                    email=pe,
+                    business_name=clean_name,
+                    source_type="official_website",
+                    source_url=discovered_website,
+                    source_provider="website_scraper"
+                )
             for e in site_contacts.get("emails", []):
-                candidate_emails.add(e.lower())
+                ce = e.lower()
+                candidate_emails.add(ce)
+                if ce not in provenance_map:
+                    provenance_map[ce] = classify_contact_provenance(
+                        email=ce,
+                        business_name=clean_name,
+                        source_type="official_website",
+                        source_url=discovered_website,
+                        source_provider="website_scraper"
+                    )
             if not discovered_phone and site_contacts.get("phones"):
                 discovered_phone = site_contacts["phones"][0]
             sources_hit.append("Website Scraper")
@@ -387,15 +474,25 @@ async def deep_search_prospect(
     # Rank candidate emails so best matched address appears first
     ranked_emails = rank_candidate_emails(candidate_emails, clean_name)
     primary_email = ranked_emails[0] if ranked_emails else None
+    primary_provenance = provenance_map.get(primary_email) if primary_email else None
+
+    # Evaluate overall business identity verification
+    identity_verification = verify_business_identity(
+        business_name=clean_name,
+        location={"city": loc},
+        website_url=discovered_website,
+        phone=discovered_phone
+    )
 
     # Prepare message summary
     msg_parts = []
     if primary_email:
-        msg_parts.append(f"Verified Email: {primary_email}")
+        status_label = primary_provenance["status"] if primary_provenance else "unverified"
+        msg_parts.append(f"Email: {primary_email} ({status_label})")
     if whatsapp_info:
         msg_parts.append(f"WhatsApp: {whatsapp_info['phone_e164']}")
     if discovered_website:
-        msg_parts.append(f"Website: {discovered_website}")
+        msg_parts.append(f"Website: {discovered_website} ({identity_verification['status']})")
     found_socials = [k for k, v in social_profiles.items() if v]
     if found_socials:
         msg_parts.append(f"Socials: {', '.join(found_socials)}")
@@ -408,7 +505,11 @@ async def deep_search_prospect(
         "success": success,
         "primary_email": primary_email,
         "all_emails": ranked_emails,
+        "contact_provenance": primary_provenance,
+        "all_provenance": [provenance_map[e] for e in ranked_emails if e in provenance_map],
+        "identity_verification": identity_verification,
         "social_profiles": social_profiles,
+        "social_matches": social_matches,
         "discovered_website": discovered_website,
         "phone": discovered_phone,
         "whatsapp": whatsapp_info,

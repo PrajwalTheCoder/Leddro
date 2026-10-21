@@ -53,6 +53,10 @@ def migrate_db(db_engine):
                     ("source_provider", "VARCHAR(255)"),
                     ("source_record_id", "VARCHAR(255)"),
                     ("source_url", "VARCHAR(1024)"),
+                    ("identity_status", "VARCHAR(64) DEFAULT 'not_checked'"),
+                    ("identity_evidence", "TEXT DEFAULT '{}'"),
+                    ("contact_provenance", "TEXT DEFAULT '{}'"),
+                    ("social_profiles", "TEXT DEFAULT '{}'"),
                     ("discovered_at", "TIMESTAMP"),
                     ("last_verified_at", "TIMESTAMP")
                 ]

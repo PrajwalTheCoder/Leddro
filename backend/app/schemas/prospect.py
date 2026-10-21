@@ -29,6 +29,10 @@ class ProspectBase(BaseModel):
     sourceProvider: Optional[str] = None
     sourceRecordId: Optional[str] = None
     sourceUrl: Optional[str] = None
+    identityStatus: Optional[str] = "not_checked"
+    identityEvidence: Optional[Dict[str, Any]] = None
+    contactProvenance: Optional[Dict[str, Any]] = None
+    socialProfiles: Optional[Dict[str, Any]] = None
     discoveredAt: Optional[str] = None
     lastVerifiedAt: Optional[str] = None
 
@@ -52,6 +56,10 @@ class ProspectUpdate(BaseModel):
     sourceProvider: Optional[str] = None
     sourceRecordId: Optional[str] = None
     sourceUrl: Optional[str] = None
+    identityStatus: Optional[str] = None
+    identityEvidence: Optional[Dict[str, Any]] = None
+    contactProvenance: Optional[Dict[str, Any]] = None
+    socialProfiles: Optional[Dict[str, Any]] = None
     discoveredAt: Optional[str] = None
     lastVerifiedAt: Optional[str] = None
 
@@ -85,6 +93,8 @@ class ProspectScoringSchema(BaseModel):
     confidenceScore: int
     priorityLabel: str
     contactReadiness: str
+    contactTrust: Optional[str] = None
+    identityStatus: Optional[str] = None
     auditStatus: str
     auditAgeDays: Optional[int] = None
     auditTimestamp: Optional[str] = None
@@ -110,6 +120,8 @@ def format_scoring_result_for_schema(scoring_result: Dict[str, Any]) -> Dict[str
         "confidenceScore": scoring_result["confidence_score"],
         "priorityLabel": scoring_result["priority_label"],
         "contactReadiness": scoring_result["contact_readiness"],
+        "contactTrust": scoring_result.get("contact_trust"),
+        "identityStatus": scoring_result.get("identity_status"),
         "auditStatus": scoring_result["audit_status"],
         "auditAgeDays": scoring_result["audit_age_days"],
         "auditTimestamp": scoring_result["audit_timestamp"],
@@ -157,6 +169,22 @@ def db_prospect_to_schema(model, scoring_result: Optional[Dict[str, Any]] = None
     if formatted_scoring and opp_score is not None:
         formatted_scoring["opportunityScore"] = opp_score
 
+    # Safe JSON parsing helper for model text columns
+    def _parse_json_field(val: Any) -> Optional[Dict[str, Any]]:
+        if isinstance(val, dict):
+            return val
+        if isinstance(val, str) and val.strip():
+            try:
+                return json.loads(val)
+            except Exception:
+                return None
+        return None
+
+    identity_status = getattr(model, "identity_status", None) or "not_checked"
+    identity_evidence = _parse_json_field(getattr(model, "identity_evidence", None))
+    contact_provenance = _parse_json_field(getattr(model, "contact_provenance", None))
+    social_profiles = _parse_json_field(getattr(model, "social_profiles", None))
+
     return {
         "id": model.id,
         "name": model.name,
@@ -186,6 +214,10 @@ def db_prospect_to_schema(model, scoring_result: Optional[Dict[str, Any]] = None
         "sourceProvider": getattr(model, "source_provider", None),
         "sourceRecordId": getattr(model, "source_record_id", None),
         "sourceUrl": getattr(model, "source_url", None),
+        "identityStatus": identity_status,
+        "identityEvidence": identity_evidence,
+        "contactProvenance": contact_provenance,
+        "socialProfiles": social_profiles,
         "discoveredAt": model.discovered_at.isoformat() if getattr(model, "discovered_at", None) else None,
         "lastVerifiedAt": model.last_verified_at.isoformat() if getattr(model, "last_verified_at", None) else None,
         "scoring": formatted_scoring

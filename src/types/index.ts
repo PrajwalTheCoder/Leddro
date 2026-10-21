@@ -99,6 +99,8 @@ export interface ProspectScoringExplanation {
   confidenceScore: number;
   priorityLabel: 'High' | 'Medium' | 'Low' | 'Needs Audit';
   contactReadiness: 'verified' | 'unverified' | 'absent' | 'unknown';
+  contactTrust?: string | null;
+  identityStatus?: string | null;
   auditStatus: 'completed' | 'failed' | 'running' | 'none';
   auditAgeDays: number | null;
   auditTimestamp: string | null;
@@ -106,6 +108,44 @@ export interface ProspectScoringExplanation {
   factors: ScoringFactor[];
   limitations: string[];
   recommendedActions: string[];
+}
+
+export type IdentityStatus = 'verified' | 'likely_match' | 'uncertain' | 'conflicting' | 'not_found' | 'not_checked';
+
+export interface IdentityEvidence {
+  status?: IdentityStatus;
+  claim?: string;
+  confidence_score?: number;
+  reasons?: string[];
+  conflicting_domains?: string[];
+  name_similarity?: number;
+  is_aggregator?: boolean;
+  is_discontinued?: boolean;
+  verified_at?: string;
+  operator_override?: { status: string; previous_status?: string; at: string };
+}
+
+export interface ContactProvenance {
+  email?: string | null;
+  status?: string;
+  confidence_score?: number;
+  source_type?: string;
+  source_provider?: string;
+  source_url?: string | null;
+  mx_verified?: boolean;
+  mailbox_confirmed?: boolean;
+  rationale?: string;
+  discovered_at?: string;
+}
+
+export interface SocialProfileMatch {
+  platform?: string;
+  url?: string | null;
+  match_status?: 'reciprocal_match' | 'strong_match' | 'uncertain_match' | 'incorrect_match' | 'not_found' | string;
+  confidence_score?: number;
+  evidence?: string;
+  contradictory_info?: string | null;
+  last_checked?: string;
 }
 
 export interface Prospect {
@@ -139,6 +179,10 @@ export interface Prospect {
   sourceUrl?: string;
   discoveredAt?: string;
   lastVerifiedAt?: string;
+  identityStatus?: IdentityStatus | string | null;
+  identityEvidence?: IdentityEvidence | null;
+  contactProvenance?: ContactProvenance | null;
+  socialProfiles?: Record<string, SocialProfileMatch> | null;
   scoring?: ProspectScoringExplanation;
 }
 

@@ -1,5 +1,6 @@
 import uuid
 import json
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -163,6 +164,17 @@ def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
     new_id = f"pros_{uuid.uuid4().hex[:8]}"
     
     # Calculate baseline explainable score for the new prospect
+    from backend.app.services.identity_verifier import verify_business_identity
+    id_ev = verify_business_identity(
+        business_name=payload.name,
+        location={
+            "city": (payload.location.city if payload.location else "") or "",
+            "state": (payload.location.state if payload.location else "") or "",
+        },
+        website_url=payload.websiteUrl,
+        phone=payload.phone,
+        source_provider=payload.sourceProvider,
+    )
     scoring_res = calculate_prospect_score(payload, None)
     initial_opp_score = payload.opportunityScore if payload.opportunityScore != 70 else scoring_res["opportunity_score"]
 
@@ -187,7 +199,11 @@ def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
         latest_audit_id=None,
         tags=json.dumps(payload.tags or []),
         recommended_action=payload.recommendedAction or "Execute initial website audit.",
-        notes=payload.notes or ""
+        notes=payload.notes or "",
+        identity_status=id_ev["status"],
+        identity_evidence=json.dumps(id_ev),
+        contact_provenance=json.dumps(payload.contactProvenance or {}),
+        social_profiles=json.dumps(payload.socialProfiles or {}),
     )
     
     db.add(new_prospect)
@@ -197,6 +213,7 @@ def create_prospect(payload: ProspectCreate, db: Session = Depends(get_db)):
     except Exception:
         db.rollback()
         raise
+    scoring_res = calculate_prospect_score(new_prospect, None)
     return db_prospect_to_schema(new_prospect, scoring_res)
 
 @router.post("/{prospect_id}/recalculate-score")
@@ -250,7 +267,37 @@ def update_prospect(prospect_id: str, payload: ProspectUpdate, db: Session = Dep
         prospect.state = payload.location.state
         prospect.country = payload.location.country
     if payload.websiteUrl is not None:
+        if payload.websiteUrl != prospect.website_url:
+            from backend.app.services.identity_verifier import verify_business_identity
+            new_ev = verify_business_identity(
+                business_name=payload.name or prospect.name,
+                location={"city": prospect.city or "", "state": prospect.state or ""},
+                website_url=payload.websiteUrl,
+                phone=prospect.phone,
+                source_provider=prospect.source_provider,
+            )
+            prospect.identity_status = new_ev["status"]
+            prospect.identity_evidence = json.dumps(new_ev)
         prospect.website_url = payload.websiteUrl
+    if payload.identityStatus is not None and payload.identityStatus in (
+        "verified", "likely_match", "uncertain", "conflicting", "not_found", "not_checked"
+    ):
+        # Explicit operator resolution; preserve prior automated evidence for auditability.
+        try:
+            prior = json.loads(prospect.identity_evidence or "{}")
+        except Exception:
+            prior = {}
+        prior["operator_override"] = {
+            "status": payload.identityStatus,
+            "previous_status": prospect.identity_status,
+            "at": datetime.now(timezone.utc).isoformat(),
+        }
+        prospect.identity_status = payload.identityStatus
+        prospect.identity_evidence = json.dumps(prior)
+    if payload.contactProvenance is not None:
+        prospect.contact_provenance = json.dumps(payload.contactProvenance)
+    if payload.socialProfiles is not None:
+        prospect.social_profiles = json.dumps(payload.socialProfiles)
     if payload.websiteStatus is not None:
         prospect.website_status = payload.websiteStatus
     if payload.opportunityScore is not None:

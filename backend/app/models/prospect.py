@@ -29,6 +29,10 @@ class ProspectModel(Base):
     source_provider = Column(String, nullable=True, default=None)  # osm, google_places, csv_import, manual
     source_record_id = Column(String, nullable=True, default=None)  # provider record ID (e.g. node/123456)
     source_url = Column(String, nullable=True, default=None)  # direct web link to source entity
+    identity_status = Column(String, default="not_checked")  # verified, likely_match, uncertain, conflicting, not_found, not_checked
+    identity_evidence = Column(Text, default="{}")  # JSON encoded evidence dict
+    contact_provenance = Column(Text, default="{}")  # JSON encoded provenance dict
+    social_profiles = Column(Text, default="{}")  # JSON encoded social profile matches dict
     discovered_at = Column(DateTime, nullable=True, default=None)
     last_verified_at = Column(DateTime, nullable=True, default=None)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

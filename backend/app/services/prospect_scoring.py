@@ -123,6 +123,11 @@ def calculate_prospect_score(
         p_city = _get_val(loc, "city")
     p_category = _get_val(prospect, "category")
     p_last_verified = _get_val(prospect, "last_verified_at", "lastVerifiedAt")
+    identity_status = str(_get_val(prospect, "identity_status", "identityStatus", default="not_checked") or "not_checked")
+    contact_prov = _parse_json_field(_get_val(prospect, "contact_provenance", "contactProvenance"))
+    contact_trust = contact_prov.get("status") if contact_prov else None
+    # A website whose ownership is conflicting/uncertain cannot be used as evidence about this business.
+    identity_untrusted = bool(p_url) and identity_status in ("conflicting", "uncertain")
 
     # 2. Normalize audit input
     audit_status = "none"
@@ -141,6 +146,8 @@ def calculate_prospect_score(
 
         raw_findings = _get_val(latest_audit, "findings", default=[])
         findings_list = list(raw_findings or [])
+        if identity_untrusted:
+            findings_list = []
 
     audit_age_days = calculate_audit_age_days(audit_timestamp, audit_created_at)
 
@@ -164,6 +171,16 @@ def calculate_prospect_score(
         f1_summary = "No website registered for business. Potential opportunity for digital presence creation."
         limitations.append("Business has no registered website; outreach focuses on web presence setup.")
         recommended_actions.append("Pitch custom website development or digital listing creation.")
+    elif identity_untrusted:
+        f1_contribution = 0
+        f1_status = "identity_unconfirmed"
+        f1_nature = "unknown"
+        f1_summary = (
+            f"Website association is '{identity_status}'; its condition cannot be attributed to this business. "
+            "No website defect points awarded until the domain is confirmed."
+        )
+        limitations.append(f"Website identity is '{identity_status}'; audit findings are excluded from the opportunity score.")
+        recommended_actions.append("Confirm the business's official website before auditing or pitching website fixes.")
     elif audit_status == "none":
         f1_contribution = 0
         f1_status = "untested"
@@ -173,11 +190,13 @@ def calculate_prospect_score(
         recommended_actions.append("Execute initial website audit to confirm server reachability and DNS health.")
     elif audit_status == "completed":
         # Check HTTP response codes from findings or audit
+        _transient = ("timeout", "timed out", "servfail", "temporar", "resolver", "unreachable")
         dns_failures = [
             f for f in findings_list 
             if _get_val(f, "category") == "reachability" 
             and _get_val(f, "check_status", "checkStatus") == "FAIL"
             and any(w in str(_get_val(f, "title", "")).lower() or w in str(_get_val(f, "observed", "")).lower() for w in ("dns", "nxdomain", "record", "resolve"))
+            and not any(t in (str(_get_val(f, "title", "")) + " " + str(_get_val(f, "observed", ""))).lower() for t in _transient)
         ]
         
         # Check for confirmed server error
@@ -348,6 +367,10 @@ def calculate_prospect_score(
         f3_status = "not_applicable"
         f3_nature = "informational"
         f3_summary = "No website configured to evaluate TLS."
+    elif identity_untrusted:
+        f3_status = "identity_unconfirmed"
+        f3_nature = "unknown"
+        f3_summary = "TLS evidence not attributed: website association is unconfirmed."
     elif audit_status == "completed":
         ssl_valid = raw_ssl.get("valid")
         ssl_issuer = raw_ssl.get("issuer", "Unknown CA")
@@ -509,11 +532,24 @@ def calculate_prospect_score(
         elif audit_age_days > AUDIT_AGE_RECENT_DAYS:
             confidence -= 5
 
-    # 3. Contact verification penalty
+    # 3. Contact verification penalty (differentiated by provenance when available)
     if contact_readiness == "absent":
         confidence -= 15
+    elif contact_trust in ("official_source", "corroborated", "provider_verified") and has_email:
+        confidence -= 0
+    elif contact_trust == "conflicting" and has_email:
+        confidence -= 15
+        limitations.append("Recorded email has conflicting provenance (e.g. third-party/blogger/aggregator address); do not treat as the business's contact.")
     elif contact_readiness == "unverified":
         confidence -= 8
+
+    # 3b. Identity penalty: unconfirmed website ownership lowers trust in everything about the site
+    if identity_untrusted:
+        confidence -= 30
+        limitations.append(f"Website identity status is '{identity_status}'; ownership of the domain is not confirmed.")
+    elif p_url and identity_status == "likely_match":
+        confidence -= 5
+        limitations.append("Website association is a likely (not independently verified) match.")
 
     # 4. Incomplete data penalty
     if completeness_missing:
@@ -524,7 +560,9 @@ def calculate_prospect_score(
     # ---------------------------------------------------------
     # PRIORITY LABEL
     # ---------------------------------------------------------
-    if audit_status == "none" and p_url:
+    if identity_untrusted:
+        priority_label = "Needs Audit"
+    elif audit_status == "none" and p_url:
         priority_label = "Needs Audit"
     elif confidence_score < 40:
         priority_label = "Needs Audit" if p_url else "Low"
@@ -544,6 +582,8 @@ def calculate_prospect_score(
         "confidence_score": confidence_score,
         "priority_label": priority_label,
         "contact_readiness": contact_readiness,
+        "contact_trust": contact_trust or ("none" if not has_email else "unverified"),
+        "identity_status": identity_status,
         "audit_status": audit_status,
         "audit_age_days": audit_age_days,
         "audit_timestamp": audit_timestamp,

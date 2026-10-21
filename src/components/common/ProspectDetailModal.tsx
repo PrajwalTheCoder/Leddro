@@ -32,6 +32,7 @@ import { Prospect, AuditReport, EmailDraft } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { ProspectScoringModal } from './ProspectScoringModal';
 import { AuditComparisonModal } from './AuditComparisonModal';
+import { EvidenceTrustPanel } from './EvidenceTrustPanel';
 
 interface ProspectDetailModalProps {
   prospect: Prospect | null;
@@ -112,12 +113,19 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
           phone: prospect.phone
         })
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(
+          (errBody && errBody.detail) ||
+          `Server returned ${res.status}. This is a lookup failure, not proof that no contact exists; retry shortly or check provider status in Settings.`
+        );
+      }
       const data = await res.json();
       setDeepSearchResult(data);
       await refreshProspects();
       await refreshDrafts();
       if (data.primary_email) {
-        addToast(`Discovered verified email: ${data.primary_email}`, 'success');
+        addToast(`Found email ${data.primary_email} (unverified until you inspect its source)`, 'success');
       } else if (data.success) {
         addToast(`Discovered online profiles for ${prospect.name}`, 'info');
       } else {
@@ -233,7 +241,9 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
                 <span className="text-[#727780]">Provenance:</span>
                 <span className="font-mono text-[11px] text-[#A0A5AD]">
                   {prospect.email
-                    ? (prospect.sourceProvider ? `Discovered via ${prospect.sourceProvider}` : 'Verified via Deep Search')
+                    ? (prospect.contactProvenance?.status
+                        ? `${prospect.contactProvenance.source_type || 'source'} · ${prospect.contactProvenance.status}`
+                        : (prospect.sourceProvider ? `Discovered via ${prospect.sourceProvider} (unverified)` : 'No provenance recorded'))
                     : 'No address recorded'}
                 </span>
               </div>
@@ -314,6 +324,8 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
             </div>
           </div>
 
+          <EvidenceTrustPanel prospect={prospect} />
+
           {/* Pillar 1-5 Deep Search & Intelligence Dossier Panel */}
           {(deepSearchResult || isDeepSearching) && (
             <div className="rounded border border-[#3E4929] bg-[#171D18] p-4 flex flex-col gap-3 transition-all animate-fadeIn">
@@ -364,7 +376,7 @@ export const ProspectDetailModal: React.FC<ProspectDetailModalProps> = ({
                     </span>
                     {deepSearchResult.primary_email && (
                       <span className="font-mono text-[10px] bg-[#18261F] text-[#80B89A] border border-[#253D30] px-2 py-0.5 rounded flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> DNS MX Deliverable
+                        <CheckCircle2 className="w-3 h-3" /> Domain has MX records (mailbox unconfirmed)
                       </span>
                     )}
                   </div>

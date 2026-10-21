@@ -95,18 +95,56 @@ def build_user_prompt(
     """
     # 1. Prospect data boundary
     prospect_tags = json.dumps(prospect.get("tags") or []) if isinstance(prospect.get("tags"), list) else prospect.get("tags", "[]")
+    identity_status = prospect.get("identity_status") or "not_checked"
+    website_trusted = identity_status in ("verified", "likely_match", "not_checked", "not_found")
+    if website_trusted:
+        website_line = f"Website URL: {prospect.get('website_url') or 'None listed'}"
+    else:
+        website_line = (
+            "Website URL: WITHHELD (the association between this domain and the business is "
+            f"'{identity_status}'; do not reference it, make website-specific claims, or recommend fixes for it)"
+        )
+
+    prov = prospect.get("contact_provenance") or {}
+    prov_status = prov.get("status") if isinstance(prov, dict) else None
+    if prospect.get("email"):
+        email_line = (
+            f"Direct Email: {prospect.get('email')} "
+            f"(trust level: {prov_status or 'unverified'}; mailbox existence NOT confirmed; "
+            "do not claim this address belongs to the owner or is verified)"
+        )
+    else:
+        email_line = "Direct Email: Not listed"
+
+    socials = prospect.get("social_profiles") or {}
+    confirmed_socials = []
+    if isinstance(socials, dict):
+        for platform, info in socials.items():
+            if isinstance(info, dict) and info.get("match_status") in ("reciprocal_match", "strong_match"):
+                confirmed_socials.append(f"{platform}: {info.get('url')} ({info.get('match_status')})")
+    social_line = (
+        "Confirmed social profiles: " + "; ".join(confirmed_socials)
+        if confirmed_socials else
+        "Confirmed social profiles: none (uncertain or undiscovered profiles must NOT be mentioned as the business's own)"
+    )
+
     prospect_block = f"""<untrusted_prospect_data>
 Business Name: {prospect.get('name', 'Unknown')}
 Category: {prospect.get('category', 'Commercial')}
 Location: {prospect.get('city', '')}, {prospect.get('state', '')}, {prospect.get('country', '')}
-Website URL: {prospect.get('website_url') or 'None listed'}
+{website_line}
 Website Status: {prospect.get('website_status', 'unknown')}
+Identity Verification Status: {identity_status}
 Direct Phone: {prospect.get('phone') or 'Not listed'}
-Direct Email: {prospect.get('email') or 'Not listed'}
+{email_line}
+{social_line}
 Source Provider: {prospect.get('source_provider') or 'Local directory'}
 Known Tags: {prospect_tags}
 Internal Notes: {prospect.get('notes') or 'None'}
 </untrusted_prospect_data>"""
+
+    if not website_trusted:
+        audit = None
 
     # 2. Audit findings boundary
     if audit and audit.get("findings"):

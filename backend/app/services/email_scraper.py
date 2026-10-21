@@ -47,7 +47,10 @@ def is_valid_email_candidate(email: str) -> bool:
     if domain in JUNK_DOMAINS or domain.startswith("sentry-") or "sentry" in domain:
         return False
         
-    if user in {"name", "user", "username", "yourname", "you", "test", "admin@localhost"}:
+    if user in {"name", "user", "username", "yourname", "you", "test", "demo", "sample", "email", "placeholder", "recipient", "admin@localhost"}:
+        return False
+
+    if domain.endswith(".example.com") or domain.endswith(".invalid") or domain.endswith(".test"):
         return False
         
     return True

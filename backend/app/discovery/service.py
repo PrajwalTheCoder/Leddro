@@ -158,6 +158,29 @@ class DiscoveryService:
                 return existing
 
         new_id = f"pros_{uuid.uuid4().hex[:8]}"
+
+        from backend.app.services.identity_verifier import verify_business_identity
+        from backend.app.services.contact_provenance import classify_contact_provenance
+
+        id_ev = verify_business_identity(
+            business_name=item.name,
+            location={"city": item.location.city or "Mumbai", "state": item.location.state or "Maharashtra"},
+            website_url=item.website_url,
+            phone=item.phone,
+            source_provider=item.source_provider
+        )
+
+        prov = classify_contact_provenance(
+            email=item.email,
+            business_name=item.name,
+            source_type="directory" if item.source_provider in ("osm", "google_places") else "imported",
+            source_url=item.source_url,
+            source_provider=item.source_provider,
+            identity_status=id_ev["status"],
+        ) if item.email else None
+
+        actual_website_status = "conflicting" if id_ev["status"] == "conflicting" else item.website_status
+
         prospect = ProspectModel(
             id=new_id,
             name=item.name,
@@ -166,7 +189,7 @@ class DiscoveryService:
             state=item.location.state or "Maharashtra",
             country=item.location.country or "India",
             website_url=item.website_url,
-            website_status=item.website_status,
+            website_status=actual_website_status,
             opportunity_score=item.opportunity_score,
             score_urgency=item.score_urgency,
             score_intent=item.score_intent,
@@ -179,14 +202,22 @@ class DiscoveryService:
             latest_audit_id=None,
             tags=json.dumps(item.tags or ["Discovered"]),
             recommended_action=(
-                "Execute website diagnostic audit." 
-                if item.website_url 
-                else "Verify business telephone and physical listing."
+                "Clarify official business website domain (conflicting association detected)."
+                if id_ev["status"] == "conflicting"
+                else (
+                    "Execute website diagnostic audit." 
+                    if item.website_url 
+                    else "Verify business telephone and physical listing."
+                )
             ),
             notes=f"Discovered via {item.source_provider}. Attribution: {item.attribution}",
             source_provider=item.source_provider,
             source_record_id=item.source_record_id,
             source_url=item.source_url,
+            identity_status=id_ev["status"],
+            identity_evidence=json.dumps(id_ev),
+            contact_provenance=json.dumps(prov or {}),
+            social_profiles="{}",
             discovered_at=datetime.now(timezone.utc),
             last_verified_at=None
         )

@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,6 +13,8 @@ from backend.app.models.draft import EmailDraftModel
 from backend.app.services.email_scraper import scrape_website_contacts
 from backend.app.services.hunter_client import search_hunter_domain, check_hunter_api_key
 from backend.app.services.deep_search_enrichment import deep_search_prospect
+from backend.app.services.contact_provenance import classify_contact_provenance
+from backend.app.services.identity_verifier import verify_business_identity
 
 logger = logging.getLogger("leddro.api.enrichment")
 router = APIRouter(prefix="/enrichment", tags=["Contact Enrichment & Verification"])
@@ -120,6 +123,15 @@ async def scrape_website(payload: ScrapeRequest, db: Session = Depends(get_db)):
     if payload.prospect_id and result.get("primary_email"):
         prospect = db.query(ProspectModel).filter(ProspectModel.id == payload.prospect_id).first()
         if prospect:
+            prov = classify_contact_provenance(
+                email=result["primary_email"],
+                business_name=prospect.name,
+                source_type="official_website",
+                source_url=payload.url,
+                source_provider="website_scraper"
+            )
+            prospect.contact_provenance = json.dumps(prov)
+
             if not prospect.email:
                 prospect.email = result["primary_email"]
             if not prospect.phone and result.get("phones"):
@@ -156,7 +168,7 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
             "success": True,
             "source": "database",
             "email": prospect.email,
-            "message": f"Verified email already on file: {prospect.email}"
+            "message": f"Email already on file: {prospect.email} (mailbox existence is not confirmed; inspect provenance before outreach)"
         }
 
     # Step 1: Built-in Website Scraper (Free)
@@ -165,25 +177,37 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
         if scrape_res.get("primary_email"):
             found_email = scrape_res["primary_email"]
             prospect.email = found_email
+            prov = classify_contact_provenance(
+                email=found_email,
+                business_name=prospect.name,
+                source_type="official_website",
+                source_url=prospect.website_url,
+                source_provider="website_scraper",
+                identity_status=prospect.identity_status
+            )
+            prospect.contact_provenance = json.dumps(prov)
+
             if not prospect.phone and scrape_res.get("phones"):
                 prospect.phone = scrape_res["phones"][0]
             
-            # Update drafts
-            drafts = db.query(EmailDraftModel).filter(
-                EmailDraftModel.prospect_id == prospect.id,
-                EmailDraftModel.status.in_(["draft", "needs_review"])
-            ).all()
-            for d in drafts:
-                if not d.recipient_email or not d.recipient_email.strip():
-                    d.recipient_email = found_email
+            # Update drafts only when the address provenance is trustworthy
+            if prov.get("status") in ("official_source", "corroborated", "provider_verified"):
+                drafts = db.query(EmailDraftModel).filter(
+                    EmailDraftModel.prospect_id == prospect.id,
+                    EmailDraftModel.status.in_(["draft", "needs_review"])
+                ).all()
+                for d in drafts:
+                    if not d.recipient_email or not d.recipient_email.strip():
+                        d.recipient_email = found_email
             
             db.commit()
             return {
                 "success": True,
                 "source": "website_scraper",
                 "email": found_email,
+                "contact_provenance": prov,
                 "all_emails": scrape_res.get("emails", []),
-                "message": f"Successfully extracted verified email from {prospect.website_url}: {found_email}"
+                "message": f"Extracted email from {prospect.website_url}: {found_email} (source: website; mailbox existence not confirmed)"
             }
 
     # Step 2: Hunter.io B2B Enrichment (if configured)
@@ -193,6 +217,15 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
         if hunter_res.get("primary_email"):
             found_email = hunter_res["primary_email"]
             prospect.email = found_email
+            prov = classify_contact_provenance(
+                email=found_email,
+                business_name=prospect.name,
+                source_type="hunter_io",
+                source_url=prospect.website_url,
+                source_provider="hunter_io",
+                provider_confidence=85
+            )
+            prospect.contact_provenance = json.dumps(prov)
             
             drafts = db.query(EmailDraftModel).filter(
                 EmailDraftModel.prospect_id == prospect.id,
@@ -207,6 +240,7 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
                 "success": True,
                 "source": "hunter_io",
                 "email": found_email,
+                "contact_provenance": prov,
                 "all_emails": [e["value"] for e in hunter_res.get("emails", [])],
                 "message": f"Hunter.io verified corporate email for {domain}: {found_email}"
             }
@@ -222,28 +256,47 @@ async def find_email_for_prospect(payload: FindEmailRequest, db: Session = Depen
     if deep_res.get("primary_email"):
         found_email = deep_res["primary_email"]
         prospect.email = found_email
+        if deep_res.get("contact_provenance"):
+            prospect.contact_provenance = json.dumps(deep_res["contact_provenance"])
+        if deep_res.get("identity_verification"):
+            prospect.identity_status = deep_res["identity_verification"]["status"]
+            prospect.identity_evidence = json.dumps(deep_res["identity_verification"])
+        if deep_res.get("social_matches"):
+            prospect.social_profiles = json.dumps(deep_res["social_matches"])
+
         if not prospect.phone and deep_res.get("phone"):
             prospect.phone = deep_res["phone"]
-        if not prospect.website_url and deep_res.get("discovered_website"):
-            prospect.website_url = deep_res["discovered_website"]
-            prospect.website_status = "active"
 
-        # Update open drafts with discovered email
-        drafts = db.query(EmailDraftModel).filter(
-            EmailDraftModel.prospect_id == prospect.id,
-            EmailDraftModel.status.in_(["draft", "needs_review"])
-        ).all()
-        for d in drafts:
-            if not d.recipient_email or not d.recipient_email.strip():
-                d.recipient_email = found_email
+        # Only promote website if verified or likely match
+        id_status = deep_res.get("identity_verification", {}).get("status")
+        if not prospect.website_url and deep_res.get("discovered_website"):
+            if id_status in ("verified", "likely_match"):
+                prospect.website_url = deep_res["discovered_website"]
+                prospect.website_status = "active"
+            elif id_status == "conflicting":
+                prospect.website_status = "conflicting"
+
+        # Safe draft promotion: only promote if contact is corroborated or provider verified
+        is_trustworthy = deep_res.get("contact_provenance", {}).get("status") in ("official_source", "corroborated", "provider_verified")
+        if is_trustworthy:
+            drafts = db.query(EmailDraftModel).filter(
+                EmailDraftModel.prospect_id == prospect.id,
+                EmailDraftModel.status.in_(["draft", "needs_review"])
+            ).all()
+            for d in drafts:
+                if not d.recipient_email or not d.recipient_email.strip():
+                    d.recipient_email = found_email
 
         db.commit()
         return {
             "success": True,
             "source": "deep_search_enrichment",
             "email": found_email,
+            "contact_provenance": deep_res.get("contact_provenance"),
+            "identity_verification": deep_res.get("identity_verification"),
             "all_emails": deep_res.get("all_emails", []),
             "social_profiles": deep_res.get("social_profiles", {}),
+            "social_matches": deep_res.get("social_matches", {}),
             "whatsapp": deep_res.get("whatsapp"),
             "fssai_info": deep_res.get("fssai_info"),
             "directory_metadata": deep_res.get("directory_metadata", {}),
@@ -319,27 +372,45 @@ async def execute_deep_search(payload: DeepSearchRequest, db: Session = Depends(
     # If attached to a prospect record, persist discoveries
     if prospect:
         updated = False
+        if result.get("contact_provenance"):
+            prospect.contact_provenance = json.dumps(result["contact_provenance"])
+            updated = True
+        if result.get("identity_verification"):
+            prospect.identity_status = result["identity_verification"]["status"]
+            prospect.identity_evidence = json.dumps(result["identity_verification"])
+            updated = True
+        if result.get("social_matches"):
+            prospect.social_profiles = json.dumps(result["social_matches"])
+            updated = True
+
         if result.get("primary_email") and not prospect.email:
             prospect.email = result["primary_email"]
             updated = True
             
-            # Update pending drafts
-            drafts = db.query(EmailDraftModel).filter(
-                EmailDraftModel.prospect_id == prospect.id,
-                EmailDraftModel.status.in_(["draft", "needs_review"])
-            ).all()
-            for d in drafts:
-                if not d.recipient_email or not d.recipient_email.strip():
-                    d.recipient_email = result["primary_email"]
+            # Safe draft promotion: only promote if contact is corroborated or provider verified
+            is_trustworthy = result.get("contact_provenance", {}).get("status") in ("official_source", "corroborated", "provider_verified")
+            if is_trustworthy:
+                drafts = db.query(EmailDraftModel).filter(
+                    EmailDraftModel.prospect_id == prospect.id,
+                    EmailDraftModel.status.in_(["draft", "needs_review"])
+                ).all()
+                for d in drafts:
+                    if not d.recipient_email or not d.recipient_email.strip():
+                        d.recipient_email = result["primary_email"]
 
         if result.get("phone") and not prospect.phone:
             prospect.phone = result["phone"]
             updated = True
 
         if result.get("discovered_website") and not prospect.website_url:
-            prospect.website_url = result["discovered_website"]
-            prospect.website_status = "active"
-            updated = True
+            id_status = result.get("identity_verification", {}).get("status")
+            if id_status in ("verified", "likely_match"):
+                prospect.website_url = result["discovered_website"]
+                prospect.website_status = "active"
+                updated = True
+            elif id_status == "conflicting":
+                prospect.website_status = "conflicting"
+                updated = True
 
         if updated:
             db.commit()

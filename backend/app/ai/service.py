@@ -40,6 +40,19 @@ from backend.app.ai.providers import (
 
 logger = logging.getLogger("leddro.ai")
 
+def _safe_json_dict(value) -> Dict[str, Any]:
+    """Parses a JSON text column into a dict; returns {} on missing/invalid data."""
+    import json as _json
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = _json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
 def _persist_to_env_file(filepath: str, updates: Dict[str, str]):
     if not os.path.exists(filepath):
         return
@@ -415,7 +428,10 @@ class AIEmailDraftingService:
             "email": prospect.email,
             "source_provider": prospect.source_provider,
             "tags": prospect.tags,
-            "notes": prospect.notes
+            "notes": prospect.notes,
+            "identity_status": getattr(prospect, "identity_status", None) or "not_checked",
+            "contact_provenance": _safe_json_dict(getattr(prospect, "contact_provenance", None)),
+            "social_profiles": _safe_json_dict(getattr(prospect, "social_profiles", None)),
         }
 
         audit_dict = None
@@ -594,7 +610,10 @@ class AIEmailDraftingService:
             "email": prospect.email,
             "source_provider": prospect.source_provider,
             "tags": prospect.tags,
-            "notes": prospect.notes
+            "notes": prospect.notes,
+            "identity_status": getattr(prospect, "identity_status", None) or "not_checked",
+            "contact_provenance": _safe_json_dict(getattr(prospect, "contact_provenance", None)),
+            "social_profiles": _safe_json_dict(getattr(prospect, "social_profiles", None)),
         }
 
         audit_dict = None

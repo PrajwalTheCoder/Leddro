@@ -672,17 +672,47 @@ class AuditEngine:
                     "checked_url": current_url
                 })
 
-            if ttfb_ms > 2000:
+            ttfb_probes = [ttfb_ms]
+            probe_errors: List[str] = []
+            if 200 <= status < 300 and ttfb_ms > 0:
+                extra, probe_errors = await self._measure_extra_ttfb_probes(current_url, headers, count=2)
+                ttfb_probes.extend(extra)
+            probes_complete = len(ttfb_probes) >= 3
+            sorted_probes = sorted(ttfb_probes)
+            median_ttfb = sorted_probes[len(sorted_probes) // 2] if probes_complete else ttfb_ms
+            ttfb_summary = {
+                "probes_ms": ttfb_probes,
+                "median_ms": median_ttfb if probes_complete else None,
+                "complete": probes_complete,
+                "probe_errors": probe_errors,
+            }
+
+            if probes_complete and median_ttfb > 2000:
                 findings.append({
                     "id": f"f-ttfb-{int(time.time()*1000)}",
-                    "title": "Slow Time to First Byte (TTFB > 2.0s)",
+                    "title": "Slow Time to First Byte (median TTFB > 2.0s)",
                     "severity": "medium",
                     "check_status": "WARNING",
-                    "observed": f"The initial server response took {ttfb_ms} ms to begin sending bytes during a single probe measurement.",
-                    "evidence": f"TTFB: {ttfb_ms} ms (Single probe; recommended threshold: < 800 ms. Note: Subject to momentary network variance).",
+                    "observed": f"Median server response time across 3 sequential probes was {median_ttfb} ms.",
+                    "evidence": f"TTFB probes: {ttfb_probes} ms; median {median_ttfb} ms (recommended < 800 ms). Measured from the audit host only.",
                     "why_it_matters": "High latency before first byte triggers high bounce rates and penalizes Google Search ranking if sustained.",
-                    "recommended_action": "Corroborate latency across multiple geographic probes, then consider edge caching or CDN (e.g. Cloudflare) if TTFB remains elevated.",
+                    "recommended_action": "Consider edge caching or a CDN (e.g. Cloudflare) and corroborate from other regions.",
                     "confidence": 0.85,
+                    "category": "performance",
+                    "response_time_ms": median_ttfb,
+                    "checked_url": current_url
+                })
+            elif not probes_complete and ttfb_ms > 2000:
+                findings.append({
+                    "id": f"f-ttfb-{int(time.time()*1000)}",
+                    "title": "Slow first response observed (incomplete TTFB measurement)",
+                    "severity": "low",
+                    "check_status": "WARNING",
+                    "observed": f"One probe measured {ttfb_ms} ms, but only {len(ttfb_probes)} of 3 probes completed, so latency is not confirmed as consistently slow.",
+                    "evidence": f"TTFB probes: {ttfb_probes} ms (incomplete). Probe errors: {probe_errors or 'none'}. Subject to transient network variance.",
+                    "why_it_matters": "A single slow response may be transient and should not be reported as a persistent defect.",
+                    "recommended_action": "Re-run the audit before drawing conclusions about server latency.",
+                    "confidence": 0.4,
                     "category": "performance",
                     "response_time_ms": ttfb_ms,
                     "checked_url": current_url
@@ -691,7 +721,8 @@ class AuditEngine:
             return {
                 "status_code": status,
                 "final_url": current_url,
-                "ttfb_ms": ttfb_ms,
+                "ttfb_ms": median_ttfb,
+                "ttfb_summary": ttfb_summary,
                 "headers": resp_headers,
                 "body": body_content,
                 "findings": findings
@@ -705,6 +736,37 @@ class AuditEngine:
             "body": "",
             "findings": findings
         }
+
+    async def _measure_extra_ttfb_probes(self, url: str, headers: Dict[str, str], count: int = 2):
+        """
+        Runs up to `count` additional sequential time-to-first-byte probes against the final URL.
+        Each probe re-validates the target against SSRF rules, does not follow redirects, closes the
+        stream right after response headers arrive, and uses the audit timeouts. Failures are recorded,
+        never fabricated. Returns (measurements_ms, error_strings).
+        """
+        results: List[int] = []
+        errors: List[str] = []
+        for _ in range(count):
+            try:
+                is_safe, err, parsed, ips = validate_target_url(url)
+                if not is_safe:
+                    errors.append(f"blocked: {err}")
+                    break
+                transport = SSRFProtectedTransport()
+                port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                if ips:
+                    transport.pinned_backend.pin_destination(parsed.hostname, port, ips[0])
+                async with httpx.AsyncClient(transport=transport, follow_redirects=False, timeout=settings.AUDIT_READ_TIMEOUT) as client:
+                    start = time.time()
+                    async with client.stream("GET", url, headers=headers) as resp:
+                        elapsed = int((time.time() - start) * 1000)
+                        if 200 <= resp.status_code < 300:
+                            results.append(elapsed)
+                        else:
+                            errors.append(f"HTTP {resp.status_code}")
+            except Exception as e:
+                errors.append(type(e).__name__)
+        return results, errors
 
     def _inspect_html(self, html: str, url: str) -> List[Dict[str, Any]]:
         """Inspects HTML DOM for title, viewport, meta description, and internal critical links."""
