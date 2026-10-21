@@ -964,38 +964,10 @@ Research & Technical Auditing Lead`,
     confirmed: boolean;
   }): Promise<{ success: boolean; messageId?: string; provider?: string; error?: string }> => {
     try {
-      let isSimulated = false;
-      let data: any = null;
-
+      // 1. Explicit offline / mock mode fallback only when backend is recognized as offline
       if (backendOnline === false) {
-        isSimulated = true;
-      } else {
-        try {
-          const res = await fetch('/api/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              draft_id: payload.draftId,
-              recipient_email: payload.recipient,
-              subject: payload.subject,
-              body: payload.body,
-              confirmed: payload.confirmed
-            })
-          });
-
-          if (res.ok) {
-            data = await res.json();
-          } else {
-            isSimulated = true;
-          }
-        } catch {
-          isSimulated = true;
-        }
-      }
-
-      if (isSimulated) {
         await new Promise((r) => setTimeout(r, 600));
-        const messageId = 'demo-msg-' + Math.random().toString(36).substring(2, 10);
+        const demoMessageId = 'demo-msg-' + Math.random().toString(36).substring(2, 10);
         setEmailDrafts((prev) =>
           prev.map((d) => (d.id === payload.draftId ? { ...d, status: 'submitted', updatedAt: new Date().toISOString() } : d))
         );
@@ -1009,13 +981,73 @@ Research & Technical Auditing Lead`,
           date: 'Just now',
           status: 'sent',
           provider: 'Gmail API (OAuth 2.0)',
-          providerMessageId: messageId,
+          providerMessageId: demoMessageId,
           bodySnippet: payload.body.substring(0, 100) + '...',
           createdAt: new Date().toISOString()
         };
         setEmailHistory((prev) => [histItem, ...prev]);
-        addToast(`Proposal dispatched via demo gateway (Message ID: ${messageId})`, 'success');
-        return { success: true, messageId, provider: 'Gmail API (OAuth 2.0)' };
+        addToast(`Proposal dispatched via demo gateway (Message ID: ${demoMessageId})`, 'success');
+        return { success: true, messageId: demoMessageId, provider: 'Gmail API (OAuth 2.0)' };
+      }
+
+      // 2. Connected live backend dispatch
+      let res: Response;
+      try {
+        res = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            draft_id: payload.draftId,
+            recipient_email: payload.recipient,
+            subject: payload.subject,
+            body: payload.body,
+            confirmed: payload.confirmed
+          })
+        });
+      } catch (networkErr: any) {
+        // Live backend is unreachable
+        const errMsg = networkErr?.message || 'Network error: Backend server is unreachable.';
+        addToast(`Email dispatch failed: ${errMsg}`, 'error');
+        await refreshDrafts();
+        return { success: false, error: errMsg };
+      }
+
+      // 3. Handle live HTTP error response (never simulate success on backend error)
+      if (!res.ok) {
+        let errorDetail = `Backend dispatch failed (HTTP ${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData && (errData.detail || errData.message)) {
+            errorDetail = errData.detail || errData.message;
+          }
+        } catch {
+          const errText = await res.text().catch(() => '');
+          if (errText) errorDetail = errText;
+        }
+
+        const isUncertain = errorDetail.toLowerCase().includes('uncertain');
+        const toastType = res.status === 409 || isUncertain ? 'warning' : 'error';
+        addToast(errorDetail, toastType);
+        await refreshDrafts();
+        await fetchEmailDispatchStatus();
+        return { success: false, error: errorDetail };
+      }
+
+      const data = await res.json();
+
+      // Check if backend recorded an uncertain delivery outcome
+      if (data.status === 'uncertain') {
+        const warnMsg = data.message || 'Dispatch completed with uncertain delivery status. Please inspect your email provider Sent folder before retrying.';
+        addToast(warnMsg, 'warning');
+        await refreshDrafts();
+        await refreshEmailHistory();
+        await fetchEmailDispatchStatus();
+        return {
+          success: false,
+          messageId: data.gmail_message_id,
+          provider: data.provider || 'Gmail API',
+          error: warnMsg
+        };
       }
 
       const messageId = data.gmail_message_id;
@@ -1028,7 +1060,7 @@ Research & Technical Auditing Lead`,
       addToast(`Proposal accepted by ${provider} gateway (Message ID: ${messageId})`, 'success');
       return { success: true, messageId, provider };
     } catch (err: any) {
-      const errMsg = err.message || 'Network error dispatching email';
+      const errMsg = err.message || 'Unexpected error dispatching email';
       addToast(errMsg, 'error');
       await refreshDrafts();
       return { success: false, error: errMsg };

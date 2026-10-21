@@ -55,9 +55,10 @@ def check_single_duplicate(
         # Avoid matching generic public hosts
         generic_hosts = {"gmail.com", "yahoo.com", "outlook.com", "facebook.com", "instagram.com", "linkedin.com", "twitter.com", "x.com"}
         if candidate_domain not in generic_hosts:
-            # Query prospects with website_url
+            safe_domain = candidate_domain.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            # Query only prospects whose website_url contains the candidate domain (eliminates full-table scan)
             prospects_with_url = db.query(ProspectModel).filter(
-                ProspectModel.website_url.isnot(None)
+                ProspectModel.website_url.ilike(f"%{safe_domain}%", escape="\\")
             ).all()
             for p in prospects_with_url:
                 p_domain = extract_registered_domain(p.website_url)
@@ -73,8 +74,14 @@ def check_single_duplicate(
     # 3. Check by Business Name and Location
     norm_candidate_name = normalize_business_name(name)
     if norm_candidate_name and len(norm_candidate_name) >= 3:
-        # Search candidate names
-        potential_matches = db.query(ProspectModel).all()
+        # Efficiently pre-filter candidates by significant name token instead of full-table scan
+        tokens = [t for t in norm_candidate_name.split() if len(t) >= 2]
+        best_token = max(tokens, key=len) if tokens else norm_candidate_name[:3]
+        safe_token = best_token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+        potential_matches = db.query(ProspectModel).filter(
+            ProspectModel.name.ilike(f"%{safe_token}%", escape="\\")
+        ).all()
         candidate_city = (city or "").strip().lower()
 
         for p in potential_matches:

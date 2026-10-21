@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import dns.resolver
 
 from backend.app.core.config import settings
-from backend.app.services.ssrf_validator import validate_target_url
+from backend.app.services.ssrf_validator import validate_target_url, safe_http_get
 
 logger = logging.getLogger("leddro.services.email_scraper")
 
@@ -21,7 +21,7 @@ JUNK_EXTENSIONS = {
 
 JUNK_DOMAINS = {
     "example.com", "example.org", "domain.com", "yourcompany.com",
-    "placeholder.com", "email.com", "sentry.io", "wixpress.com",
+    "company.com", "placeholder.com", "email.com", "sentry.io", "wixpress.com",
     "w3.org", "schema.org", "gravatar.com", "wordpress.org"
 }
 
@@ -47,7 +47,7 @@ def is_valid_email_candidate(email: str) -> bool:
     if domain in JUNK_DOMAINS or domain.startswith("sentry-") or "sentry" in domain:
         return False
         
-    if user in {"name", "user", "username", "yourname", "test", "admin@localhost"}:
+    if user in {"name", "user", "username", "yourname", "you", "test", "admin@localhost"}:
         return False
         
     return True
@@ -161,45 +161,42 @@ async def scrape_website_contacts(url: str, max_pages: int = 3) -> Dict[str, Any
     visited_urls: List[str] = []
     contact_subpage_links: Set[str] = set()
 
-    transport = httpx.AsyncHTTPTransport(retries=1)
-    async with httpx.AsyncClient(transport=transport, timeout=7.0, follow_redirects=True) as client:
-        # 1. Fetch homepage
+    # 1. Fetch homepage safely with manual redirect SSRF checks
+    success, resp, err_msg = await safe_http_get(url, headers=headers, timeout=7.0)
+    if not success or not resp:
+        logger.warning(f"Error fetching homepage {url}: {err_msg}")
+    else:
+        visited_urls.append(str(resp.url))
+        if resp.status_code == 200:
+            contacts = extract_contacts_from_html(resp.text, str(resp.url))
+            all_emails.update(contacts["emails"])
+            all_phones.update(contacts["phones"])
+
+            # Look for contact / about subpage links
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for a in soup.find_all("a", href=True):
+                href = a["href"].strip()
+                href_lower = href.lower()
+                if any(slug in href_lower for slug in ["contact", "about", "reach-us", "touch", "location"]):
+                    sub_url = urljoin(str(resp.url), href)
+                    parsed_sub = urlparse(sub_url)
+                    if parsed_sub.hostname == domain and sub_url not in visited_urls:
+                        contact_subpage_links.add(sub_url)
+
+    # 2. Fetch contact subpages (up to max_pages) safely
+    subpage_list = list(contact_subpage_links)[:max_pages - 1]
+    for sub_url in subpage_list:
+        if sub_url in visited_urls:
+            continue
         try:
-            resp = await client.get(url, headers=headers)
-            visited_urls.append(str(resp.url))
-            if resp.status_code == 200:
-                contacts = extract_contacts_from_html(resp.text, str(resp.url))
+            visited_urls.append(sub_url)
+            sub_success, sub_resp, sub_err = await safe_http_get(sub_url, headers=headers, timeout=7.0)
+            if sub_success and sub_resp and sub_resp.status_code == 200:
+                contacts = extract_contacts_from_html(sub_resp.text, str(sub_resp.url))
                 all_emails.update(contacts["emails"])
                 all_phones.update(contacts["phones"])
-
-                # Look for contact / about subpage links
-                soup = BeautifulSoup(resp.text, "html.parser")
-                for a in soup.find_all("a", href=True):
-                    href = a["href"].strip()
-                    href_lower = href.lower()
-                    if any(slug in href_lower for slug in ["contact", "about", "reach-us", "touch", "location"]):
-                        sub_url = urljoin(str(resp.url), href)
-                        parsed_sub = urlparse(sub_url)
-                        if parsed_sub.hostname == domain and sub_url not in visited_urls:
-                            contact_subpage_links.add(sub_url)
         except Exception as e:
-            logger.warning(f"Error fetching homepage {url}: {e}")
-
-        # 2. Fetch contact subpages (up to max_pages)
-        subpage_list = list(contact_subpage_links)[:max_pages - 1]
-        for sub_url in subpage_list:
-            is_sub_safe, _, _, _ = validate_target_url(sub_url)
-            if not is_sub_safe or sub_url in visited_urls:
-                continue
-            try:
-                visited_urls.append(sub_url)
-                sub_resp = await client.get(sub_url, headers=headers)
-                if sub_resp.status_code == 200:
-                    contacts = extract_contacts_from_html(sub_resp.text, str(sub_resp.url))
-                    all_emails.update(contacts["emails"])
-                    all_phones.update(contacts["phones"])
-            except Exception as e:
-                logger.warning(f"Error fetching subpage {sub_url}: {e}")
+            logger.warning(f"Error fetching subpage {sub_url}: {e}")
 
     # 3. Validate MX records for candidate emails
     verified_emails = []

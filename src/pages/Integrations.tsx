@@ -643,7 +643,7 @@ export const Integrations: React.FC = () => {
                           onChange={(e) => setSelectedModel({ ...selectedModel, [p.provider_id]: e.target.value })}
                           className="bg-[#111214] border border-[#2B2F36] rounded px-2.5 py-1.5 text-[12px] font-mono text-[#F3F4F6] focus:outline-none focus:border-[#D8E7A2]"
                         >
-                          {p.available_models.map((m) => (
+                          {Array.from(new Set(p.available_models || [])).map((m) => (
                             <option key={m} value={m} className="bg-[#181A1D]">
                               {m}
                             </option>

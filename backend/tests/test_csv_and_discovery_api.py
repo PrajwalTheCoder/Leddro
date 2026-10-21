@@ -218,3 +218,190 @@ def test_discovery_search_and_save_workflow(client, db_session):
             run_2 = search_res_2.json()
             assert run_2["results"][0]["is_saved"] is True
             assert run_2["results"][0]["matched_existing_id"] == in_db.id
+
+def test_deduplication_matching_semantics_and_edge_cases(db_session):
+    """
+    Regression test for Finding 3:
+    Verifies that the optimized deduplication queries preserve 100% of matching semantics:
+    - Provider record ID
+    - Registered domain normalization
+    - Generic host avoidance
+    - Business name normalization (suffix removal, whitespace, punctuation)
+    - Locality separation (different cities not merged)
+    - Blank city edge-case matching
+    """
+    # 1. Seed base prospects
+    p1 = ProspectModel(
+        id="pros_seed_1",
+        name="Apex Industrial Logistics Ltd.",
+        city="Atlanta",
+        state="Georgia",
+        country="USA",
+        website_url="https://www.apex-logistics.com/about",
+        source_provider="osm",
+        source_record_id="node/1001",
+        opportunity_score=75
+    )
+    p2 = ProspectModel(
+        id="pros_seed_2",
+        name="Generic Freelancer",
+        city="Seattle",
+        website_url="https://gmail.com",
+        opportunity_score=50
+    )
+    p3 = ProspectModel(
+        id="pros_seed_3",
+        name="Omni National Corp",
+        city="",
+        opportunity_score=60
+    )
+    db_session.add_all([p1, p2, p3])
+    db_session.commit()
+
+    # Case A: Provider ID match
+    match_prov = check_single_duplicate(
+        db=db_session,
+        name="Completely Different Name",
+        source_provider="osm",
+        source_record_id="node/1001"
+    )
+    assert match_prov is not None
+    assert match_prov.match_type == "record_id"
+    assert match_prov.existing_id == "pros_seed_1"
+
+    # Case B: Registered domain match (with different scheme & www)
+    match_domain = check_single_duplicate(
+        db=db_session,
+        name="Apex Log",
+        website_url="http://apex-logistics.com/contact-us"
+    )
+    assert match_domain is not None
+    assert match_domain.match_type == "domain"
+    assert match_domain.existing_id == "pros_seed_1"
+
+    # Case C: Generic domain avoidance (gmail.com should NOT trigger domain match)
+    match_generic = check_single_duplicate(
+        db=db_session,
+        name="Another Freelancer",
+        website_url="https://gmail.com"
+    )
+    assert match_generic is None
+
+    # Case D: Business name match with same city (suffix stripping: Inc. vs Ltd.)
+    match_name_city = check_single_duplicate(
+        db=db_session,
+        name="Apex Industrial Logistics Inc.",
+        city="Atlanta"
+    )
+    assert match_name_city is not None
+    assert match_name_city.match_type == "name_location"
+    assert match_name_city.existing_id == "pros_seed_1"
+
+    # Case E: Business name match with DIFFERENT city (must NOT merge branches)
+    match_diff_city = check_single_duplicate(
+        db=db_session,
+        name="Apex Industrial Logistics Inc.",
+        city="Chicago"
+    )
+    assert match_diff_city is None
+
+    # Case F: Both cities blank matches
+    match_blank_cities = check_single_duplicate(
+        db=db_session,
+        name="Omni National LLC",
+        city=""
+    )
+    assert match_blank_cities is not None
+    assert match_blank_cities.match_type == "name_location"
+    assert match_blank_cities.existing_id == "pros_seed_3"
+
+    # Case G: Candidate city provided but database city blank does NOT match
+    match_city_blank_db = check_single_duplicate(
+        db=db_session,
+        name="Omni National LLC",
+        city="Denver"
+    )
+    assert match_city_blank_db is None
+
+def test_deduplication_performance_benchmark(db_session):
+    """
+    Performance benchmark for Finding 3:
+    Seeds 500 prospects in SQLite and runs 50 duplicate checks
+    (20 expected duplicates, 30 unique).
+    Measures duration and asserts 100% accuracy and high throughput.
+    """
+    import time
+
+    # Seed 500 prospects
+    bulk_prospects = []
+    for i in range(500):
+        bulk_prospects.append(
+            ProspectModel(
+                id=f"pros_perf_{i}",
+                name=f"Enterprise Solutions {i} Inc",
+                city=f"City_{i % 20}",
+                state="State",
+                country="Country",
+                website_url=f"https://www.enterprise-solutions-{i}.io",
+                source_provider="bulk_seed",
+                source_record_id=f"seed_{i}",
+                opportunity_score=60
+            )
+        )
+    db_session.bulk_save_objects(bulk_prospects)
+    db_session.commit()
+
+    # Prepare 50 candidates: 20 duplicates, 30 non-duplicates
+    candidates = []
+    for i in range(20):
+        # 10 duplicate by domain, 10 duplicate by name + city
+        if i < 10:
+            candidates.append({
+                "name": f"Alt Name {i}",
+                "website_url": f"http://enterprise-solutions-{i}.io/contact",
+                "city": "Unknown",
+                "expected_dupe": True,
+                "expected_id": f"pros_perf_{i}"
+            })
+        else:
+            candidates.append({
+                "name": f"Enterprise Solutions {i} LLC",
+                "website_url": "https://different-domain.org",
+                "city": f"City_{i % 20}",
+                "expected_dupe": True,
+                "expected_id": f"pros_perf_{i}"
+            })
+
+    for i in range(30):
+        candidates.append({
+            "name": f"Completely Unique Company {i} Corp",
+            "website_url": f"https://unique-firm-{i}.com",
+            "city": f"NewCity_{i}",
+            "expected_dupe": False,
+            "expected_id": None
+        })
+
+    # Benchmark execution time
+    start_time = time.perf_counter()
+    dupe_count = 0
+    for cand in candidates:
+        match = check_single_duplicate(
+            db=db_session,
+            name=cand["name"],
+            website_url=cand["website_url"],
+            city=cand["city"]
+        )
+        if cand["expected_dupe"]:
+            assert match is not None, f"Failed to detect duplicate for {cand['name']}"
+            assert match.existing_id == cand["expected_id"]
+            dupe_count += 1
+        else:
+            assert match is None, f"False duplicate detected for {cand['name']}"
+
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    ops_per_sec = len(candidates) / (elapsed_ms / 1000)
+
+    assert dupe_count == 20
+    # On modern CPU, 50 queries with indexed/targeted LIKE should execute in under 500ms
+    assert elapsed_ms < 1000, f"Deduplication benchmark took too long: {elapsed_ms:.2f}ms"
+    print(f"\n[DEDUPLICATION BENCHMARK] 50 candidates against 500 DB prospects took {elapsed_ms:.2f}ms ({ops_per_sec:.1f} checks/sec). 100% accuracy verified.")

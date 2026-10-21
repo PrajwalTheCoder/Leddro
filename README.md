@@ -594,11 +594,13 @@ To use cloud-hosted serverless PostgreSQL with Neon:
 ## 🛡️ Privacy, Security, and Responsible Use
 
 - **Local-First Boundary**: Secrets (`.env`, encryption keys, SQLite database) are never committed to version control and are ignored by `.gitignore`.
-- **SSRF Defenses**: The audit crawler validates every target domain against DNS rebinding, private IP subnets (`127.0.0.0/8`, `10.0.0.0/8`, `192.168.0.0/16`, `172.16.0.0/12`), and cloud metadata endpoints (`169.254.169.254`).
+- **Connection-Level SSRF Protection & IP Pinning**: Outbound audit probes enforce destination IP pinning at the socket connection level via custom `PinnedAsyncNetworkBackend` (`httpcore`) and `SSRFProtectedTransport` (`httpx`). Target hostnames are resolved and checked against comprehensive prohibited CIDR ranges (RFC 1918 private subnets, RFC 3927 link-local, loopback `127.0.0.0/8`, IPv6 link-local `fe80::/10`, multicast, IPv4-mapped IPv6 `::ffff:0:0/96`, and cloud metadata `169.254.169.254`). The actual TCP connection is pinned to the validated IP, eliminating time-of-check-to-time-of-use (TOCTOU) DNS rebinding attacks while strictly preserving standard TLS Server Name Indication (SNI), TLS certificate hostname verification, and the HTTP `Host` header.
+- **Hop-by-Hop Redirect Revalidation**: Redirects are followed individually (`max_redirects=5`) with each hop's destination re-resolved and security-checked before connecting. Cross-origin sensitive headers (`Authorization`, `Cookie`) are automatically stripped across origins.
+- **Resource and Memory Protection**: Streaming responses are strictly bounded to 5MB (`max_bytes=5242880`) to prevent memory exhaustion from massive bodies or decompression bombs. Transport connections disable keepalive reuse across audit targets (`max_keepalive_connections=0`) to eliminate connection-pool reuse poisoning.
 - **Prompt-Injection Defense**: Model prompts enclose untrusted crawled pages and business names in strict `<untrusted_prospect_data>` XML tags.
-- **Strictly Single-Message Dispatch**: Leddro contains zero mass-mail sequences or automated dispatch triggers. Approving an email draft updates review status in SQLite only; dispatch requires explicit confirmation.
+- **Strictly Single-Message Dispatch**: Leddro contains zero mass-mail sequences or automated dispatch triggers. Approving an email draft updates review status in SQLite only; dispatch requires explicit human confirmation.
 - **Suppression Registry**: Recipient emails and domains are verified against `suppression_records` to prevent messaging unsubscribed contacts.
-- **Single-User Development Disclaimer**: Leddro is built for single-operator local use and does not contain multi-tenant user authentication. Do **not** expose the development server to untrusted public networks without reverse proxy authentication (e.g., HTTP Basic Auth or VPN).
+- **Known Limitations & Operational Boundaries**: Leddro is built for single-operator local use and does not contain multi-tenant user authentication. Probes restrict requests to allowed ports (`80`, `443`, `8080`, `8443`). Do **not** expose the development server to untrusted public networks without reverse proxy authentication (e.g., HTTP Basic Auth or VPN).
 - **Vulnerability Reporting**: See [SECURITY.md](SECURITY.md) for our coordinated vulnerability disclosure policy.
 
 ---
@@ -670,8 +672,11 @@ python -m pytest backend/tests/test_email_scraper.py -v
 # Run Google OAuth & SMTP dispatch test suite
 python -m pytest backend/tests/test_google_oauth_and_email.py -v
 
-# Run SSRF security validation test suite
+# Run SSRF security validation unit test suite (26 tests)
 python -m pytest backend/tests/test_ssrf_validator.py -v
+
+# Run real-socket SSRF connection-pinning integration test suite (8 tests)
+python -m pytest backend/tests/test_ssrf_real_network_integration.py -v
 
 # Run SQLite backup and recovery test suite
 python -m pytest backend/tests/test_backup_and_recovery.py -v

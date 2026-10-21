@@ -106,3 +106,90 @@ def test_audit_run_and_persistence(client):
         assert prospect_check["latestAuditId"] == report_id
         assert prospect_check["opportunityScore"] == 88
         assert prospect_check["websiteStatus"] == "active"
+
+def test_list_audits_eager_loading_no_n_plus_one(client, db_session):
+    """
+    Regression test for Finding 4:
+    Verify that GET /api/audits and GET /api/audits/prospect/{id} do NOT produce
+    N+1 queries when fetching multiple audit reports with findings.
+    With selectinload, finding retrieval is batched in a single IN query (O(1) queries).
+    """
+    from sqlalchemy import event
+    from backend.tests.conftest import test_engine
+    from backend.app.models.audit import AuditReportModel, AuditFindingModel
+    from backend.app.models.prospect import ProspectModel
+
+    # Seed parent prospect first to satisfy FK constraint
+    pros = ProspectModel(
+        id="pros_test_batch",
+        name="Batch Test Prospect",
+        website_url="https://example0.com",
+        opportunity_score=50
+    )
+    db_session.add(pros)
+    db_session.flush()
+
+    # Seed 5 audits, each with 3 findings
+    for i in range(5):
+        rep = AuditReportModel(
+            id=f"aud_batch_{i}",
+            url=f"https://example{i}.com",
+            timestamp="2026-10-21 12:00 UTC",
+            status="completed",
+            overall_score=80 + i,
+            prospect_id="pros_test_batch"
+        )
+        db_session.add(rep)
+        for j in range(3):
+            finding = AuditFindingModel(
+                id=f"f_batch_{i}_{j}",
+                audit_report_id=rep.id,
+                title=f"Finding {j} for audit {i}",
+                severity="medium",
+                check_status="WARNING",
+                observed="Observed detail",
+                evidence="Evidence detail",
+                confidence=1.0,
+                category="reachability"
+            )
+            db_session.add(finding)
+    db_session.commit()
+
+    queries = []
+    def capture_queries(conn, cursor, statement, parameters, context, executemany):
+        queries.append(statement)
+
+    event.listen(test_engine, "before_cursor_execute", capture_queries)
+    try:
+        res = client.get("/api/audits")
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data) >= 5
+        # Ensure all 3 findings per audit report are returned in the response
+        batch_reports = [r for r in data if r["id"].startswith("aud_batch_")]
+        assert len(batch_reports) == 5
+        for rep in batch_reports:
+            assert len(rep["findings"]) == 3
+
+        # Exactly 2 SELECT queries should be executed:
+        # 1. SELECT audit_reports ...
+        # 2. SELECT audit_findings ... WHERE audit_findings.audit_report_id IN (...)
+        select_queries = [q for q in queries if q.strip().upper().startswith("SELECT")]
+        assert len(select_queries) == 2, f"Expected 2 queries with selectinload, got {len(select_queries)}: {select_queries}"
+    finally:
+        event.remove(test_engine, "before_cursor_execute", capture_queries)
+
+    # Test prospect-filtered audits also eagerly loads without N+1
+    queries.clear()
+    event.listen(test_engine, "before_cursor_execute", capture_queries)
+    try:
+        res = client.get("/api/audits/prospect/pros_test_batch")
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data) == 5
+        for rep in data:
+            assert len(rep["findings"]) == 3
+        select_queries = [q for q in queries if q.strip().upper().startswith("SELECT")]
+        assert len(select_queries) == 2, f"Expected 2 queries with selectinload, got {len(select_queries)}: {select_queries}"
+    finally:
+        event.remove(test_engine, "before_cursor_execute", capture_queries)

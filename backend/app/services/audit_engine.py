@@ -9,7 +9,12 @@ import dns.resolver
 from typing import Dict, Any, List, Optional, Tuple
 
 from backend.app.core.config import settings
-from backend.app.services.ssrf_validator import validate_target_url
+from backend.app.services.ssrf_validator import (
+    validate_target_url,
+    SSRFProtectedTransport,
+    connect_safe_tls_socket,
+    SSRFSecurityError
+)
 from backend.app.services.email_scraper import extract_contacts_from_html, verify_email_mx
 
 class AuditEngine:
@@ -184,6 +189,38 @@ class AuditEngine:
         except Exception:
             pass
 
+        # Subdomain fallback: If SPF or DMARC not on subdomain (e.g. www.domain.com),
+        # query organizational / apex domain per RFC 7489 Section 6.6.3
+        parts = domain.split(".")
+        base_domain = None
+        if len(parts) > 2 and parts[0].lower() == "www":
+            base_domain = ".".join(parts[1:])
+        elif len(parts) > 2:
+            base_domain = ".".join(parts[-2:])
+
+        if base_domain and base_domain != domain:
+            if not spf_found:
+                try:
+                    base_txt = resolver.resolve(base_domain, "TXT")
+                    for rdata in base_txt:
+                        txt_str = "".join([part.decode("utf-8", errors="ignore") for part in rdata.strings])
+                        if "v=spf1" in txt_str.lower():
+                            spf_found = True
+                            break
+                except Exception:
+                    pass
+
+            if not dmarc_found:
+                try:
+                    base_dmarc = resolver.resolve(f"_dmarc.{base_domain}", "TXT")
+                    for rdata in base_dmarc:
+                        dmarc_str = "".join([part.decode("utf-8", errors="ignore") for part in rdata.strings])
+                        if "v=dmarc1" in dmarc_str.lower():
+                            dmarc_found = True
+                            break
+                except Exception:
+                    pass
+
         query_ms = int((time.time() - dns_start) * 1000)
 
         # Evidence evaluation
@@ -275,76 +312,75 @@ class AuditEngine:
         """Connects via SSL socket to evaluate certificate validity, cipher, and expiration."""
         findings = []
         try:
-            ctx = ssl.create_default_context()
-            with socket.create_connection((domain, port), timeout=settings.AUDIT_CONNECT_TIMEOUT) as sock:
-                with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
-                    cert = ssock.getpeercert()
-                    tls_version = ssock.version()
-                    cipher_tuple = ssock.cipher()
-                    cipher_name = cipher_tuple[0] if cipher_tuple else "Unknown"
+            ssock, pinned_ip = connect_safe_tls_socket(domain, port=port, timeout=settings.AUDIT_CONNECT_TIMEOUT)
+            with ssock:
+                cert = ssock.getpeercert()
+                tls_version = ssock.version()
+                cipher_tuple = ssock.cipher()
+                cipher_name = cipher_tuple[0] if cipher_tuple else "Unknown"
 
-                    # Parse expiration date
-                    not_after_str = cert.get("notAfter", "")
-                    # Format: 'Apr 18 23:59:59 2026 GMT'
-                    not_after_dt = datetime.datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=datetime.timezone.utc)
-                    now_dt = datetime.datetime.now(datetime.timezone.utc)
-                    days_remaining = (not_after_dt - now_dt).days
+                # Parse expiration date
+                not_after_str = cert.get("notAfter", "")
+                # Format: 'Apr 18 23:59:59 2026 GMT'
+                not_after_dt = datetime.datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=datetime.timezone.utc)
+                now_dt = datetime.datetime.now(datetime.timezone.utc)
+                days_remaining = (not_after_dt - now_dt).days
 
-                    # Extract Issuer
-                    issuer_dict = dict(x[0] for x in cert.get("issuer", ()))
-                    issuer_name = issuer_dict.get("organizationName") or issuer_dict.get("commonName") or "Unknown CA"
+                # Extract Issuer
+                issuer_dict = dict(x[0] for x in cert.get("issuer", ()))
+                issuer_name = issuer_dict.get("organizationName") or issuer_dict.get("commonName") or "Unknown CA"
 
-                    if days_remaining < 0:
-                        findings.append({
-                            "id": f"f-ssl-exp-{int(time.time()*1000)}",
-                            "title": "SSL/TLS certificate has expired",
-                            "severity": "high",
-                            "check_status": "FAIL",
-                            "observed": f"The TLS certificate expired {abs(days_remaining)} days ago on {not_after_str}.",
-                            "evidence": f"Certificate Expiry: {not_after_str}\nCurrent Audit Time: {now_dt.strftime('%b %d %Y')}\nDays Remaining: {days_remaining}\nIssuer: {issuer_name}",
-                            "why_it_matters": "Browsers reject the connection with intimidating warning screens, preventing customers from accessing the site.",
-                            "recommended_action": "Renew the SSL/TLS certificate immediately via your hosting control panel or ACME bot.",
-                            "confidence": 1.0,
-                            "category": "security",
-                            "checked_url": f"https://{domain}"
-                        })
-                    elif days_remaining <= 14:
-                        findings.append({
-                            "id": f"f-ssl-warn-{int(time.time()*1000)}",
-                            "title": "SSL/TLS certificate expiring soon",
-                            "severity": "medium",
-                            "check_status": "WARNING",
-                            "observed": f"The TLS certificate expires in {days_remaining} days on {not_after_str}.",
-                            "evidence": f"Certificate Expiry: {not_after_str}\nDays Remaining: {days_remaining}",
-                            "why_it_matters": "Risk of unexpected outage if automated renewal triggers fail.",
-                            "recommended_action": "Verify automated renewal automation status before certificate reaches expiration.",
-                            "confidence": 0.98,
-                            "category": "security",
-                            "checked_url": f"https://{domain}"
-                        })
-                    else:
-                        findings.append({
-                            "id": f"f-ssl-pass-{int(time.time()*1000)}",
-                            "title": "Valid SSL/TLS certificate verified",
-                            "severity": "info",
-                            "check_status": "PASS",
-                            "observed": f"Valid TLS certificate issued by {issuer_name} with {days_remaining} days remaining.",
-                            "evidence": f"Issuer: {issuer_name}\nTLS Version: {tls_version}\nCipher: {cipher_name}\nDays Remaining: {days_remaining}",
-                            "why_it_matters": "Encryption protects customer data in transit and satisfies browser security requirements.",
-                            "recommended_action": "Certificate is healthy. No action required.",
-                            "confidence": 1.0,
-                            "category": "security",
-                            "checked_url": f"https://{domain}"
-                        })
+                if days_remaining < 0:
+                    findings.append({
+                        "id": f"f-ssl-exp-{int(time.time()*1000)}",
+                        "title": "SSL/TLS certificate has expired",
+                        "severity": "high",
+                        "check_status": "FAIL",
+                        "observed": f"The TLS certificate expired {abs(days_remaining)} days ago on {not_after_str}.",
+                        "evidence": f"Certificate Expiry: {not_after_str}\nCurrent Audit Time: {now_dt.strftime('%b %d %Y')}\nDays Remaining: {days_remaining}\nIssuer: {issuer_name}",
+                        "why_it_matters": "Browsers reject the connection with intimidating warning screens, preventing customers from accessing the site.",
+                        "recommended_action": "Renew the SSL/TLS certificate immediately via your hosting control panel or ACME bot.",
+                        "confidence": 1.0,
+                        "category": "security",
+                        "checked_url": f"https://{domain}"
+                    })
+                elif days_remaining <= 14:
+                    findings.append({
+                        "id": f"f-ssl-warn-{int(time.time()*1000)}",
+                        "title": "SSL/TLS certificate expiring soon",
+                        "severity": "medium",
+                        "check_status": "WARNING",
+                        "observed": f"The TLS certificate expires in {days_remaining} days on {not_after_str}.",
+                        "evidence": f"Certificate Expiry: {not_after_str}\nDays Remaining: {days_remaining}",
+                        "why_it_matters": "Risk of unexpected outage if automated renewal triggers fail.",
+                        "recommended_action": "Verify automated renewal automation status before certificate reaches expiration.",
+                        "confidence": 0.98,
+                        "category": "security",
+                        "checked_url": f"https://{domain}"
+                    })
+                else:
+                    findings.append({
+                        "id": f"f-ssl-pass-{int(time.time()*1000)}",
+                        "title": "Valid SSL/TLS certificate verified",
+                        "severity": "info",
+                        "check_status": "PASS",
+                        "observed": f"Valid TLS certificate issued by {issuer_name} with {days_remaining} days remaining.",
+                        "evidence": f"Issuer: {issuer_name}\nTLS Version: {tls_version}\nCipher: {cipher_name}\nDays Remaining: {days_remaining}",
+                        "why_it_matters": "Encryption protects customer data in transit and satisfies browser security requirements.",
+                        "recommended_action": "Certificate is healthy. No action required.",
+                        "confidence": 1.0,
+                        "category": "security",
+                        "checked_url": f"https://{domain}"
+                    })
 
-                    return {
-                        "valid": days_remaining >= 0,
-                        "issuer": issuer_name,
-                        "expiresDays": days_remaining,
-                        "tlsVersion": tls_version,
-                        "cipher": cipher_name,
-                        "findings": findings
-                    }
+                return {
+                    "valid": days_remaining >= 0,
+                    "issuer": issuer_name,
+                    "expiresDays": days_remaining,
+                    "tlsVersion": tls_version,
+                    "cipher": cipher_name,
+                    "findings": findings
+                }
         except Exception as e:
             err_msg = str(e)
             findings.append({
@@ -381,7 +417,7 @@ class AuditEngine:
         final_response = None
         body_content = ""
 
-        transport = httpx.AsyncHTTPTransport(retries=1)
+        transport = SSRFProtectedTransport()
         headers = {
             "User-Agent": settings.AUDIT_USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -391,7 +427,7 @@ class AuditEngine:
         async with httpx.AsyncClient(transport=transport, follow_redirects=False, timeout=settings.AUDIT_READ_TIMEOUT) as client:
             while redirect_hops <= settings.AUDIT_MAX_REDIRECTS:
                 # SSRF validation before every hop
-                is_safe, error_msg, parsed_hop, _ = validate_target_url(current_url)
+                is_safe, error_msg, parsed_hop, resolved_ips = validate_target_url(current_url)
                 if not is_safe:
                     findings.append({
                         "id": f"f-ssrf-hop-{int(time.time()*1000)}",
@@ -407,6 +443,10 @@ class AuditEngine:
                         "checked_url": current_url
                     })
                     break
+
+                hop_port = parsed_hop.port or (443 if parsed_hop.scheme == "https" else 80)
+                if resolved_ips:
+                    transport.pinned_backend.pin_destination(parsed_hop.hostname, hop_port, resolved_ips[0])
 
                 req_start = time.time()
                 try:
@@ -441,8 +481,37 @@ class AuditEngine:
                         # Check for redirect status
                         if resp.is_redirect and "Location" in resp.headers:
                             redirect_hops += 1
-                            target_loc = resp.headers["Location"]
-                            current_url = urljoin(current_url, target_loc)
+                            target_loc = resp.headers["Location"].strip()
+                            if not target_loc:
+                                break
+                            target_url = urljoin(current_url, target_loc)
+                            parsed_next = urlparse(target_url)
+                            if parsed_next.scheme.lower() not in ("http", "https"):
+                                findings.append({
+                                    "id": f"f-ssrf-scheme-{int(time.time()*1000)}",
+                                    "title": "Redirect hop targeted prohibited URI scheme",
+                                    "severity": "high",
+                                    "check_status": "FAIL",
+                                    "observed": f"Redirect to prohibited scheme '{parsed_next.scheme}' was blocked: {target_url}",
+                                    "evidence": f"Redirect Target: {target_url}\nBlocked By: SSRF Scheme Validator",
+                                    "why_it_matters": "Web servers must not redirect crawlers to non-HTTP protocols.",
+                                    "recommended_action": "Fix redirect rules to only route to public HTTP/HTTPS URLs.",
+                                    "confidence": 1.0,
+                                    "category": "security",
+                                    "checked_url": current_url
+                                })
+                                break
+
+                            # Cross-origin sensitive header stripping
+                            next_port = parsed_next.port or (443 if parsed_next.scheme == "https" else 80)
+                            if (
+                                parsed_hop.hostname.lower() != parsed_next.hostname.lower() or
+                                parsed_hop.scheme.lower() != parsed_next.scheme.lower() or
+                                hop_port != next_port
+                            ):
+                                headers = {k: v for k, v in headers.items() if k.lower() not in ("authorization", "cookie")}
+
+                            current_url = target_url
                             continue
                         else:
                             # Not a redirect, finished
@@ -462,20 +531,37 @@ class AuditEngine:
                         "checked_url": current_url
                     })
                     break
-                except httpx.ConnectError as e:
-                    findings.append({
-                        "id": f"f-conn-err-{int(time.time()*1000)}",
-                        "title": "TCP Connection refused or unreachable",
-                        "severity": "high",
-                        "check_status": "ERROR",
-                        "observed": f"Network error connecting to {current_url}: {str(e)}",
-                        "evidence": f"URL: {current_url}\nSocket Error: {str(e)}",
-                        "why_it_matters": "The target web server is offline or rejecting incoming HTTP traffic.",
-                        "recommended_action": "Verify web server process status (nginx/apache) and network connectivity.",
-                        "confidence": 1.0,
-                        "category": "reachability",
-                        "checked_url": current_url
-                    })
+                except (SSRFSecurityError, httpx.ConnectError) as e:
+                    err_str = str(e)
+                    is_ssrf_block = isinstance(e, SSRFSecurityError) or any(term in err_str.lower() for term in ["prohibited", "ssrf", "loopback", "security"])
+                    if is_ssrf_block:
+                        findings.append({
+                            "id": f"f-ssrf-block-{int(time.time()*1000)}",
+                            "title": "Outbound connection blocked by connection-level SSRF protection",
+                            "severity": "high",
+                            "check_status": "FAIL",
+                            "observed": f"SSRF transport blocked connection to {current_url}: {err_str}",
+                            "evidence": f"URL: {current_url}\nSSRF Defense: {err_str}",
+                            "why_it_matters": "Outbound traffic to private, internal, or prohibited destinations is strictly denied.",
+                            "recommended_action": "Ensure target host resolves to publicly routable IP addresses.",
+                            "confidence": 1.0,
+                            "category": "security",
+                            "checked_url": current_url
+                        })
+                    else:
+                        findings.append({
+                            "id": f"f-conn-err-{int(time.time()*1000)}",
+                            "title": "TCP Connection refused or unreachable",
+                            "severity": "high",
+                            "check_status": "ERROR",
+                            "observed": f"Network error connecting to {current_url}: {err_str}",
+                            "evidence": f"URL: {current_url}\nSocket Error: {err_str}",
+                            "why_it_matters": "The target web server is offline or rejecting incoming HTTP traffic.",
+                            "recommended_action": "Verify web server process status (nginx/apache) and network connectivity.",
+                            "confidence": 1.0,
+                            "category": "reachability",
+                            "checked_url": current_url
+                        })
                     break
                 except Exception as e:
                     findings.append({
